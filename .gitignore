@@ -1,0 +1,30 @@
+# Временные файлы
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
+*~
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Логи (если будут добавлены)
+log/
+*.log
+
+# Секретные данные
+.env
+.env.local
+
+# Кэш браузера
+.cache/
+

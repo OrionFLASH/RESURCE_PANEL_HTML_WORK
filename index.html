@@ -1,0 +1,1990 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ресурсная панель</title>
+    
+<style>
+:root {
+    --sber-green: #21A038;
+    --sber-light-green: #C2E834;
+    --sber-blue: #0067FF;
+    --sber-dark-bg: #17212b;      /* основной мягкий фон */
+    --sber-dark-bg2: #222e3a;     /* группы */
+    --sber-dark-border: #28394b;  /* бордеры */
+    --sber-dark-card: #243647;    /* фон кнопок и карт */
+    --sber-white: #fff;
+    --sber-gray-txt: #e8eef2;
+    --sber-black: #151515;
+    --sber-red: #F05228;
+    --sber-border: #3a556e;
+}
+
+body {
+    background: var(--sber-dark-bg);
+    color: var(--sber-gray-txt);
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+}
+.container {
+    width: 100%;
+    max-width: 2300px;
+    margin: 30px auto 0 auto;
+    padding: 18px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+.ios-title {
+    font-weight: 700;
+    color: var(--sber-light-green);
+    margin-bottom: 17px;
+    font-size: 40px;
+    background: linear-gradient(90deg, var(--sber-light-green) 60%, var(--sber-blue) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    user-select: none;
+    text-align: center;
+    letter-spacing: 4px;
+}
+.top-actions {
+    width: 100%;
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 18px;
+}
+.top-actions.stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 9px;
+    margin-bottom: 14px;
+}
+.groups-viewport {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    max-height: calc(100vh - 160px); /* вычитаем примерную высоту заголовка, кнопок и паддинги */
+    overflow-y: auto;
+}
+.groups-container {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+   /* grid-template-rows: repeat(2, 1fr); */
+    gap: 13px;
+    width: 100%;
+    min-height: 0;
+}
+.ios-group {
+    display: flex;
+    flex-direction: column;
+    background: var(--sber-dark-bg2);
+    border-radius: 19px;
+    box-shadow: 0 1.5px 9px rgba(33, 160, 56, 0.08);
+    border: 1.2px solid var(--sber-dark-border);
+    overflow: hidden;
+    min-width: 0;
+}
+.ios-group-header {
+    font-weight: 600;
+    font-size: 25px;
+    color: var(--sber-white);
+    padding: 13px 0;
+    background: linear-gradient(90deg, var(--sber-green) 60%, var(--sber-blue) 100%);
+    text-align: center;
+    user-select: none;
+}
+.ios-group-cards {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    background: transparent;
+    min-height: 0;
+    gap: 3px; /* Было больше, теперь почти нет интервала между ссылками */
+    padding-bottom: 2px;
+}
+.ios-card {
+    display: flex;
+    align-items: center;
+    background: var(--sber-dark-card);
+    color: var(--sber-light-green);
+    border: none;
+    border-radius: 13px;
+    margin: 7px 8px;
+    font-size: 12px !important;
+    min-height: 20px !important;
+    padding: 5px 7px 5px 10px !important;
+    font-weight: 500;
+    box-shadow: 0 0.5px 3px rgba(0, 103, 255, 0.09);
+    transition: background 0.12s, color 0.12s, box-shadow 0.15s;
+    text-decoration: none;
+    cursor: pointer;
+    position: relative;
+    justify-content: space-between;
+    outline: none;
+}
+.ios-card:hover, .ios-card:focus {
+    background: var(--sber-blue);
+    color: var(--sber-white);
+    box-shadow: 0 2px 7px rgba(33, 160, 56, 0.15);
+}
+.ios-card-title {
+    color: inherit;
+    font-weight: 500;
+    font-size: 20px;
+	letter-spacing: 2px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1 1 auto;
+}
+.ios-card-status {
+    margin-left: 13px;
+    width: 8.5px;
+    height: 8.5px;
+    border-radius: 50%;
+    font-size: 13px !important;
+    background: var(--sber-light-green);
+    border: 1px solid var(--sber-white);
+    box-shadow: 0 0.5px 2px rgba(33,160,56,0.13);
+}
+
+.ios-card-status {
+    display: none !important;
+}
+.ios-card-status.unavailable {
+    background: var(--sber-red);
+}
+
+.ios-card-title.unavailable {
+    color: #90a2b5 !important; /* светло-серый, хорошо виден на вашем фоне */
+    opacity: 0.55;
+    transition: color .18s, opacity .18s;
+}
+
+
+/* ==== Модалки (универсальные) ==== */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1050;
+    left: 0; top: 0; width: 100vw; height: 100vh;
+    background: rgba(23,33,43,0.85);
+    align-items: center; justify-content: center;
+    transition: background .22s;
+}
+.modal.show { display: flex; }
+.modal-content {
+    background: var(--sber-dark-bg2);
+    border-radius: 24px;
+    box-shadow: 0 8px 40px rgba(0,103,255,0.18);
+    border: 1.5px solid var(--sber-dark-border);
+    padding: 32px 32px 24px;
+    max-width: 520px;
+    width: 90vw;
+    animation: modalIn .23s cubic-bezier(.68,-0.55,.27,1.55);
+    color: var(--sber-white);
+}
+@keyframes modalIn {
+    from { opacity: 0; transform: scale(.98) translateY(40px);}
+    to   { opacity: 1; transform: scale(1)   translateY(0);}
+}
+.modal-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--sber-light-green);
+    margin-bottom: 18px;
+    letter-spacing: -1px;
+}
+.modal-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.modal-button, .export-button {
+    background: var(--sber-blue);
+    color: var(--sber-white);
+    border: none;
+    border-radius: 18px;
+    font-size: 17px;
+    font-weight: 600;
+    padding: 11px 22px;
+    box-shadow: 0 1px 6px rgba(0, 103, 255, 0.14);
+    cursor: pointer;
+    transition: background 0.13s, box-shadow 0.13s;
+    margin-top: 0;
+}
+.modal-button:hover, .export-button:hover {
+    background: var(--sber-green);
+    color: var(--sber-white);
+}
+#default-btn {
+    background: var(--sber-dark-border);
+    color: var(--sber-light-green);
+    border: 1px solid var(--sber-dark-card);
+}
+#default-btn:hover {
+    background: var(--sber-dark-card);
+}
+.modal-clear-btn {
+    background: var(--sber-red);
+    color: #fff;
+    border: none;
+    border-radius: 11px;
+    font-size: 18px;
+    margin-left: 8px;
+    padding: 0 13px;
+    transition: background 0.13s;
+}
+.modal-clear-btn:hover {
+    background: #c0392b;
+}
+input, textarea {
+    border-radius: 13px;
+    border: 1.5px solid var(--sber-dark-border);
+    font-size: 16px;
+    padding: 11px;
+    background: var(--sber-dark-card);
+    color: var(--sber-white);
+    margin-bottom: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+input:focus, textarea:focus {
+    border-color: var(--sber-light-green);
+    outline: none;
+    background: #26394a;
+    color: var(--sber-white);
+}
+.result-box {
+    background: var(--sber-dark-card);
+    border: 1.5px solid var(--sber-dark-border);
+    border-radius: 14px;
+    padding: 14px;
+    font-family: monospace;
+    font-size: 15px;
+    margin-top: 18px;
+    min-height: 68px;
+    color: var(--sber-light-green);
+    white-space: pre-wrap;
+}
+
+/* ==== Модалка генератора скрипта — увеличенная ==== */
+#scriptgen-modal .modal-content {
+    max-width: 1000px;
+    min-width: 540px;
+    width: 96vw;
+    min-height: 540px;
+    padding: 40px 40px 30px 40px;
+}
+#scriptgen-modal label {
+    display: block;
+    margin-top: 15px;
+    margin-bottom: 4px;
+    color: var(--sber-light-green);
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+}
+#scriptgen-modal input,
+#scriptgen-modal textarea {
+    background: var(--sber-dark-card);
+    border: 1.5px solid var(--sber-dark-border);
+    color: var(--sber-white);
+    width: 100%;
+    font-size: 16px;
+    padding: 10px;
+    border-radius: 11px;
+    margin-bottom: 0;
+    margin-top: 0;
+    box-sizing: border-box;
+}
+#scriptgen-modal input:focus,
+#scriptgen-modal textarea:focus {
+    border-color: var(--sber-light-green);
+    outline: none;
+    background: #26394a;
+    color: var(--sber-white);
+}
+#sg-result {
+    font-size: 13.5px;
+    min-height: 260px;
+    margin-top: 9px;
+    margin-bottom: 0;
+    background: var(--sber-dark-bg2);
+    border: 1.5px solid var(--sber-dark-border);
+    color: var(--sber-light-green);
+    border-radius: 11px;
+    resize: vertical;
+}
+#sg-copy-btn {
+    margin-top: 10px;
+}
+@media (max-width: 1200px) {
+    #scriptgen-modal .modal-content {
+        max-width: 96vw;
+        min-width: 0;
+        width: 98vw;
+        padding: 24px 8px 18px 8px;
+    }
+}
+
+/* ==== Прогресс-бар ==== */
+.progress-bar {
+    background: linear-gradient(90deg, var(--sber-green), var(--sber-blue));
+    height: 5px;
+    border-radius: 3px;
+}
+
+/* Стили для скрытого кода */
+.group-psi-footnote {
+  font-size: 13px;
+  color: #90a2b5;
+  user-select: text;
+  background: none;
+  margin-top: 0;
+  text-align: right;
+  padding: 0 16px 12px 16px;
+}
+.group-psi-footnote-code {
+  font-family: monospace;
+}
+
+
+/* ==== Адаптивная сетка ==== */
+@media (max-width: 1600px) {
+    .groups-container { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, 1fr);}
+}
+@media (max-width: 900px) {
+    .groups-container { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(5, 1fr);}
+}
+@media (max-width: 600px) {
+    .groups-container { grid-template-columns: 1fr; grid-template-rows: none;}
+    .ios-card { font-size: 13px; padding: 6px 4px 6px 8px; }
+}
+
+@media (max-height: 1100px) {
+  .ios-group-header { font-size: 21px; padding: 8px 0; }
+  .ios-card { font-size: 13px; padding: 7px 4px 7px 8px; }
+  .ios-card-title { font-size: 15px; }
+}
+
+@media (max-height: 850px) {
+  .ios-group-header { font-size: 16px; padding: 4px 0; }
+  .ios-card { font-size: 12px; padding: 4px 2px 4px 5px; }
+  .ios-card-title { font-size: 13px; }
+}
+
+
+</style>
+
+</head>
+<body>
+<div class="container">
+    <!--<h1 class="ios-title">Ресурсная панель</h1>-->
+    <!-- ===== Верхний блок действий (будет адаптивным) ===== -->
+    <!-- переделали на ссылки в 10 группе 
+    <div class="top-actions" id="top-actions">
+        <button id="open-permission-modal" class="modal-button"><span>🔍</span> Декодер permission</button>
+        <button id="open-role-modal" class="modal-button"><span>🔑</span> Проверка роли (ПСИ)</button>
+        <button id="open-scriptgen-modal" class="modal-button"><span>⚡️</span>LeadersForAdmin</button>
+        <button id="open-reward-modal" class="modal-button"><span>🏆</span> Reward</button>
+        <button id="open-news-modal" class="modal-button"><span>📃</span>News Details</button>
+        <button id="open-tn-modal" class="modal-button"><span>👤</span> Генератор по ТН</button>
+        <button id="open-dep-modal" class="modal-button"><span>🏢</span> Генератор по коду подразделения</button>
+        <button id="export-links-btn" class="export-button"><span>📄</span> Экспорт ссылок</button>
+    </div> -->
+    
+    <!-- ===== Прокручиваемая рабочая область ===== -->
+    <div class="groups-viewport">
+        <div class="groups-container">
+            <!-- Группа 1: Видеовстречи -->
+            <div class="ios-group">
+                <div class="ios-group-header group-1">Встречи (Jazz)</div>
+                <div class="ios-group-cards">
+                    <a href="https://jazz.sberbank.ru/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">SberJazz</span>
+                        
+                    </a>
+                    <a href="https://jazz.sberbank.ru/sber-7g5cqu?psw=OBUVBwADHB0IBRIRXxcLDgcPDw" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Дейли (Герои продаж)</span>
+                        
+                    </a>
+                    <a href="https://jazz.sberbank.ru/sber-gzdl5c?psw=OEcNEgsBXAZeVwoEVBVLFVFdFw" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ПКАП Встреча</span>
+                        
+                    </a>
+                    <a href="https://jazz.sberbank.ru/sber-jd9r1x?psw=OBoIEQsCHAVcCg8HVBYLFlMAEg" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ПКАП Сергей</span>
+                        
+                    </a>
+					<a href="https://jazz.sberbank.ru/sber-mnv6vl?psw=OEEKAUUdDBVeUQ0XGgkbBlFbEA" class="ios-card" target="_blank">
+                        <span class="ios-card-title">iMAC</span>
+                        
+                    </a>
+                </div>
+            </div>
+
+            <!-- Группа 2: Герои продаж (ПРОМ) -->
+            <div class="ios-group">
+                <div class="ios-group-header group-2">Герои продаж (PROM / PSI)</div>
+                <div class="ios-group-cards">
+                    <a href="https://efs-our-business-prom.omega.sbrf.ru/salesheroes/community" class="ios-card" target="_blank">
+                        <span class="ios-card-title">(PROM) ГП - Alpha</span>
+                        
+                    </a>
+                    <a href="https://salesheroes.sberbank.ru/salesheroes" class="ios-card" target="_blank">
+                        <span class="ios-card-title">(PROM) ГП - Sigma</span>
+                        
+                    </a>
+                    <a href="https://pvlos-sys000001.omega.sbrf.ru/SberDataCorr" class="ios-card" target="_blank">
+                        <span class="ios-card-title">(PROM) КАП</span>
+                        
+                    </a>
+    <a href="https://iam-enigma-psi.omega.sbrf.ru/" class="ios-card" id="psi-alpha-btn" target="_blank">
+      <span class="ios-card-title">(PSI) ГП - Alpha</span>
+      
+    </a>
+    <a href="https://salesheroes-psi.sigma.sbrf.ru/salesheroes" class="ios-card" target="_blank">
+      <span class="ios-card-title">(PSI) ГП - Sigma</span>
+      
+    </a>
+    <a href="https://tklos-sys000001.omega.sbrf.ru/SberDataCorr" class="ios-card" id="psi2-alpha-btn" target="_blank">
+      <span class="ios-card-title">(PSI) КАП</span>
+      
+    </a>
+    <a href="https://tvlos-sys000001.cloud.omega.sbrf.ru" class="ios-card" id="psi2-alpha-btn" target="_blank">
+      <span class="ios-card-title">(PSI) КАП (New)</span>
+      
+    </a>
+    <a href="https://ci02587203-psi-iam-proxy-client-geo.omega.sbrf.ru" class="ios-card" target="_blank">
+      <span class="ios-card-title">(PSI) Тенгри</span>
+    </a>
+ 	    <a href="https://ci02587203-iam-proxy-main.prom-29-30-apps.ocp-geo.ocp.ca.sbrf.ru/indicator-efs-empl/" class="ios-card" target="_blank">
+      <span class="ios-card-title">(PROM) Тенгри (Indicator)</span>
+    </a>
+	<a href="https://ci02587203-iam-proxy-main.prom-29-30-apps.ocp-geo.ocp.ca.sbrf.ru/indicator-efs-empl/a/logger/logs?orgId=1" class="ios-card" target="_blank">
+      <span class="ios-card-title">(PROM) Тенгри (Ulogger)</span>
+    </a>
+					<a href="https://ci02587203-prom-iam-proxy-main-geo.omega.sbrf.ru/indicator-efs-empl/a/logger/logs?orgId=6&from=now-15m&to=now" class="ios-card" target="_blank">
+      <span class="ios-card-title">(PROM) Тенгри (Base)</span>
+    </a>
+                </div>
+                <div class="group-psi-footnote">
+    <span class="group-psi-footnote-code">92863949</span>
+  </div>
+            </div>
+
+            <!-- Группа 3: Рабочее ПО -->
+            <div class="ios-group">
+                <div class="ios-group-header group-3">Рабочие программы</div>
+                <div class="ios-group-cards">
+                    <a href="https://sberchat.sberbank.ru/#/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">СберЧат</span>
+                        
+                    </a>
+                    <a href="https://addressbook/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Адресная книга</span>
+                        
+                    </a>
+                    <a href="https://servicemanager.omega.sbrf.ru/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Service Manager (Alpha)</span>
+                        
+                    </a>
+                    <a href="https://smd.omega.sbrf.ru/SberAccess/#/pa?tab=0" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Мои доступы (Alpha)</span>
+                        
+                    </a>
+                    <a href="https://hr.ca.sbrf.ru/platform/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Пульс (Alpha)</span>
+                        
+                    </a>
+                    
+                    <a href="https://clickstream-prom.ca.sbrf.ru/frontend/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Clickstream</span>
+                    </a>
+					<a href="https://cab-snp-cx00001.omega.sbrf.ru/" class="ios-card" id="citrix-alpha-btn" target="_blank">
+                        <span class="ios-card-title">Citrix Workspace</span>
+                    </a>
+					<a href="https://sberesm.omega.sbrf.ru/efs-ermops-static/app-ops_esm" class="ios-card" target="_blank">
+                        <span class="ios-card-title">SberESM</span>
+                    </a>
+                </div>
+				 <div class="group-psi-footnote">
+    <span class="group-psi-footnote-code">omega\01803187</span>
+  </div>
+            </div>
+
+            <!-- Группа 4: Герои продаж (ПСИ) -->
+            <div class="ios-group">
+  <div class="ios-group-header group-4">СУП</div>
+  <div class="ios-group-cards">
+                        <a href="https://iamproxy-prom-gfsk.ingress.apps.arqgec5q.k8s.ca.sbrf.ru/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">(PROM GF_SK) Редактирование СУП</span>
+                    </a>
+				  <a href="https://iamproxy-prom-gfmg.ingress.apps.arq6r3xx.k8s.ca.sbrf.ru/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">(PROM GF_MG) Редактирование СУП</span>
+                    </a>
+					<a href="https://iamproxy-psi-gfsk.ingress.apps.aq6omvfr.k8s.ca.sbrf.ru/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">(PSI) Редактирование СУП [EFSEMP-IAM-GF-SK]</span>
+                    </a>
+					<a href="https://iamproxy-psi-gfmg.ingress.apps.aq664prc.k8s.ca.sbrf.ru/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">(PSI) Редактирование СУП [EFSEMP-IAM-GF-MG]</span>
+                    </a>
+					<a href="https://iamproxy-psi-sbsk.ingress.apps.aq6jo46q.k8s.ca.sbrf.ru/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">(PSI) Редактирование СУП [EFSEMP-IAM-SB-SK]</span>
+                    </a>
+					<a href="https://iamproxy-psi-sbmg.ingress.apps.aq6655vb.k8s.ca.sbrf.ru/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">(PSI) Редактирование СУП [EFSEMP-IAM-SB-MG]</span>
+                    </a>
+                    <a href="https://confluence.sberbank.ru/pages/viewpage.action?pageId=12034673436" class="ios-card" target="_blank">
+                        <span class="ios-card-title">О управлении СУП пром</span>
+                        
+                    </a>
+                    <a href="https://confluence.sberbank.ru/pages/viewpage.action?pageId=11862715264" class="ios-card" target="_blank">
+                        <span class="ios-card-title">О доступе к управлению СУП пром</span>
+                        
+                    </a>
+  </div>
+  
+</div>
+
+
+            <!-- Группа 5: Герои продаж (IFT) -->
+            <div class="ios-group">
+                <div class="ios-group-header group-5">Герои продаж (IFT)</div>
+                <div class="ios-group-cards">
+                    <a href="https://iam-enigma-ift-sb.delta.sbrf.ru/salesheroes/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ИФТ СБ</span>
+                        
+                    </a>
+                    <a href="https://iam-enigma-ift.delta.sbrf.ru/salesheroes" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ИФТ ГФ</span>
+                        
+                    </a>
+                    <a href="https://salesheroes-sb.sigma.sbrf.ru/salesheroes" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ИФТ СБ Сигма</span>
+                        
+                    </a>
+                    <a href="https://salesheroes-gf.sigma.sbrf.ru/salesheroes" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ИФТ ГФ (Сигма)</span>
+                        
+                    </a>
+                    <a href="https://efs-ift-sb.delta.sbrf.ru/salesheroes" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ИФТ СБ (новый)</span>
+                        
+                    </a>
+                    <a href="https://efs-ift-gf.delta.sbrf.ru/salesheroes" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ИФТ ГФ (новый)</span>
+                        
+                    </a>
+	<a href="https://ctl-ift.qa.df.sbrf.ru:9080/#/sign-in" class="ios-card" id="ctl-sigma-btn" target="_blank">
+      <span class="ios-card-title">(ИФТ) Загрузка данных CTL</span>
+    </a>
+
+                </div>
+				<div class="group-psi-footnote">
+    <span class="group-psi-footnote-code">lakomkin-oo</span>
+  </div>
+            </div>
+
+            <!-- Группа 6: ВАРМ ЛД -->
+            <div class="ios-group">
+                <div class="ios-group-header group-6">Лаборатория данных</div>
+                <div class="ios-group-cards">
+                    <a href="https://vpokib.ca.sbrf.ru/main/hub/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">QS</span>
+                        
+                    </a>
+                    <a href="https://a-lz.omega.sbrf.ru" class="ios-card" id="varm-alpha-btn" target="_blank">
+                        <span class="ios-card-title">VARM LabZone Office Alpha i57z</span>
+                        
+                    </a>
+                    <a href="http://pklis-mvp003253.labiac.df.sbrf.ru:8888/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">HUE</span>
+                        
+                    </a>
+                    <a href="https://pklis-mvp003259.labiac.df.sbrf.ru:8000/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">JupyterHub</span>
+                        
+                    </a>
+                    <a href="http://pklis-mvp003251.labiac.df.sbrf.ru:8080/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">AMBARI</span>
+                        
+                    </a>
+                    <a href="https://oko-qs.sigma.sbrf.ru/prom/sense/app/ea9927f5-64f7-473e-8c3d-c46bd4cea768/sheet/062666f6-eafd-4b58-815d-59754ef81c33/state/analysis" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ДБ GigaChat (Sigma)</span>
+                        
+                    </a>
+                    <a href="https://oko-qs.sigma.sbrf.ru" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ДБ QS (Sigma)</span>
+                        
+                    </a>
+                </div>
+            </div>
+
+            <!-- Группа 7: Конфлюенс -->
+            <div class="ios-group">
+                <div class="ios-group-header group-7">Ресурсы Confluence</div>
+                <div class="ios-group-cards">
+                    <a href="https://confluence.sberbank.ru/pages/viewpage.action?pageId=17521445497" class="ios-card" target="_blank">
+                        <span class="ios-card-title">БекЛог Фабрика</span>
+                        
+                    </a>
+                    <a href="https://confluence.sberbank.ru/pages/viewpage.action?pageId=11671348420" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Авто ТУРНИРЫ</span>
+                        
+                    </a>
+                    <a href="https://jira.sberbank.ru/secure/RapidBoard.jspa?rapidView=32210&view=planning.nodetail&selectedIssue=HERO-3166&issueLimit=100" class="ios-card" target="_blank">
+                        <span class="ios-card-title">СПРИНТ</span>
+                        
+                    </a>
+                    <a href="https://jira.delta.sbrf.ru/secure/StructureBoard.jspa?s=19119#" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ПКАП</span>
+                        
+                    </a>
+                    <a href="https://confluence.delta.sbrf.ru/pages/viewpage.action?pageId=9073267075" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Структура</span>
+                        
+                    </a>
+                    <a href="https://confluence.sberbank.ru/pages/viewpage.action?pageId=9528155757" class="ios-card" target="_blank">
+                        <span class="ios-card-title">БТ фабрика</span>
+                        
+                    </a>
+                    <a href="https://sso.devopsportal.sigma.sbrf.ru/dop/#/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">DevOps-портал</span>
+                    </a>
+					<a href="https://jira.sberbank.ru/browse/HERO-4358" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Задачи 2 кв</span>
+                    </a>
+					<a href="https://jira.sberbank.ru/secure/RapidBoard.jspa?rapidView=32210&view=planning.nodetail&selectedIssue=HERO-3088&issueLimit=100" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Задачи 1 кв</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Группа 8: Прочее -->
+            <div class="ios-group">
+                <div class="ios-group-header group-8">Прочее рабочее</div>
+                <div class="ios-group-cards">
+                    <a href="https://sberfriend.ca.sbrf.ru/sberfriend/#/dashboard" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Друг</span>
+                        
+                    </a>
+                    <a href="https://adv-gate.sigma.sbrf.ru/Citrix/ADVWeb/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Service Manager (Sigma)</span>
+                        
+                    </a>
+                    <a href="https://esr.sigma.sbrf.ru/" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ЕСР (Sigma)</span>
+                        
+                    </a>
+                    <a href="https://agile.sber.ru/dashboard/#/?0%5BlocationState%5D=true" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Доска Команд</span>
+                        
+                    </a>
+                    <a href="https://sberu.sigma.sbrf.ru/SberWelcome/#/pa" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Мои доступы (Sigma)</span>
+                        
+                    </a>
+                    <a href="https://hr.sberbank.ru/platform/dashboard" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Пульс (Sigma)</span>
+                        
+                    </a>
+                </div>
+            </div>
+
+            <!-- Группа 9: Прочее рабочее 2 -->
+            <div class="ios-group">
+                <div class="ios-group-header group-9">Прочее рабочее 2</div>
+                <div class="ios-group-cards">
+                    <a href="https://mail.sberbank.ru/owa/#path=/mail" class="ios-card" target="_blank">
+                        <span class="ios-card-title">Почта (Sigma)</span>
+                        
+                    </a>
+                    <a href="https://confluence.ca.sbrf.ru/pages/viewpage.action?pageId=8956707657" class="ios-card" target="_blank">
+                        <span class="ios-card-title">График периодов</span>
+                        
+                    </a>
+					  <a href="https://selfportal.dev.df.sbrf.ru/support/templates/supportfd" class="ios-card" target="_blank">
+                        <span class="ios-card-title">ТФС/Пакетная выгрузка (бэклог)</span>
+                        
+                    </a>
+                </div>
+            </div>
+
+            <!-- Группа 10: Рабочие программы (зарезервировано, пусто) -->
+            <div class="ios-group">
+    <div class="ios-group-header group-admin">Администрирование</div>
+    <div class="ios-group-cards">
+        <a href="#" class="ios-card" id="open-permission-modal-link"><span class="ios-card-title">Декодер permission</span></a>
+        <a href="#" class="ios-card" id="open-role-modal-link"><span class="ios-card-title">Проверка роли (ПСИ)</span></a>
+        <a href="#" class="ios-card" id="open-scriptgen-modal-link"><span class="ios-card-title">LeadersForAdmin</span></a>
+        <a href="#" class="ios-card" id="open-reward-modal-link"><span class="ios-card-title">Reward</span></a>
+        <a href="#" class="ios-card" id="open-news-modal-link"><span class="ios-card-title">News Details</span></a>
+        <a href="#" class="ios-card" id="open-profile-modal-link"><span class="ios-card-title">Профили по табельным</span></a>
+        <a href="#" class="ios-card" id="open-tn-modal-link"><span class="ios-card-title">AdressBook ТН</span></a>
+        <a href="#" class="ios-card" id="open-dep-modal-link"><span class="ios-card-title">AdressBook подразделения</span></a>
+        <a href="#" class="ios-card" id="export-links-btn-link"><span class="ios-card-title">Экспорт ссылок</span></a>
+    </div>
+</div>
+
+        </div>
+    </div>
+    <!-- ====== Переключатель темы (иконка) ====== -->
+    <!--
+    <div class="theme-switcher-container">
+        <label class="ios-theme-switcher">
+            <input type="checkbox" id="theme-switcher">
+            <span class="slider"></span>
+            <span class="theme-icon">🌙</span>
+        </label>
+    </div>
+    -->
+</div>
+
+
+<!-- ===== Прогресс-бар для проверки статуса ===== -->
+<div id="progress-bar" class="progress-bar"></div>
+
+<!-- ======= Модальное окно Permission ======= -->
+<div id="permission-modal" class="modal">
+    <div class="modal-content">
+        <h2 class="modal-title">Декодирование Permission</h2>
+        <textarea id="permission-input" placeholder="Введите HEX, например: 43720e3f, 5228"></textarea>
+        <div class="modal-buttons">
+            <button class="modal-button" id="decode-btn">Расшифровать</button>
+            <button class="modal-button" id="clear-btn">Очистить</button>
+            <button class="modal-button" id="close-btn">Закрыть</button>
+        </div>
+        <pre id="permission-result" class="result-box"></pre>
+    </div>
+</div>
+
+<!-- ======= Модальное окно проверки роли ======= -->
+<div id="role-modal" class="modal">
+    <div class="modal-content">
+        <h2 class="modal-title">Проверка роли сотрудника</h2>
+        <div class="modal-form-group">
+            <label for="employee-number" class="modal-label">Табельный номер</label>
+            <div class="modal-input-row">
+                <input type="text" id="employee-number" class="modal-input wide-input" placeholder="Введите табельный номер" value="673892">
+                <button class="modal-button modal-clear-btn" id="clear-emp-btn" title="Очистить">&#10006;</button>
+            </div>
+        </div>
+        <div class="modal-form-group">
+            <label for="role-name" class="modal-label">Запрашиваемая роль</label>
+            <div class="modal-input-row">
+                <input type="text" id="role-name" class="modal-input wide-input" placeholder="Введите роль" value="EFS_NB_SUP_BUSINESS_ADMIN_GAMIFICATION">
+                <button class="modal-button modal-clear-btn" id="clear-role-btn" title="Очистить">&#10006;</button>
+            </div>
+        </div>
+        <div class="modal-buttons">
+            <button class="modal-button" id="default-btn">По умолчанию</button>
+            <button class="modal-button" id="open-role-link" disabled>Открыть</button>
+            <button class="modal-button" id="close-role-modal">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно генерации скрипта -->
+<div id="scriptgen-modal" class="modal">
+  <div class="modal-content">
+    <h2 class="modal-title">Генератор скрипта SalesHeroes</h2>
+
+    <label for="sg-tournamentIds">Tournament IDs (через ;):</label>
+    <textarea id="sg-tournamentIds" rows="2">t_01_2025-1_05-1_1_3051; t_01_2025-1_05-1_1_3041</textarea>
+
+    <label for="sg-serviceName">Service Name:</label>
+    <input type="text" id="sg-serviceName" value="leadersForAdmin" />
+
+    <label for="sg-apiPath">Request API Path:</label>
+    <input type="text" id="sg-apiPath" value="/bo/rmkib.gamification/api/v1/tournaments/" />
+
+
+    <label for="sg-urlAlpha">Request Base URL (ALPHA):</label>
+    <input type="text" id="sg-urlAlpha" value="https://efs-our-business-prom.omega.sbrf.ru" />
+
+    <label for="sg-urlSigma">Request Base URL (SIGMA):</label>
+    <input type="text" id="sg-urlSigma" value="https://salesheroes.sberbank.ru" />
+
+    <div class="modal-buttons" style="margin-top: 17px;">
+      <button class="modal-button" onclick="generateScriptSber('alpha')">Генерировать ALPHA</button>
+      <button class="modal-button" onclick="generateScriptSber('sigma')">Генерировать SIGMA</button>
+      <button class="modal-button" id="sg-default-btn" type="button">По умолчанию</button>
+      <button class="modal-button" id="sg-clear-btn" type="button">Очистить</button>
+      <button class="modal-button" id="close-scriptgen-modal">Закрыть</button>
+    </div>
+
+    <label style="margin-top:18px" for="sg-result">Сгенерированный скрипт:</label>
+    <textarea id="sg-result" rows="15" readonly></textarea>
+    <button class="modal-button" id="sg-copy-btn" style="margin-top:10px;">Скопировать</button>
+  </div>
+</div>
+
+<div id="tn-modal" class="modal">
+  <div class="modal-content" style="max-width:1000px;min-width:540px;width:96vw;min-height:540px;padding:40px 40px 30px 40px;">
+    <h2 class="modal-title">Генератор скрипта для addressBook по ТН</h2>
+    <label for="tn_input">Введите ТН через любые разделители (пробелы, ; , : . и т.д.):</label>
+    <textarea id="tn_input" rows="3" placeholder="12345, 54321; 13579 24680"></textarea>
+    <div class="modal-buttons" style="margin-top:18px">
+      <button class="modal-button" id="tn-gen-btn">Сгенерировать скрипт</button>
+      <button class="modal-button" id="tn-copy-btn">Копировать</button>
+      <button class="modal-button" id="tn-close-btn">Закрыть</button>
+    </div>
+    <div class="small" style="color:#adb;font-size:0.98em;margin-top:12px;margin-bottom:0;">
+      Вставьте полученный код в DevTools на странице addressBook.<br>Выгрузка по <b>/api/home/empInfoFull?empId=...</b>
+    </div>
+    <textarea class="result" id="out_tn" readonly placeholder="Здесь появится скрипт" style="margin-top:12px;font-size:13.5px;min-height:220px;"></textarea>
+  </div>
+</div>
+
+<div id="dep-modal" class="modal">
+  <div class="modal-content" style="max-width:1000px;min-width:540px;width:96vw;min-height:540px;padding:40px 40px 30px 40px;">
+    <h2 class="modal-title">Генератор скрипта для addressBook по коду подразделения</h2>
+    <label for="dep_input">Введите коды подразделений через любые разделители (пробелы, ; , : . и т.д.):</label>
+    <textarea id="dep_input" rows="3" placeholder="10294215, 10294220; 10294444"></textarea>
+    <div class="modal-buttons" style="margin-top:18px">
+      <button class="modal-button" id="dep-gen-btn">Сгенерировать скрипт</button>
+      <button class="modal-button" id="dep-copy-btn">Копировать</button>
+      <button class="modal-button" id="dep-close-btn">Закрыть</button>
+    </div>
+    <div class="small" style="color:#adb;font-size:0.98em;margin-top:12px;margin-bottom:0;">
+      Вставьте полученный код в DevTools на странице addressBook.<br>Выгрузка по <b>/api/home/departments/&lt;код&gt;/employees:search</b>
+    </div>
+    <textarea class="result" id="out_dep" readonly placeholder="Здесь появится скрипт" style="margin-top:12px;font-size:13.5px;min-height:220px;"></textarea>
+  </div>
+</div>
+
+<!-- Модалка выгрузки деталки новости -->
+<!-- ===== Модалка Деталка новости ===== -->
+<div id="news-modal" class="modal">
+  <div class="modal-content">
+    <h2 class="modal-title">Выгрузка деталки по новостям</h2>
+
+    <label for="news_input">Введите коды новостей через пробел, запятую или ;</label>
+    <textarea id="news_input" rows="3" placeholder="715429170081770418; 715429169708477428"></textarea>
+
+    <div class="modal-buttons" style="margin-top:18px">
+      <button class="modal-button" id="news-alpha-btn">Alpha</button>
+      <button class="modal-button" id="news-sigma-btn">Sigma</button>
+      <button class="modal-button" id="news-default-btn">По умолчанию</button>
+      <button class="modal-button" id="news-copy-btn" disabled>Копировать</button>
+      <button class="modal-button" id="news-clear-btn">Очистить</button>
+      <button class="modal-button" id="news-close-btn">Закрыть</button>
+    </div>
+
+    <textarea class="result" id="news-output" readonly placeholder="Здесь появится сгенерированный скрипт" style="margin-top:14px;font-size:13.5px;min-height:220px;"></textarea>
+  </div>
+</div>
+
+<!-- Модалка выгрузки REWARD -->
+<div id="reward-modal" class="modal">
+  <div class="modal-content">
+    <h2 class="modal-title">Выгрузка данных по наградам</h2>
+    <label for="reward-input">Введите коды наград через пробел, запятую или ;</label>
+    <textarea id="reward-input" rows="3" placeholder="r_01_2025-0_10-1_2; r_01_2025-0_10-1_1"></textarea>
+    <div class="modal-buttons" style="margin-top:18px">
+      <button class="modal-button" id="reward-alpha-btn">Alpha</button>
+      <button class="modal-button" id="reward-sigma-btn">Sigma</button>
+      <button class="modal-button" id="reward-default-btn">По умолчанию</button>
+      <button class="modal-button" id="reward-copy-btn" disabled>Копировать</button>
+      <button class="modal-button" id="reward-clear-btn">Очистить</button>
+      <button class="modal-button" id="reward-close-btn">Закрыть</button>
+    </div>
+    <textarea id="reward-result" class="result-box" rows="10" readonly placeholder="Сгенерированный скрипт появится здесь"></textarea>
+    <div class="small" style="color:#adb;font-size:0.98em;margin-top:12px;">
+      Сгенерированный скрипт вставляется в консоль DevTools.<br>
+      Скрипт отправляет запросы, собирает ответы, формирует файл JSON.<br>
+      Лог процесса выводится в консоль браузера.
+    </div>
+  </div>
+</div>
+
+<!-- Модалка выгрузки профиля -->
+<div id="profile-modal" class="modal">
+  <div class="modal-content" style="max-width: 1000px; min-width: 540px; width: 96vw; min-height: 440px; padding: 34px 34px 24px 34px;">
+    <h2 class="modal-title">Выгрузка профилей по табельным</h2>
+    <label for="profile-input">Введите табельные номера (через пробел, точку с запятой, запятую, перевод строки и т.д.):</label>
+    <textarea id="profile-input" rows="3" placeholder="01234567; 78965432&#10;11223344"></textarea>
+    <div class="modal-buttons" style="margin-top:18px">
+      <button class="modal-button" id="profile-alpha-btn">ALPHA</button>
+      <button class="modal-button" id="profile-sigma-btn">SIGMA</button>
+      <button class="modal-button" id="profile-copy-btn">Копировать</button>
+      <button class="modal-button" id="profile-default-btn">По умолчанию</button>
+      <button class="modal-button" id="profile-clear-btn">Очистить</button>
+      <button class="modal-button" id="profile-close-btn">Закрыть</button>
+    </div>
+    <textarea class="result" id="profile-output" readonly placeholder="Здесь появится скрипт для DevTools" style="margin-top:14px;font-size:13.5px;min-height:160px;"></textarea>
+    <div class="small" style="color:#adb;font-size:0.98em;margin-top:12px;">
+      Скрипт предназначен для запуска в DevTools (F12) на странице профилей. Использует cookie вашей сессии, запросы идут с задержкой 100мс, результаты сохраняются в JSON-файл.
+    </div>
+  </div>
+</div>
+
+
+</div>
+
+
+
+
+
+
+<!-- ======= ФИНАЛЬНЫЙ JS с КОММЕНТАРИЯМИ ======= -->
+<script>
+// === 1. Адаптация расположения кнопок сверху в зависимости от количества панелей ===
+function adjustTopActions() {
+    // Если групп меньше 3 — ставим кнопки одну под одной (column), иначе в ряд
+    const groupsCount = document.querySelectorAll('.groups-container .ios-group').length;
+    const actions = document.getElementById('top-actions');
+    if (groupsCount < 3) {
+        actions.classList.add('stacked');
+    } else {
+        actions.classList.remove('stacked');
+    }
+}
+window.addEventListener('resize', adjustTopActions);
+document.addEventListener('DOMContentLoaded', adjustTopActions);
+
+// === 2. Проверка доступности ссылок и статусы ===
+document.addEventListener('DOMContentLoaded', function () {
+    // Проставляет статус (зеленый или красный) для каждой кнопки-ссылки
+    function setStatus(card, isAvailable) {
+    const title = card.querySelector('.ios-card-title');
+    if (!title) return;
+    if (isAvailable) {
+        title.classList.remove('unavailable');
+    } else {
+        title.classList.add('unavailable');
+    }
+}
+
+    // Асинхронно проверяет доступность по HEAD-запросу
+    function checkCard(card) {
+        const url = card.getAttribute('href');
+        if (!url || url.startsWith('#') || url.startsWith('javascript')) return;
+        if (!/^https?:\/\//i.test(url)) return;
+        fetch(url, { method: 'HEAD', mode: 'no-cors' })
+            .then(() => setStatus(card, true))
+            .catch(() => setStatus(card, false));
+    }
+    // Проверить все карточки, одновременно анимируем прогресс-бар
+    function checkAllCards() {
+        const allCards = document.querySelectorAll('a.ios-card');
+        allCards.forEach(checkCard);
+        // Анимация прогресс-бара (для UX)
+        const progressBar = document.getElementById('progress-bar');
+        if (progressBar) {
+            progressBar.style.width = "0%";
+            progressBar.style.display = "block";
+            let width = 0;
+            const interval = setInterval(() => {
+                width += 24;
+                progressBar.style.width = width + "%";
+                if (width >= 100) {
+                    progressBar.style.display = "none";
+                    clearInterval(interval);
+                }
+            }, 100);
+        }
+    }
+    checkAllCards();
+    // Переодическая проверка раз в 2 минуты
+    setInterval(checkAllCards, 120000);
+
+    // === 3. Переключатель темы (пока только добавляет класс к body, для расширения функционала) ===
+    const themeSwitcher = document.getElementById('theme-switcher');
+    if (themeSwitcher) {
+        themeSwitcher.addEventListener('change', function () {
+            document.body.classList.toggle('dark-theme', this.checked);
+            document.body.classList.toggle('light-theme', !this.checked);
+        });
+    }
+
+    // === 4. Модалка Permission ===
+    const permissionModal = document.getElementById('permission-modal');
+    const openPermissionModal = document.getElementById('open-permission-modal-link');
+    const closePermissionBtn = document.getElementById('close-btn');
+    const clearPermissionBtn = document.getElementById('clear-btn');
+    const decodeBtn = document.getElementById('decode-btn');
+    const permissionInput = document.getElementById('permission-input');
+    const permissionResult = document.getElementById('permission-result');
+    if (openPermissionModal) {
+        openPermissionModal.onclick = function () {
+            permissionModal.classList.add('show');
+            permissionInput.focus();
+            permissionResult.textContent = '';
+        };
+    }
+    if (closePermissionBtn) {
+        closePermissionBtn.onclick = function () {
+            permissionModal.classList.remove('show');
+        };
+    }
+    if (clearPermissionBtn) {
+        clearPermissionBtn.onclick = function () {
+            permissionInput.value = '';
+            permissionInput.focus();
+            permissionResult.textContent = '';
+        };
+    }
+    if (decodeBtn) {
+        decodeBtn.onclick = function () {
+            // Алгоритм декодирования HEX-права в биты
+            const input = permissionInput.value.trim();
+            if (!input) {
+                permissionResult.textContent = '';
+                return;
+            }
+            try {
+                let hex = input.split(",")
+                    .reverse()
+                    .map(s => s.replace(/[""]/g, ' '))
+                    .map(s => s.trim())
+                    .map(s => Number.parseInt(s, 16))
+                    .map(n => n.toString(2))
+                    .map(s => s.padStart(32, "0"));
+                const zeroOnes = hex
+                    .join("").split("").reverse().join("");
+                const res = [];
+                for (let i = 0; i < zeroOnes.length; i++) {
+                    if (zeroOnes[i] == "1") {
+                        res.push(i);
+                    }
+                }
+                permissionResult.textContent = 'Бинарное представление:\n' +
+                    zeroOnes.split('').map((b, idx) => ((idx % 8 === 0 && idx > 0) ? ' ' : '') + b).join('') +
+                    '\n\nВключённые биты:\n' + res.join(', ');
+            } catch (err) {
+                permissionResult.textContent = 'Ошибка! Некорректный ввод.';
+            }
+        };
+    }
+    // Закрытие модалки кликом вне окна
+    window.addEventListener('click', function (e) {
+        if (e.target === permissionModal) {
+            permissionModal.classList.remove('show');
+        }
+    });
+
+    // === 5. Модалка роли ===
+    const roleModal = document.getElementById('role-modal');
+    const openRoleModalBtn = document.getElementById('open-role-modal-link');
+    const closeRoleModalBtn = document.getElementById('close-role-modal');
+    const openRoleLinkBtn = document.getElementById('open-role-link');
+    const empInput = document.getElementById('employee-number');
+    const roleInput = document.getElementById('role-name');
+    const clearEmpBtn = document.getElementById('clear-emp-btn');
+    const clearRoleBtn = document.getElementById('clear-role-btn');
+    const defaultBtn = document.getElementById('default-btn');
+
+    // Разблокировка кнопки "Открыть" если оба поля не пустые
+    function checkRoleInputs() {
+        openRoleLinkBtn.disabled = !(empInput.value.trim() && roleInput.value.trim());
+    }
+    if (openRoleModalBtn) {
+        openRoleModalBtn.onclick = function (e) {
+            e.preventDefault();
+            roleModal.classList.add('show');
+            empInput.focus();
+            checkRoleInputs();
+        };
+    }
+    if (closeRoleModalBtn) {
+        closeRoleModalBtn.onclick = function () {
+            roleModal.classList.remove('show');
+        };
+    }
+    window.addEventListener('click', function (e) {
+        if (e.target === roleModal) roleModal.classList.remove('show');
+    });
+    if(empInput) empInput.addEventListener('input', checkRoleInputs);
+    if(roleInput) roleInput.addEventListener('input', checkRoleInputs);
+    if(clearEmpBtn) clearEmpBtn.onclick = function() {
+        empInput.value = '';
+        empInput.focus();
+        checkRoleInputs();
+    };
+    if(clearRoleBtn) clearRoleBtn.onclick = function() {
+        roleInput.value = '';
+        roleInput.focus();
+        checkRoleInputs();
+    };
+    if(openRoleLinkBtn) openRoleLinkBtn.onclick = function() {
+        // Формируем url по шаблону и открываем его в новом окне
+        const emp = encodeURIComponent(empInput.value.trim());
+        const role = encodeURIComponent(roleInput.value.trim());
+        const url = `https://iam-enigma-psi.omega.sbrf.ru/rmkib.support/api/v1/service/auth/explain/html?employee-number=${emp}&role=${role}`;
+        window.open(url, '_blank');
+    };
+    if(defaultBtn) {
+        defaultBtn.onclick = function() {
+            empInput.value = '673892';
+            roleInput.value = 'EFS_NB_SUP_BUSINESS_ADMIN_GAMIFICATION';
+            empInput.focus();
+            checkRoleInputs();
+        };
+    }
+
+    // === 6. Экспорт ссылок в CSV ===
+    document.getElementById('export-links-btn-link').onclick = function (event) {
+        event.preventDefault(); // Важно!
+        // Собираем все названия групп, названия ссылок и сами ссылки
+        const groups = document.querySelectorAll('.ios-group');
+        const rows = [['Группа', 'Название', 'Ссылка']];
+        groups.forEach(group => {
+            const groupName = group.querySelector('.ios-group-header')?.textContent?.trim();
+            const links = group.querySelectorAll('a.ios-card');
+            links.forEach(link => {
+                const name = link.querySelector('.ios-card-title')?.textContent?.trim();
+                const href = link.getAttribute('href');
+                if (href && href !== '#') {
+                    rows.push([groupName, name, href]);
+                }
+            });
+        });
+        const csvContent = rows.map(r => r.join(';')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.setAttribute('href', URL.createObjectURL(blob));
+        link.setAttribute('download', 'ссылки.csv');
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+});
+
+// ====== Модалка генератора скрипта SalesHeroes (единый стиль) ======
+const scriptgenModal = document.getElementById('scriptgen-modal');
+const openScriptgenModalBtn = document.getElementById('open-scriptgen-modal-link');
+const closeScriptgenModalBtn = document.getElementById('close-scriptgen-modal');
+const sgResult = document.getElementById('sg-result');
+const sgCopyBtn = document.getElementById('sg-copy-btn');
+// --- ScriptGen: Кнопки "По умолчанию" и "Очистить" ---
+const sgTournamentIds = document.getElementById('sg-tournamentIds');
+const sgServiceName = document.getElementById('sg-serviceName');
+const sgUrlAlpha = document.getElementById('sg-urlAlpha');
+const sgUrlSigma = document.getElementById('sg-urlSigma');
+const sgDefaultBtn = document.getElementById('sg-default-btn');
+const sgClearBtn = document.getElementById('sg-clear-btn');
+
+// Стартовые значения (меняйте здесь, если понадобится другое)
+// Новые значения по умолчанию
+const defaultTournamentIds = 't_01_2025-1_05-1_1_3051, t_01_2025-1_05-1_1_3041'; // теперь любые разделители
+const defaultServiceName = 'leadersForAdmin';
+const defaultUrlAlpha = 'https://efs-our-business-prom.omega.sbrf.ru';
+const defaultUrlSigma = 'https://salesheroes.sberbank.ru';
+const defaultApiPath = '/bo/rmkib.gamification/api/v1/tournaments/';
+
+if (sgDefaultBtn) sgDefaultBtn.onclick = function () {
+    sgTournamentIds.value = defaultTournamentIds;
+    sgServiceName.value = defaultServiceName;
+    sgUrlAlpha.value = defaultUrlAlpha;
+    sgUrlSigma.value = defaultUrlSigma;
+    sgApiPath.value = defaultApiPath;    // Новое поле!
+    sgResult.value = '';
+    sgTournamentIds.focus();
+};
+
+// "Очистить" — очищает только Tournament IDs и результат
+if (sgClearBtn) sgClearBtn.onclick = function () {
+    sgTournamentIds.value = '';
+    sgResult.value = '';
+    sgTournamentIds.focus();
+};
+
+// Открыть модалку
+openScriptgenModalBtn.onclick = function() {
+    scriptgenModal.classList.add('show');
+    sgResult.value = '';
+};
+// Закрыть
+closeScriptgenModalBtn.onclick = function() {
+    scriptgenModal.classList.remove('show');
+};
+// Клик вне окна — закрыть
+window.addEventListener('click', function(e) {
+    if (e.target === scriptgenModal) scriptgenModal.classList.remove('show');
+});
+// Копировать в буфер
+sgCopyBtn.onclick = function() {
+    sgResult.select();
+    document.execCommand('copy');
+    sgCopyBtn.textContent = 'Скопировано!';
+    setTimeout(() => sgCopyBtn.textContent = 'Скопировать', 1200);
+};
+
+function generateScriptSber(type) {
+    const ids = document.getElementById('sg-tournamentIds').value
+        .split(/[^a-zA-Z0-9\-_]+/g)
+        .map(s => s.trim())
+        .filter(Boolean);
+    const service = document.getElementById('sg-serviceName').value.trim();
+    const urlAlpha = document.getElementById('sg-urlAlpha').value.trim();
+    const urlSigma = document.getElementById('sg-urlSigma').value.trim();
+    const apiPath = document.getElementById('sg-apiPath').value.trim();
+    const baseUrl = (type === 'alpha' ? urlAlpha : urlSigma) + apiPath;
+
+    let code = `// ==UserScript==\n`;
+    code += `// Скрипт для DevTools. Выгрузка лидеров для всех Tournament ID (одна страница на турнир)\n`;
+    code += `(async () => {\n`;
+    code += `  // === Удаление photoData рекурсивно ===\n`;
+    code += `  function removePhotoData(obj) {\n`;
+    code += `    if (Array.isArray(obj)) {\n`;
+    code += `      obj.forEach(removePhotoData);\n`;
+    code += `    } else if (obj && typeof obj === 'object') {\n`;
+    code += `      Object.keys(obj).forEach(key => {\n`;
+    code += `        if (key === 'photoData') {\n`;
+    code += `          delete obj[key];\n`;
+    code += `        } else {\n`;
+    code += `          removePhotoData(obj[key]);\n`;
+    code += `        }\n`;
+    code += `      });\n`;
+    code += `    }\n`;
+    code += `  }\n\n`;
+
+    code += `  // === Генерация timestamp ===\n`;
+    code += `  function getTimestamp() {\n`;
+    code += `    const d = new Date();\n`;
+    code += `    const pad = n => n.toString().padStart(2, '0');\n`;
+    code += `    return d.getFullYear().toString()\n`;
+    code += `      + pad(d.getMonth() + 1)\n`;
+    code += `      + pad(d.getDate())\n`;
+    code += `      + '-' + pad(d.getHours())\n`;
+    code += `      + pad(d.getMinutes())\n`;
+    code += `      + pad(d.getSeconds());\n`;
+    code += `  }\n\n`;
+
+    code += `  const ids = ${JSON.stringify(ids)};\n`;
+    code += `  const service = '${service}';\n`;
+    code += `  const BASE_URL = '${baseUrl}';\n`;
+    code += `  const results = {};\n`;
+    code += `  let processed = 0, skipped = 0, errors = 0;\n`;
+    code += `  console.log('▶️ Всего к обработке:', ids.length, 'код(ов)');\n\n`;
+
+    code += `  for (let i = 0; i < ids.length; ++i) {\n`;
+    code += `    const tid = ids[i];\n`;
+    code += `    const url = BASE_URL + tid + '/' + service + '?pageNum=1';\n`;
+    code += `    console.log(\`⏳ [\${i+1}/\${ids.length}] Обрабатываем код: \${tid}\`);\n`;
+    code += `    let resp, data;\n`;
+    code += `    try {\n`;
+    code += `      resp = await fetch(url, {\n`;
+    code += `        headers: { 'Accept': 'application/json', 'Cookie': document.cookie }, credentials: 'include'\n`;
+    code += `      });\n`;
+    code += `      if (!resp.ok) {\n`;
+    code += `        console.warn(\`❌ [\${i+1}/\${ids.length}] Код \${tid}: HTTP статус \${resp.status}\`);\n`;
+    code += `        errors++;\n`;
+    code += `        continue;\n`;
+    code += `      }\n`;
+    code += `      data = await resp.json();\n`;
+    code += `      // Число участников\n`;
+    code += `      let leadersCount = 0;\n`;
+    code += `      try {\n`;
+    code += `        const leadersArr = data?.body?.tournament?.leaders || data?.body?.badge?.leaders;\n`;
+    code += `        if (Array.isArray(leadersArr)) {\n`;
+    code += `          leadersCount = leadersArr.length;\n`;
+    code += `        }\n`;
+    code += `      } catch {}\n`;
+    code += `      if (leadersCount === 0) {\n`;
+    code += `        console.log(\`ℹ️ [\${i+1}/\${ids.length}] Код \${tid} пропущен: участников = 0\`);\n`;
+    code += `        skipped++;\n`;
+    code += `        continue;\n`;
+    code += `      }\n`;
+    code += `      console.log(\`✅ [\${i+1}/\${ids.length}] Код \${tid}: успешно, участников: \${leadersCount}\`);\n`;
+    code += `      results[tid] = [data];\n`;
+    code += `      processed++;\n`;
+    code += `      await new Promise(r => setTimeout(r, 10));\n`;
+    code += `    } catch (e) {\n`;
+    code += `      console.error(\`❌ [\${i+1}/\${ids.length}] Код \${tid}: Ошибка запроса:\`, e);\n`;
+    code += `      errors++;\n`;
+    code += `    }\n`;
+    code += `  }\n\n`;
+
+    code += `  console.log('🧹 Удаляем все поля photoData');\n`;
+    code += `  removePhotoData(results);\n\n`;
+
+    code += `  console.log('💾 Сохраняем файл ...');\n`;
+    code += `  const ts = getTimestamp();\n`;
+    code += `  const blob = new Blob([JSON.stringify(results, null, 2)], {type: 'application/json'});\n`;
+    code += `  const a = document.createElement('a');\n`;
+    code += `  a.href = URL.createObjectURL(blob);\n`;
+    code += `  a.download = service + '_ALL_' + ts + '.json';\n`;
+    code += `  document.body.appendChild(a);\n`;
+    code += `  a.click();\n`;
+    code += `  a.remove();\n`;
+    code += `  console.log(\`🏁 Обработка завершена. Всего: \${ids.length}. Успешно: \${processed}. Пропущено: \${skipped}. Ошибок: \${errors}. Файл скачан.\`);\n`;
+    code += `})();\n`;
+
+    sgResult.value = code;
+}
+
+
+
+
+// ====== 5-я и 6-я модалки генератора для addressBook ======
+
+// --- ТН ---
+const tnModal = document.getElementById('tn-modal');
+const openTnModalBtn = document.getElementById('open-tn-modal-link');
+const tnCloseBtn = document.getElementById('tn-close-btn');
+const tnGenBtn = document.getElementById('tn-gen-btn');
+const tnCopyBtn = document.getElementById('tn-copy-btn');
+const tnInput = document.getElementById('tn_input');
+const outTn = document.getElementById('out_tn');
+
+openTnModalBtn.onclick = function() {
+  tnModal.classList.add('show');
+  outTn.value = '';
+  tnInput.value = '';
+  tnInput.focus();
+};
+tnCloseBtn.onclick = function() { tnModal.classList.remove('show'); };
+window.addEventListener('click', e => { if (e.target === tnModal) tnModal.classList.remove('show'); });
+
+tnGenBtn.onclick = function() {
+  let input = tnInput.value;
+  let tnList = input.split(/\D+/).map(x => x.trim()).filter(x => x.length > 0).map(x => x.padStart(8, '0'));
+  if (tnList.length === 0) {
+    outTn.value = '// Не найдено ни одного табельного номера.';
+    return;
+  }
+  let js = `
+/**
+ * Скрипт для DevTools addressBook (по ТН)
+ * Сохраняет все ответы в один JSON-файл
+ * GET /api/home/empInfoFull?empId=<tn>
+ */
+(async () => {
+  const tnList = ${JSON.stringify(tnList, null, 2)};
+  const results = [];
+  for (let i = 0; i < tnList.length; ++i) {
+    const tn = tnList[i];
+    try {
+      const resp = await fetch('/api/home/empInfoFull?empId=' + tn, {
+        method: 'GET',
+        credentials: 'same-origin'
+      });
+      if (resp.ok) {
+        results.push({ tn, data: await resp.json() });
+        console.log('[' + (i+1) + '/' + tnList.length + '] OK', tn);
+      } else {
+        results.push({ tn, error: 'HTTP ' + resp.status });
+        console.log('[' + (i+1) + '/' + tnList.length + '] Ошибка HTTP ' + resp.status, tn);
+      }
+    } catch (e) {
+      results.push({ tn, error: String(e) });
+      console.log('[' + (i+1) + '/' + tnList.length + '] Ошибка сети', tn, e);
+    }
+    if (i < tnList.length - 1) await new Promise(r => setTimeout(r, 10));
+  }
+  // Скачать JSON-файл:
+  const blob = new Blob([JSON.stringify(results, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'empInfoFull_results.json';
+  a.click();
+  console.log('Готово. Файл выгружен.');
+})();`.trim();
+  outTn.value = js;
+};
+
+tnCopyBtn.onclick = function() {
+  outTn.select();
+  outTn.setSelectionRange(0, 99999);
+  document.execCommand('copy');
+  tnCopyBtn.textContent = 'Скопировано!';
+  setTimeout(() => tnCopyBtn.textContent = 'Копировать', 1200);
+};
+
+
+// --- КОДЫ ПОДРАЗДЕЛЕНИЙ ---
+const depModal = document.getElementById('dep-modal');
+const openDepModalBtn = document.getElementById('open-dep-modal-link');
+const depCloseBtn = document.getElementById('dep-close-btn');
+const depGenBtn = document.getElementById('dep-gen-btn');
+const depCopyBtn = document.getElementById('dep-copy-btn');
+const depInput = document.getElementById('dep_input');
+const outDep = document.getElementById('out_dep');
+
+openDepModalBtn.onclick = function() {
+  depModal.classList.add('show');
+  outDep.value = '';
+  depInput.value = '';
+  depInput.focus();
+};
+depCloseBtn.onclick = function() { depModal.classList.remove('show'); };
+window.addEventListener('click', e => { if (e.target === depModal) depModal.classList.remove('show'); });
+
+depGenBtn.onclick = function() {
+  let input = depInput.value;
+  let depList = input.split(/\D+/).map(x => x.trim()).filter(x => x.length > 0);
+  if (depList.length === 0) {
+    outDep.value = '// Не найдено ни одного кода подразделения.';
+    return;
+  }
+  let js = `
+/**
+ * Скрипт для DevTools addressBook (по коду подразделения)
+ * Сохраняет все ответы в один JSON-файл
+ * POST /api/home/departments/<код>/employees:search
+ */
+(async () => {
+  const depList = ${JSON.stringify(depList, null, 2)};
+  const results = [];
+  for (let i = 0; i < depList.length; ++i) {
+    const depCode = depList[i];
+    try {
+      const resp = await fetch('/api/home/departments/' + depCode + '/employees:search', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          "sortField": "displayName",
+          "sortDirection": "ASC",
+          "activeOnly": true,
+          "page": 0,
+          "size": 9999
+        })
+      });
+      if (resp.ok) {
+        results.push({ depCode, data: await resp.json() });
+        console.log('[' + (i+1) + '/' + depList.length + '] OK', depCode);
+      } else {
+        results.push({ depCode, error: 'HTTP ' + resp.status });
+        console.log('[' + (i+1) + '/' + depList.length + '] Ошибка HTTP ' + resp.status, depCode);
+      }
+    } catch (e) {
+      results.push({ depCode, error: String(e) });
+      console.log('[' + (i+1) + '/' + depList.length + '] Ошибка сети', depCode, e);
+    }
+    if (i < depList.length - 1) await new Promise(r => setTimeout(r, 1000));
+  }
+  // Скачать JSON-файл:
+  const blob = new Blob([JSON.stringify(results, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'departments_employees_results.json';
+  a.click();
+  console.log('Готово. Файл выгружен.');
+})();`.trim();
+  outDep.value = js;
+};
+
+depCopyBtn.onclick = function() {
+  outDep.select();
+  outDep.setSelectionRange(0, 99999);
+  document.execCommand('copy');
+  depCopyBtn.textContent = 'Скопировано!';
+  setTimeout(() => depCopyBtn.textContent = 'Копировать', 1200);
+};
+
+
+
+function generateNewsScript(env) {
+  const raw = document.getElementById('news_input').value;
+  const output = document.getElementById('news-output');
+
+  const codes = raw
+    .split(/[^0-9]+/)
+    .map(x => x.trim())
+    .filter(x => /^\d{10,}$/.test(x));
+
+  if (codes.length === 0) {
+    output.value = 'Введите корректные коды новостей';
+    return;
+  }
+
+  const baseURL = env === 'alpha'
+    ? 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/news/'
+    : 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/news/';
+
+  let script = `(async function() {\n`;
+  script += `  const delay = ms => new Promise(r => setTimeout(r, ms));\n`;
+  script += `  const results = [];\n`;
+  script += `  const headers = {\n`;
+  script += `    'accept': '*/*',\n`;
+  script += `    'accept-encoding': 'gzip, deflate, br, zstd',\n`;
+  script += `    'accept-language': 'ru-RU,ru;q=0.9',\n`;
+  script += `    'cache-control': 'no-cache',\n`;
+  script += `    'cookie': document.cookie\n`;
+  script += `  };\n`;
+  script += `  const news = [\n    '` + codes.join(`',\n    '`) + `'\n  ];\n`;
+  script += `  for (let i = 0; i < news.length; i++) {\n`;
+  script += `    try {\n`;
+  script += `      const res = await fetch('${baseURL}' + news[i], { headers });\n`;
+  script += `      if (res.ok) results.push(await res.json());\n`;
+  script += `      else console.warn('Ошибка по', news[i]);\n`;
+  script += `    } catch (e) {\n`;
+  script += `      console.error('Ошибка запроса по', news[i], e);\n`;
+  script += `    }\n`;
+  script += `    await delay(1000);\n`;
+  script += `  }\n`;
+  script += `  const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });\n`;
+  script += `  const a = document.createElement('a');\n`;
+  script += `  a.href = URL.createObjectURL(blob);\n`;
+  script += `  a.download = 'news_dump.json';\n`;
+  script += `  a.click();\n`;
+  script += `})();\n`;
+
+  output.value = script;
+  document.getElementById('news-copy-btn').disabled = false;
+}
+
+['alpha', 'sigma'].forEach(env => {
+  document.getElementById(`news-${env}-btn`).addEventListener('click', () => generateNewsScript(env));
+});
+
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const newsBtn = document.getElementById('open-news-modal-link');
+  const newsModal = document.getElementById('news-modal');
+
+  newsBtn.addEventListener('click', () => newsModal.classList.add('show'));
+
+  document.getElementById('news-close-btn').addEventListener('click', () => {
+    document.getElementById('news_input').value = '';
+    document.getElementById('news-output').value = '';
+    document.getElementById('news-copy-btn').disabled = true;
+    newsModal.classList.remove('show');
+  });
+
+  document.getElementById('news-clear-btn').addEventListener('click', () => {
+    const input = document.getElementById('news_input');
+    input.value = '';
+    input.focus();
+    document.getElementById('news-output').value = '';
+    document.getElementById('news-copy-btn').disabled = true;
+  });
+
+  document.getElementById('news-default-btn').addEventListener('click', () => {
+    document.getElementById('news_input').value = '715429170081770418; 715429169708477428';
+    document.getElementById('news-output').value = '';
+    document.getElementById('news-copy-btn').disabled = true;
+  });
+
+  document.getElementById('news-copy-btn').addEventListener('click', () => {
+    const result = document.getElementById('news-output');
+    result.select();
+    document.execCommand('copy');
+  });
+
+  function generateNewsScript(env) {
+    const raw = document.getElementById('news_input').value;
+    const output = document.getElementById('news-output');
+
+    const codes = raw
+      .split(/[^0-9]+/)
+      .map(x => x.trim())
+      .filter(x => /^\d{10,}$/.test(x));
+
+    if (codes.length === 0) {
+      output.value = 'Введите корректные коды новостей';
+      return;
+    }
+
+    const baseURL = env === 'alpha'
+      ? 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/news/'
+      : 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/news/';
+
+    let script = `(async function() {\n`;
+    script += `  const delay = ms => new Promise(r => setTimeout(r, ms));\n`;
+    script += `  const results = [];\n`;
+    script += `  const headers = {\n`;
+    script += `    'accept': '*/*',\n`;
+    script += `    'accept-encoding': 'gzip, deflate, br, zstd',\n`;
+    script += `    'accept-language': 'ru-RU,ru;q=0.9',\n`;
+    script += `    'cache-control': 'no-cache',\n`;
+    script += `    'cookie': document.cookie\n`;
+    script += `  };\n`;
+    script += `  const news = [\n    '` + codes.join(`',\n    '`) + `'\n  ];\n`;
+    script += `  for (let i = 0; i < news.length; i++) {\n`;
+    script += `    try {\n`;
+    script += `      const res = await fetch('${baseURL}' + news[i], { headers });\n`;
+    script += `      if (res.ok) results.push(await res.json());\n`;
+    script += `      else console.warn('Ошибка по', news[i]);\n`;
+    script += `    } catch (e) {\n`;
+    script += `      console.error('Ошибка запроса по', news[i], e);\n`;
+    script += `    }\n`;
+    script += `    await delay(1000);\n`;
+    script += `  }\n`;
+    script += `  const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });\n`;
+    script += `  const a = document.createElement('a');\n`;
+    script += `  a.href = URL.createObjectURL(blob);\n`;
+    script += `  a.download = 'news_dump.json';\n`;
+    script += `  a.click();\n`;
+    script += `})();\n`;
+
+    output.value = script;
+    document.getElementById('news-copy-btn').disabled = false;
+  }
+
+  ['alpha', 'sigma'].forEach(env => {
+    document.getElementById(`news-${env}-btn`).addEventListener('click', () => generateNewsScript(env));
+  });
+});
+</script>
+
+<script>
+// === Reward-модалка (Выгрузка по наградам) ===
+document.addEventListener('DOMContentLoaded', function () {
+  const rewardModal = document.getElementById('reward-modal');
+  const openRewardModalBtn = document.getElementById('open-reward-modal-link');
+  const closeRewardModalBtn = document.getElementById('reward-close-btn');
+  const clearBtn = document.getElementById('reward-clear-btn');
+  const copyBtn = document.getElementById('reward-copy-btn');
+  const defaultBtn = document.getElementById('reward-default-btn');
+  const input = document.getElementById('reward-input');
+  const output = document.getElementById('reward-result');
+  const alphaBtn = document.getElementById('reward-alpha-btn');
+  const sigmaBtn = document.getElementById('reward-sigma-btn');
+
+  // Открыть модалку
+  if (openRewardModalBtn) {
+    openRewardModalBtn.onclick = function () {
+      rewardModal.classList.add('show');
+      input.focus();
+      output.value = '';
+      copyBtn.disabled = true;
+    };
+  }
+
+  // Закрыть модалку
+  if (closeRewardModalBtn) {
+    closeRewardModalBtn.onclick = function () {
+      rewardModal.classList.remove('show');
+      input.value = '';
+      output.value = '';
+      copyBtn.disabled = true;
+    };
+  }
+
+  // Очистить всё
+  if (clearBtn) {
+    clearBtn.onclick = function () {
+      input.value = '';
+      output.value = '';
+      copyBtn.disabled = true;
+      input.focus();
+    };
+  }
+
+  // По умолчанию
+  if (defaultBtn) {
+    defaultBtn.onclick = function () {
+      input.value = 'r_01_2025-0_10-1_2; r_01_2025-0_10-1_1';
+      output.value = '';
+      copyBtn.disabled = true;
+      input.focus();
+    };
+  }
+
+  // Генерация скрипта для Alpha/Sigma
+function buildRewardScript({codes, baseUrl, cookie}) {
+  return `// ==UserScript==
+// DevTools: выгрузка всех страниц для каждого кода REWARD
+(() => {
+  const CODES = \`${codes.join(';')}\`.split(/[ ,;\\n]+/).filter(Boolean);
+  const BASE_URL = '${baseUrl}';
+  const COOKIE = '${cookie}';
+  const DELAY_MS = 1000;
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  async function fetchPage(code, page) {
+    const url = \`\${BASE_URL}\${code}/profiles?pageNum=\${page}&divisionLevel=BANK\`;
+    return fetch(url, {
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'cookie': COOKIE
+      },
+      credentials: 'include'
+    }).then(r => r.json());
+  }
+
+  async function main() {
+    const results = {};
+    for (const code of CODES) {
+      console.log(\`▶️ Начинаю выгрузку по коду: \${code}\`);
+      const first = await fetchPage(code, 1);
+      results[code] = [first];
+      // Корректно достаём поле с количеством участников!
+      let total = 0;
+      if (first && first.body && first.body.badge && first.body.badge.contestants) {
+        let cnt = first.body.badge.contestants;
+        if (typeof cnt === "string") {
+          let match = cnt.match(/(\\d+)/);
+          if (match) total = parseInt(match[1], 10);
+        } else if (typeof cnt === "number") {
+          total = cnt;
+        }
+      }
+      let pages = Math.ceil(total / 100);
+      console.log(\`  ℹ️ Участников (из поля body.badge.contestants): \${total}\`);
+      console.log(\`  ℹ️ Всего страниц для выгрузки: \${pages}\`);
+      for (let page = 2; page <= pages; page++) {
+        console.log(\`    ⏳ Запрашиваю страницу \${page} из \${pages}\`);
+        await sleep(DELAY_MS);
+        const data = await fetchPage(code, page);
+        results[code].push(data);
+        console.log(\`    ✓ Загружена страница \${page} из \${pages}\`);
+      }
+      await sleep(DELAY_MS);
+    }
+    // Сохраняем результат
+    const blob = new Blob([JSON.stringify(results, null, 2)], {type: 'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rewards_result.json';
+    a.click();
+    console.log('✅ Выгрузка завершена!');
+  }
+
+  main();
+})();`
+}
+
+
+
+  const REWARD_COOKIE = ''; // Здесь можно указать свой cookie
+
+  // Генерировать Alpha
+  if (alphaBtn) {
+    alphaBtn.onclick = function () {
+      const codes = input.value.split(/[ ,;\n]+/).filter(Boolean);
+      output.value = buildRewardScript({
+        codes,
+        baseUrl: 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/badges/',
+        cookie: REWARD_COOKIE
+      });
+      copyBtn.disabled = false;
+    };
+  }
+
+  // Генерировать Sigma
+  if (sigmaBtn) {
+    sigmaBtn.onclick = function () {
+      const codes = input.value.split(/[ ,;\n]+/).filter(Boolean);
+      output.value = buildRewardScript({
+        codes,
+        baseUrl: 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/badges/',
+        cookie: REWARD_COOKIE
+      });
+      copyBtn.disabled = false;
+    };
+  }
+
+  // Копировать результат
+  if (copyBtn) {
+    copyBtn.onclick = function () {
+      output.select();
+      output.setSelectionRange(0, 99999);
+      document.execCommand('copy');
+      copyBtn.textContent = 'Скопировано!';
+      setTimeout(() => copyBtn.textContent = 'Копировать', 1100);
+    };
+  }
+
+  // Очистить результат при изменении ввода
+  if (input) {
+    input.oninput = function () {
+      output.value = '';
+      copyBtn.disabled = true;
+    };
+  }
+
+  // Закрытие модалки по клику вне окна
+  window.addEventListener('click', function(e) {
+    if (e.target === rewardModal) {
+      rewardModal.classList.remove('show');
+      input.value = '';
+      output.value = '';
+      copyBtn.disabled = true;
+    }
+  });
+});
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    const citrixAlphaBtn = document.getElementById('citrix-alpha-btn');
+    if (citrixAlphaBtn) {
+        citrixAlphaBtn.addEventListener('click', function () {
+            navigator.clipboard.writeText('omega\\01803187').then(() => {
+                // визуальный отклик
+                citrixAlphaBtn.classList.add('copied-blink');
+                setTimeout(() => citrixAlphaBtn.classList.remove('copied-blink'), 600);
+            });
+        });
+    }
+});
+
+	
+document.addEventListener('DOMContentLoaded', function () {
+    const varmAlphaBtn = document.getElementById('varm-alpha-btn');
+    if (varmAlphaBtn) {
+        varmAlphaBtn.addEventListener('click', function () {
+            navigator.clipboard.writeText('omega\\01803187').then(() => {
+                // визуальный отклик
+                varmAlphaBtn.classList.add('copied-blink');
+                setTimeout(() => varmAlphaBtn.classList.remove('copied-blink'), 600);
+            });
+        });
+    }
+});
+	
+document.addEventListener('DOMContentLoaded', function () {
+    const ctlSigmaBtn = document.getElementById('ctl-sigma-btn');
+    if (ctlSigmaBtn) {
+        ctlSigmaBtn.addEventListener('click', function () {
+            navigator.clipboard.writeText('lakomkin-oo').then(() => {
+                // визуальный отклик
+                ctlSigmaBtn.classList.add('copied-blink');
+                setTimeout(() => ctlSigmaBtn.classList.remove('copied-blink'), 600);
+            });
+        });
+    }
+});
+	
+document.addEventListener('DOMContentLoaded', function () {
+    const psiAlphaBtn = document.getElementById('psi-alpha-btn');
+    if (psiAlphaBtn) {
+        psiAlphaBtn.addEventListener('click', function () {
+            navigator.clipboard.writeText('92863949').then(() => {
+                // визуальный отклик
+                psiAlphaBtn.classList.add('copied-blink');
+                setTimeout(() => psiAlphaBtn.classList.remove('copied-blink'), 600);
+            });
+        });
+    }
+});
+	
+document.addEventListener('DOMContentLoaded', function () {
+    const psi2AlphaBtn = document.getElementById('psi2-alpha-btn');
+    if (psi2AlphaBtn) {
+        psi2AlphaBtn.addEventListener('click', function () {
+            navigator.clipboard.writeText('92863949').then(() => {
+                // визуальный отклик
+                psi2AlphaBtn.classList.add('copied-blink');
+                setTimeout(() => psi2AlphaBtn.classList.remove('copied-blink'), 600);
+            });
+        });
+    }
+});
+
+</script>
+
+<script>
+function openProfileModal() {
+    document.getElementById('profile-modal').classList.add('show');
+    document.getElementById('profile-input').focus();
+}
+function closeProfileModal() {
+    document.getElementById('profile-modal').classList.remove('show');
+}
+document.getElementById('open-profile-modal-link').onclick = function(e) {
+    e.preventDefault();
+    openProfileModal();
+};
+document.getElementById('profile-close-btn').onclick = closeProfileModal;
+document.getElementById('profile-clear-btn').onclick = function() {
+    document.getElementById('profile-input').value = '';
+    document.getElementById('profile-output').value = '';
+    document.getElementById('profile-input').focus();
+};
+document.getElementById('profile-default-btn').onclick = function() {
+    document.getElementById('profile-input').value = '00673892; 00615968; 01340230';
+    document.getElementById('profile-output').value = '';
+    document.getElementById('profile-input').focus();
+};
+function formatTabNumbers(input) {
+    // делим по нецифровым
+    return input
+        .split(/[^0-9]+/)
+        .filter(Boolean)
+        .map(tn => tn.padStart(8, '0'));
+}
+function generateProfileScript(baseUrl) {
+    let input = document.getElementById('profile-input').value;
+    let tns = formatTabNumbers(input);
+    if (!tns.length) {
+        document.getElementById('profile-output').value = 'Укажите хотя бы один табельный';
+        return;
+    }
+    let url = baseUrl + '/bo/rmkib.gamification/api/v1/profiles/';
+    let now = new Date();
+    let fileName = 'profiles_' +
+        now.getFullYear() +
+        ('0' + (now.getMonth()+1)).slice(-2) +
+        ('0' + now.getDate()).slice(-2) +
+        '-' +
+        ('0' + now.getHours()).slice(-2) +
+        ('0' + now.getMinutes()).slice(-2) +
+        ('0' + now.getSeconds()).slice(-2) +
+        '.json';
+
+    let script = `
+(async () => {
+    const tns = ${JSON.stringify(tns)};
+    const urlBase = ${JSON.stringify(url)};
+    let results = [];
+    let errors = [];
+    console.log('Начало загрузки профилей. Всего табельных: ' + tns.length);
+    for (let i = 0; i < tns.length; ++i) {
+        let tn = tns[i];
+        try {
+            let resp = await fetch(urlBase + tn, { credentials: 'include' });
+            if (!resp.ok) throw new Error(resp.status);
+            let data = await resp.json();
+            results.push({ tn, data });
+            console.log(\`[\${i+1}/\${tns.length}] OK \${tn}\`);
+        } catch (err) {
+            errors.push({ tn, error: '' + err });
+            console.warn(\`[\${i+1}/\${tns.length}] ERR \${tn}: \${err}\`);
+        }
+        await new Promise(r => setTimeout(r, 10*(i==0 ? 0 : 1)));
+    }
+    console.log('Готово. Загружено: ' + results.length + ', ошибок: ' + errors.length);
+    const blob = new Blob([JSON.stringify({ results, errors }, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = ${JSON.stringify(fileName)};
+    link.click();
+    console.log('Файл сохранён:', link.download);
+})();`.trim();
+
+    document.getElementById('profile-output').value = script;
+}
+
+document.getElementById('profile-alpha-btn').onclick = function() {
+    generateProfileScript('https://efs-our-business-prom.omega.sbrf.ru');
+};
+document.getElementById('profile-sigma-btn').onclick = function() {
+    generateProfileScript('https://salesheroes.sberbank.ru');
+};
+
+document.getElementById('profile-copy-btn').onclick = function() {
+    let text = document.getElementById('profile-output').value;
+    if (text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Можно добавить всплывающий индикатор, если требуется
+        });
+    }
+};
+
+</script>
+
+
+
+</body>
+</html>
