@@ -1,0 +1,523 @@
+{
+  "groups": [
+    {
+      "id": 1,
+      "name": "Встречи (Jazz)",
+      "code": null,
+      "cards": [
+        {
+          "title": "SberJazz",
+          "url": "https://jazz.sberbank.ru/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Дейли (Герои продаж)",
+          "url": "https://jazz.sberbank.ru/sber-7g5cqu?psw=OBUVBwADHB0IBRIRXxcLDgcPDw",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ПКАП Встреча",
+          "url": "https://jazz.sberbank.ru/sber-gzdl5c?psw=OEcNEgsBXAZeVwoEVBVLFVFdFw",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ПКАП Сергей",
+          "url": "https://jazz.sberbank.ru/sber-jd9r1x?psw=OBoIEQsCHAVcCg8HVBYLFlMAEg",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "iMAC",
+          "url": "https://jazz.sberbank.ru/sber-mnv6vl?psw=OEEKAUUdDBVeUQ0XGgkbBlFbEA",
+          "id": null,
+          "copyCode": null
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Герои продаж (PROM / PSI)",
+      "code": "92863949",
+      "cards": [
+        {
+          "title": "(PROM) ГП - Alpha",
+          "url": "https://efs-our-business-prom.omega.sbrf.ru/salesheroes/community",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PROM) ГП - Sigma",
+          "url": "https://salesheroes.sberbank.ru/salesheroes",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PROM) КАП",
+          "url": "https://pvlos-sys000001.omega.sbrf.ru/SberDataCorr",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PSI) ГП - Alpha",
+          "url": "https://iam-enigma-psi.omega.sbrf.ru/",
+          "id": "psi-alpha-btn",
+          "copyCode": "92863949"
+        },
+        {
+          "title": "(PSI) ГП - Sigma",
+          "url": "https://salesheroes-psi.sigma.sbrf.ru/salesheroes",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PSI) КАП",
+          "url": "https://tklos-sys000001.omega.sbrf.ru/SberDataCorr",
+          "id": "psi2-alpha-btn",
+          "copyCode": "92863949"
+        },
+        {
+          "title": "(PSI) КАП (New)",
+          "url": "https://tvlos-sys000001.cloud.omega.sbrf.ru",
+          "id": "psi2-alpha-btn-new",
+          "copyCode": "92863949"
+        },
+        {
+          "title": "(PSI) Тенгри",
+          "url": "https://ci02587203-psi-iam-proxy-client-geo.omega.sbrf.ru",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PROM) Тенгри (Indicator)",
+          "url": "https://ci02587203-iam-proxy-main.prom-29-30-apps.ocp-geo.ocp.ca.sbrf.ru/indicator-efs-empl/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PROM) Тенгри (Ulogger)",
+          "url": "https://ci02587203-iam-proxy-main.prom-29-30-apps.ocp-geo.ocp.ca.sbrf.ru/indicator-efs-empl/a/logger/logs?orgId=1",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PROM) Тенгри (Base)",
+          "url": "https://ci02587203-prom-iam-proxy-main-geo.omega.sbrf.ru/indicator-efs-empl/a/logger/logs?orgId=6&from=now-15m&to=now",
+          "id": null,
+          "copyCode": null
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Рабочие программы",
+      "code": "omega\\01803187",
+      "cards": [
+        {
+          "title": "СберЧат",
+          "url": "https://sberchat.sberbank.ru/#/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Адресная книга",
+          "url": "https://addressbook/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Service Manager (Alpha)",
+          "url": "https://servicemanager.omega.sbrf.ru/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Мои доступы (Alpha)",
+          "url": "https://smd.omega.sbrf.ru/SberAccess/#/pa?tab=0",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Пульс (Alpha)",
+          "url": "https://hr.ca.sbrf.ru/platform/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Clickstream",
+          "url": "https://clickstream-prom.ca.sbrf.ru/frontend/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Citrix Workspace",
+          "url": "https://cab-snp-cx00001.omega.sbrf.ru/",
+          "id": "citrix-alpha-btn",
+          "copyCode": "omega\\01803187"
+        },
+        {
+          "title": "SberESM",
+          "url": "https://sberesm.omega.sbrf.ru/efs-ermops-static/app-ops_esm",
+          "id": null,
+          "copyCode": null
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "СУП",
+      "code": null,
+      "cards": [
+        {
+          "title": "(PROM GF_SK) Редактирование СУП",
+          "url": "https://iamproxy-prom-gfsk.ingress.apps.arqgec5q.k8s.ca.sbrf.ru/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PROM GF_MG) Редактирование СУП",
+          "url": "https://iamproxy-prom-gfmg.ingress.apps.arq6r3xx.k8s.ca.sbrf.ru/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PSI) Редактирование СУП [EFSEMP-IAM-GF-SK]",
+          "url": "https://iamproxy-psi-gfsk.ingress.apps.aq6omvfr.k8s.ca.sbrf.ru/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PSI) Редактирование СУП [EFSEMP-IAM-GF-MG]",
+          "url": "https://iamproxy-psi-gfmg.ingress.apps.aq664prc.k8s.ca.sbrf.ru/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PSI) Редактирование СУП [EFSEMP-IAM-SB-SK]",
+          "url": "https://iamproxy-psi-sbsk.ingress.apps.aq6jo46q.k8s.ca.sbrf.ru/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(PSI) Редактирование СУП [EFSEMP-IAM-SB-MG]",
+          "url": "https://iamproxy-psi-sbmg.ingress.apps.aq6655vb.k8s.ca.sbrf.ru/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "О управлении СУП пром",
+          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=12034673436",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "О доступе к управлению СУП пром",
+          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=11862715264",
+          "id": null,
+          "copyCode": null
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Герои продаж (IFT)",
+      "code": "lakomkin-oo",
+      "cards": [
+        {
+          "title": "ИФТ СБ",
+          "url": "https://iam-enigma-ift-sb.delta.sbrf.ru/salesheroes/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ИФТ ГФ",
+          "url": "https://iam-enigma-ift.delta.sbrf.ru/salesheroes",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ИФТ СБ Сигма",
+          "url": "https://salesheroes-sb.sigma.sbrf.ru/salesheroes",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ИФТ ГФ (Сигма)",
+          "url": "https://salesheroes-gf.sigma.sbrf.ru/salesheroes",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ИФТ СБ (новый)",
+          "url": "https://efs-ift-sb.delta.sbrf.ru/salesheroes",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ИФТ ГФ (новый)",
+          "url": "https://efs-ift-gf.delta.sbrf.ru/salesheroes",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "(ИФТ) Загрузка данных CTL",
+          "url": "https://ctl-ift.qa.df.sbrf.ru:9080/#/sign-in",
+          "id": "ctl-sigma-btn",
+          "copyCode": "lakomkin-oo"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Лаборатория данных",
+      "code": null,
+      "cards": [
+        {
+          "title": "QS",
+          "url": "https://vpokib.ca.sbrf.ru/main/hub/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "VARM LabZone Office Alpha i57z",
+          "url": "https://a-lz.omega.sbrf.ru",
+          "id": "varm-alpha-btn",
+          "copyCode": "omega\\01803187"
+        },
+        {
+          "title": "HUE",
+          "url": "http://pklis-mvp003253.labiac.df.sbrf.ru:8888/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "JupyterHub",
+          "url": "https://pklis-mvp003259.labiac.df.sbrf.ru:8000/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "AMBARI",
+          "url": "http://pklis-mvp003251.labiac.df.sbrf.ru:8080/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ДБ GigaChat (Sigma)",
+          "url": "https://oko-qs.sigma.sbrf.ru/prom/sense/app/ea9927f5-64f7-473e-8c3d-c46bd4cea768/sheet/062666f6-eafd-4b58-815d-59754ef81c33/state/analysis",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ДБ QS (Sigma)",
+          "url": "https://oko-qs.sigma.sbrf.ru",
+          "id": null,
+          "copyCode": null
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Ресурсы Confluence",
+      "code": null,
+      "cards": [
+        {
+          "title": "БекЛог Фабрика",
+          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=17521445497",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Авто ТУРНИРЫ",
+          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=11671348420",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "СПРИНТ",
+          "url": "https://jira.sberbank.ru/secure/RapidBoard.jspa?rapidView=32210&view=planning.nodetail&selectedIssue=HERO-3166&issueLimit=100",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ПКАП",
+          "url": "https://jira.delta.sbrf.ru/secure/StructureBoard.jspa?s=19119#",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Структура",
+          "url": "https://confluence.delta.sbrf.ru/pages/viewpage.action?pageId=9073267075",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "БТ фабрика",
+          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=9528155757",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "DevOps-портал",
+          "url": "https://sso.devopsportal.sigma.sbrf.ru/dop/#/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Задачи 2 кв",
+          "url": "https://jira.sberbank.ru/browse/HERO-4358",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Задачи 1 кв",
+          "url": "https://jira.sberbank.ru/secure/RapidBoard.jspa?rapidView=32210&view=planning.nodetail&selectedIssue=HERO-3088&issueLimit=100",
+          "id": null,
+          "copyCode": null
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Прочее рабочее",
+      "code": null,
+      "cards": [
+        {
+          "title": "Друг",
+          "url": "https://sberfriend.ca.sbrf.ru/sberfriend/#/dashboard",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Service Manager (Sigma)",
+          "url": "https://adv-gate.sigma.sbrf.ru/Citrix/ADVWeb/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ЕСР (Sigma)",
+          "url": "https://esr.sigma.sbrf.ru/",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Доска Команд",
+          "url": "https://agile.sber.ru/dashboard/#/?0%5BlocationState%5D=true",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Мои доступы (Sigma)",
+          "url": "https://sberu.sigma.sbrf.ru/SberWelcome/#/pa",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "Пульс (Sigma)",
+          "url": "https://hr.sberbank.ru/platform/dashboard",
+          "id": null,
+          "copyCode": null
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Прочее рабочее 2",
+      "code": null,
+      "cards": [
+        {
+          "title": "Почта (Sigma)",
+          "url": "https://mail.sberbank.ru/owa/#path=/mail",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "График периодов",
+          "url": "https://confluence.ca.sbrf.ru/pages/viewpage.action?pageId=8956707657",
+          "id": null,
+          "copyCode": null
+        },
+        {
+          "title": "ТФС/Пакетная выгрузка (бэклог)",
+          "url": "https://selfportal.dev.df.sbrf.ru/support/templates/supportfd",
+          "id": null,
+          "copyCode": null
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Администрирование",
+      "code": null,
+      "isAdmin": true,
+      "cards": [
+        {
+          "title": "Декодер permission",
+          "url": "#",
+          "id": "open-permission-modal-link",
+          "copyCode": null,
+          "isModal": true
+        },
+        {
+          "title": "Проверка роли (ПСИ)",
+          "url": "#",
+          "id": "open-role-modal-link",
+          "copyCode": null,
+          "isModal": true
+        },
+        {
+          "title": "LeadersForAdmin",
+          "url": "#",
+          "id": "open-scriptgen-modal-link",
+          "copyCode": null,
+          "isModal": true
+        },
+        {
+          "title": "Reward",
+          "url": "#",
+          "id": "open-reward-modal-link",
+          "copyCode": null,
+          "isModal": true
+        },
+        {
+          "title": "News Details",
+          "url": "#",
+          "id": "open-news-modal-link",
+          "copyCode": null,
+          "isModal": true
+        },
+        {
+          "title": "Профили по табельным",
+          "url": "#",
+          "id": "open-profile-modal-link",
+          "copyCode": null,
+          "isModal": true
+        },
+        {
+          "title": "AdressBook ТН",
+          "url": "#",
+          "id": "open-tn-modal-link",
+          "copyCode": null,
+          "isModal": true
+        },
+        {
+          "title": "AdressBook подразделения",
+          "url": "#",
+          "id": "open-dep-modal-link",
+          "copyCode": null,
+          "isModal": true
+        },
+        {
+          "title": "Экспорт ссылок",
+          "url": "#",
+          "id": "export-links-btn-link",
+          "copyCode": null,
+          "isModal": false
+        }
+      ]
+    }
+  ]
+}
+
