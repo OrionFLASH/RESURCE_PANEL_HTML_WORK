@@ -1765,9 +1765,9 @@ function adjustTopActions() {
 }
 window.addEventListener('resize', adjustTopActions);
 
-// === 2. Загрузка конфигурации и инициализация ===
+// === Единый обработчик инициализации ===
 document.addEventListener('DOMContentLoaded', function () {
-    // Регистрируем модальные окна в ModalManager
+    // === 1. Регистрация модальных окон в ModalManager ===
     ModalManager.register('permission-modal');
     ModalManager.register('role-modal');
     ModalManager.register('scriptgen-modal');
@@ -1777,15 +1777,13 @@ document.addEventListener('DOMContentLoaded', function () {
     ModalManager.register('reward-modal');
     ModalManager.register('profile-modal');
     
-    // Загружаем конфигурацию и рендерим группы
+    // === 2. Загрузка конфигурации и рендеринг групп ===
     loadAndRenderConfig();
     
     // Адаптация кнопок после загрузки конфигурации
     setTimeout(adjustTopActions, 100);
-});
-
-// === 3. Проверка доступности ссылок и статусы ===
-document.addEventListener('DOMContentLoaded', function () {
+    
+    // === 3. Проверка доступности ссылок и статусы ===
     // Проставляет статус (зеленый или красный) для каждой кнопки-ссылки
     function setStatus(card, isAvailable) {
     const title = card.querySelector('.ios-card-title');
@@ -1834,7 +1832,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setInterval(checkAllCards, CONFIG.LINK_CHECK_INTERVAL);
     }, 500);
 
-    // === 3. Переключатель темы (пока только добавляет класс к body, для расширения функционала) ===
+    // === 4. Переключатель темы (пока только добавляет класс к body, для расширения функционала) ===
     const themeSwitcher = document.getElementById('theme-switcher');
     if (themeSwitcher) {
         themeSwitcher.addEventListener('change', function () {
@@ -1843,7 +1841,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // === 4. Модалка Permission ===
+    // === 5. Модалка Permission ===
     const permissionModal = safeQuerySelector('#permission-modal');
     const closePermissionBtn = safeQuerySelector('#close-btn');
     const clearPermissionBtn = safeQuerySelector('#clear-btn');
@@ -1902,7 +1900,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     });
 
-    // === 5. Модалка роли ===
+    // === 6. Модалка роли ===
     const roleModal = safeQuerySelector('#role-modal');
     const closeRoleModalBtn = safeQuerySelector('#close-role-modal');
     const openRoleLinkBtn = safeQuerySelector('#open-role-link');
@@ -1952,7 +1950,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
-    // === 6. Экспорт ссылок в CSV ===
+    // === 7. Экспорт ссылок в CSV ===
 
 // ====== Модалка генератора скрипта SalesHeroes (единый стиль) ======
 const scriptgenModal = safeQuerySelector('#scriptgen-modal');
@@ -2366,117 +2364,112 @@ function generateNewsScript(env) {
 
 </script>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const newsBtn = document.getElementById('open-news-modal-link');
-  const newsModal = document.getElementById('news-modal');
+    // === 8. Модалка News (Выгрузка деталки по новостям) ===
+    const newsBtn = safeQuerySelector('#open-news-modal-link');
+    const newsModal = safeQuerySelector('#news-modal');
+    const newsCloseBtn = safeQuerySelector('#news-close-btn');
+    const newsClearBtn = safeQuerySelector('#news-clear-btn');
+    const newsDefaultBtn = safeQuerySelector('#news-default-btn');
+    const newsCopyBtn = safeQuerySelector('#news-copy-btn');
+    const newsInput = safeQuerySelector('#news_input');
+    const newsOutput = safeQuerySelector('#news-output');
 
-  if (newsBtn) {
-  newsBtn.addEventListener('click', () => newsModal.classList.add('show'));
-  }
-
-  const newsCloseBtn = document.getElementById('news-close-btn');
-  if (newsCloseBtn) {
-    newsCloseBtn.addEventListener('click', () => {
-    document.getElementById('news_input').value = '';
-    document.getElementById('news-output').value = '';
-    document.getElementById('news-copy-btn').disabled = true;
-    newsModal.classList.remove('show');
-  });
-  }
-
-  const newsClearBtn = document.getElementById('news-clear-btn');
-  if (newsClearBtn) {
-    newsClearBtn.addEventListener('click', () => {
-    const input = document.getElementById('news_input');
-    input.value = '';
-    input.focus();
-    document.getElementById('news-output').value = '';
-    document.getElementById('news-copy-btn').disabled = true;
-  });
-  }
-
-  const newsDefaultBtn = document.getElementById('news-default-btn');
-  if (newsDefaultBtn) {
-    newsDefaultBtn.addEventListener('click', () => {
-    document.getElementById('news_input').value = '715429170081770418; 715429169708477428';
-    document.getElementById('news-output').value = '';
-    document.getElementById('news-copy-btn').disabled = true;
-  });
-  }
-
-  const newsCopyBtn = document.getElementById('news-copy-btn');
-  if (newsCopyBtn) {
-    newsCopyBtn.addEventListener('click', () => {
-    const result = document.getElementById('news-output');
-      if (result && result.value) {
-        copyToClipboard(result.value, newsCopyBtn);
-      }
-    });
-  }
-
-  ['alpha', 'sigma'].forEach(env => {
-    const btn = document.getElementById(`news-${env}-btn`);
-    if (btn) {
-      btn.addEventListener('click', () => generateNewsScript(env));
+    if (newsBtn && newsModal) {
+        newsBtn.addEventListener('click', () => newsModal.classList.add('show'));
     }
-  });
-});
-</script>
 
-<script>
-// === Reward-модалка (Выгрузка по наградам) ===
-document.addEventListener('DOMContentLoaded', function () {
-  const rewardModal = document.getElementById('reward-modal');
-  const openRewardModalBtn = document.getElementById('open-reward-modal-link');
-  const closeRewardModalBtn = document.getElementById('reward-close-btn');
-  const clearBtn = document.getElementById('reward-clear-btn');
-  const copyBtn = document.getElementById('reward-copy-btn');
-  const defaultBtn = document.getElementById('reward-default-btn');
-  const input = document.getElementById('reward-input');
-  const output = document.getElementById('reward-result');
-  const alphaBtn = document.getElementById('reward-alpha-btn');
-  const sigmaBtn = document.getElementById('reward-sigma-btn');
+    if (newsCloseBtn) {
+        newsCloseBtn.addEventListener('click', () => {
+            if (newsInput) newsInput.value = '';
+            if (newsOutput) newsOutput.value = '';
+            if (newsCopyBtn) newsCopyBtn.disabled = true;
+            if (newsModal) newsModal.classList.remove('show');
+        });
+    }
 
-  // Открыть модалку
-  if (openRewardModalBtn) {
-    openRewardModalBtn.onclick = function () {
-      rewardModal.classList.add('show');
-      input.focus();
-      output.value = '';
-      copyBtn.disabled = true;
-    };
-  }
+    if (newsClearBtn && newsInput) {
+        newsClearBtn.addEventListener('click', () => {
+            newsInput.value = '';
+            newsInput.focus();
+            if (newsOutput) newsOutput.value = '';
+            if (newsCopyBtn) newsCopyBtn.disabled = true;
+        });
+    }
 
-  // Закрыть модалку
-  if (closeRewardModalBtn) {
-    closeRewardModalBtn.onclick = function () {
-      rewardModal.classList.remove('show');
-      input.value = '';
-      output.value = '';
-      copyBtn.disabled = true;
-    };
-  }
+    if (newsDefaultBtn) {
+        newsDefaultBtn.addEventListener('click', () => {
+            if (newsInput) newsInput.value = '715429170081770418; 715429169708477428';
+            if (newsOutput) newsOutput.value = '';
+            if (newsCopyBtn) newsCopyBtn.disabled = true;
+        });
+    }
 
-  // Очистить всё
-  if (clearBtn) {
-    clearBtn.onclick = function () {
-      input.value = '';
-      output.value = '';
-      copyBtn.disabled = true;
-      input.focus();
-    };
-  }
+    if (newsCopyBtn && newsOutput) {
+        newsCopyBtn.addEventListener('click', () => {
+            if (newsOutput.value) {
+                copyToClipboard(newsOutput.value, newsCopyBtn);
+            }
+        });
+    }
 
-  // По умолчанию
-  if (defaultBtn) {
-    defaultBtn.onclick = function () {
-      input.value = 'r_01_2025-0_10-1_2; r_01_2025-0_10-1_1';
-      output.value = '';
-      copyBtn.disabled = true;
-      input.focus();
-    };
-  }
+    ['alpha', 'sigma'].forEach(env => {
+        const btn = safeQuerySelector(`#news-${env}-btn`);
+        if (btn) {
+            btn.addEventListener('click', () => generateNewsScript(env));
+        }
+    });
+
+    // === 9. Модалка Reward (Выгрузка по наградам) ===
+    const rewardModal = safeQuerySelector('#reward-modal');
+    const openRewardModalBtn = safeQuerySelector('#open-reward-modal-link');
+    const closeRewardModalBtn = safeQuerySelector('#reward-close-btn');
+    const clearBtn = safeQuerySelector('#reward-clear-btn');
+    const copyBtn = safeQuerySelector('#reward-copy-btn');
+    const defaultBtn = safeQuerySelector('#reward-default-btn');
+    const rewardInput = safeQuerySelector('#reward-input');
+    const rewardOutput = safeQuerySelector('#reward-result');
+    const alphaBtn = safeQuerySelector('#reward-alpha-btn');
+    const sigmaBtn = safeQuerySelector('#reward-sigma-btn');
+
+    // Открыть модалку
+    if (openRewardModalBtn && rewardModal) {
+        openRewardModalBtn.addEventListener('click', function () {
+            rewardModal.classList.add('show');
+            if (rewardInput) rewardInput.focus();
+            if (rewardOutput) rewardOutput.value = '';
+            if (copyBtn) copyBtn.disabled = true;
+        });
+    }
+
+    // Закрыть модалку
+    if (closeRewardModalBtn && rewardModal) {
+        closeRewardModalBtn.addEventListener('click', function () {
+            rewardModal.classList.remove('show');
+            if (rewardInput) rewardInput.value = '';
+            if (rewardOutput) rewardOutput.value = '';
+            if (copyBtn) copyBtn.disabled = true;
+        });
+    }
+
+    // Очистить всё
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            if (rewardInput) rewardInput.value = '';
+            if (rewardOutput) rewardOutput.value = '';
+            if (copyBtn) copyBtn.disabled = true;
+            if (rewardInput) rewardInput.focus();
+        });
+    }
+
+    // По умолчанию
+    if (defaultBtn && rewardInput) {
+        defaultBtn.addEventListener('click', function () {
+            rewardInput.value = 'r_01_2025-0_10-1_2; r_01_2025-0_10-1_1';
+            if (rewardOutput) rewardOutput.value = '';
+            if (copyBtn) copyBtn.disabled = true;
+            rewardInput.focus();
+        });
+    }
 
   // Генерация скрипта для Alpha/Sigma
 function buildRewardScript({codes, baseUrl, cookie}) {
@@ -2547,59 +2540,52 @@ function buildRewardScript({codes, baseUrl, cookie}) {
 
   const REWARD_COOKIE = ''; // Здесь можно указать свой cookie
 
-  // Генерировать Alpha
-  if (alphaBtn) {
-    alphaBtn.onclick = function () {
-      const codes = input.value.split(/[ ,;\n]+/).filter(Boolean);
-      output.value = buildRewardScript({
-        codes,
-        baseUrl: 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/badges/',
-        cookie: REWARD_COOKIE
-      });
-      copyBtn.disabled = false;
-    };
-  }
-
-  // Генерировать Sigma
-  if (sigmaBtn) {
-    sigmaBtn.onclick = function () {
-      const codes = input.value.split(/[ ,;\n]+/).filter(Boolean);
-      output.value = buildRewardScript({
-        codes,
-        baseUrl: 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/badges/',
-        cookie: REWARD_COOKIE
-      });
-      copyBtn.disabled = false;
-    };
-  }
-
-  // Копировать результат
-  if (copyBtn) {
-    copyBtn.onclick = function () {
-      if (output && output.value) {
-        copyToClipboard(output.value, copyBtn);
-      }
-    };
-  }
-
-  // Очистить результат при изменении ввода
-  if (input) {
-    input.oninput = function () {
-      output.value = '';
-      copyBtn.disabled = true;
-    };
-  }
-
-  // Закрытие модалки по клику вне окна
-  window.addEventListener('click', function(e) {
-    if (e.target === rewardModal) {
-      rewardModal.classList.remove('show');
-      input.value = '';
-      output.value = '';
-      copyBtn.disabled = true;
+    // Генерировать Alpha
+    if (alphaBtn && rewardInput && rewardOutput) {
+        alphaBtn.addEventListener('click', function () {
+            const codes = rewardInput.value.split(/[ ,;\n]+/).filter(Boolean);
+            rewardOutput.value = buildRewardScript({
+                codes,
+                baseUrl: 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/badges/',
+                cookie: REWARD_COOKIE
+            });
+            if (copyBtn) copyBtn.disabled = false;
+        });
     }
-  });
+
+    // Генерировать Sigma
+    if (sigmaBtn && rewardInput && rewardOutput) {
+        sigmaBtn.addEventListener('click', function () {
+            const codes = rewardInput.value.split(/[ ,;\n]+/).filter(Boolean);
+            rewardOutput.value = buildRewardScript({
+                codes,
+                baseUrl: 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/badges/',
+                cookie: REWARD_COOKIE
+            });
+            if (copyBtn) copyBtn.disabled = false;
+        });
+    }
+
+    // Копировать результат
+    if (copyBtn && rewardOutput) {
+        copyBtn.addEventListener('click', function () {
+            if (rewardOutput.value) {
+                copyToClipboard(rewardOutput.value, copyBtn);
+            }
+        });
+    }
+
+    // Очистить результат при изменении ввода
+    if (rewardInput && rewardOutput) {
+        rewardInput.addEventListener('input', function () {
+            rewardOutput.value = '';
+            if (copyBtn) copyBtn.disabled = true;
+        });
+    }
+
+    // Закрытие модалки по клику вне окна (обрабатывается в ModalManager)
 });
+</script>
 
 
 // Обработчики для кнопок с копированием кода теперь в initDynamicEventHandlers()
