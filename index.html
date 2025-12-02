@@ -403,7 +403,7 @@ input:focus, textarea:focus {
     <section class="groups-viewport" aria-label="Группы ресурсов">
         <div class="groups-container" id="groups-container">
             <!-- Контент будет загружен динамически из config.json -->
-        </div>
+                </div>
     </section>
 </main>
 
@@ -694,6 +694,12 @@ const ModalManager = {
         const modal = safeQuerySelector(`#${id}`);
         if (!modal) return;
         
+        // Конфигурация модального окна с значениями по умолчанию
+        const config = {
+            closeOnBackdrop: options.closeOnBackdrop !== false,
+            closeOnEscape: options.closeOnEscape !== false,
+            trapFocus: options.trapFocus !== false
+        };
         
         this.modals.set(id, { modal, config });
         this.setupEventListeners(id);
@@ -779,6 +785,212 @@ document.addEventListener('keydown', function(e) {
 let cardDataMap = new Map(); // Маппинг ID карточек на их данные
 
 // Загрузка конфигурации из JSON (встроенные данные)
+
+
+// Построение маппинга ID карточек на их данные
+function buildCardDataMap(groups) {
+    cardDataMap.clear();
+    groups.forEach(group => {
+        group.cards.forEach(card => {
+            if (card.id) {
+                cardDataMap.set(card.id, card);
+            }
+        });
+    });
+}
+
+// Получение данных карточки по ID
+function getCardDataById(id) {
+    return cardDataMap.get(id);
+}
+
+// Рендеринг групп
+function renderGroups(groups) {
+    const container = safeQuerySelector('#groups-container');
+    if (!container) {
+        Logger.error('Контейнер групп не найден');
+        return;
+    }
+    
+    // Очищаем контейнер
+    container.innerHTML = '';
+    
+    groups.forEach(group => {
+        const groupElement = createGroupElement(group);
+        container.appendChild(groupElement);
+    });
+    
+    // Инициализируем обработчики для новых элементов
+    initDynamicEventHandlers();
+    
+    // Адаптируем кнопки после рендеринга
+    adjustTopActions();
+}
+
+// Создание элемента группы
+function createGroupElement(group) {
+    const article = document.createElement('article');
+    article.className = 'ios-group';
+    const headerId = group.isAdmin ? 'group-admin-header' : `group-${group.id}-header`;
+    article.setAttribute('aria-labelledby', headerId);
+    
+    // Заголовок группы
+    const header = document.createElement('div');
+    header.className = group.isAdmin ? `ios-group-header group-admin` : `ios-group-header group-${group.id}`;
+    header.id = headerId;
+    header.textContent = group.name;
+    article.appendChild(header);
+    
+    // Контейнер карточек
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'ios-group-cards';
+    
+    // Создаем карточки
+    group.cards.forEach(card => {
+        const cardElement = createCardElement(card);
+        cardsContainer.appendChild(cardElement);
+    });
+    
+    article.appendChild(cardsContainer);
+    
+    // Добавляем код для копирования, если есть
+    if (group.code) {
+        const footnote = document.createElement('div');
+        footnote.className = 'group-psi-footnote';
+        const codeSpan = document.createElement('span');
+        codeSpan.className = 'group-psi-footnote-code';
+        codeSpan.textContent = group.code;
+        footnote.appendChild(codeSpan);
+        article.appendChild(footnote);
+    }
+    
+    return article;
+}
+
+// Создание элемента карточки
+function createCardElement(card) {
+    const link = document.createElement('a');
+    link.href = card.url || '#';
+    link.className = 'ios-card';
+    
+    // Если это модальное окно или специальная ссылка, не открываем в новой вкладке
+    if (!card.isModal && card.url && card.url !== '#' && !card.url.startsWith('#')) {
+        link.target = '_blank';
+    }
+    
+    if (card.id) {
+        link.id = card.id;
+    }
+    
+    const title = document.createElement('span');
+    title.className = 'ios-card-title';
+    title.textContent = card.title;
+    link.appendChild(title);
+    
+    return link;
+}
+
+// Инициализация обработчиков для динамически созданных элементов
+function initDynamicEventHandlers() {
+    // Обработчики для карточек с копированием кода
+    cardDataMap.forEach((cardData, cardId) => {
+        const cardElement = safeQuerySelector(`#${cardId}`);
+        if (cardElement && cardData.copyCode) {
+            cardElement.addEventListener('click', function(e) {
+                // Если это ссылка с href="#", предотвращаем переход
+                if (cardElement.href === '#' || cardElement.href.endsWith('#')) {
+                    e.preventDefault();
+                }
+                copyToClipboard(cardData.copyCode, null);
+                cardElement.classList.add('copied-blink');
+                setTimeout(() => cardElement.classList.remove('copied-blink'), 600);
+            });
+        }
+    });
+    
+    // Обработчики для модальных окон (группа Администрирование)
+    const modalLinks = {
+        'open-permission-modal-link': () => {
+            const modal = safeQuerySelector('#permission-modal');
+            if (modal) {
+                modal.classList.add('show');
+                const input = safeQuerySelector('#permission-input');
+                if (input) input.focus();
+            }
+        },
+        'open-role-modal-link': () => {
+            const modal = safeQuerySelector('#role-modal');
+            if (modal) {
+                modal.classList.add('show');
+                const input = safeQuerySelector('#employee-number');
+                if (input) input.focus();
+            }
+        },
+        'open-scriptgen-modal-link': () => {
+            const modal = safeQuerySelector('#scriptgen-modal');
+            if (modal) {
+                modal.classList.add('show');
+                const result = safeQuerySelector('#sg-result');
+                if (result) result.value = '';
+                const input = safeQuerySelector('#sg-tournamentIds');
+                if (input) input.focus();
+            }
+        },
+        'open-reward-modal-link': () => {
+            const modal = safeQuerySelector('#reward-modal');
+            if (modal) {
+                modal.classList.add('show');
+                const input = safeQuerySelector('#reward-input');
+                if (input) input.focus();
+            }
+        },
+        'open-news-modal-link': () => {
+            const modal = safeQuerySelector('#news-modal');
+            if (modal) modal.classList.add('show');
+        },
+        'open-profile-modal-link': () => {
+            const modal = safeQuerySelector('#profile-modal');
+            if (modal) {
+                modal.classList.add('show');
+                const input = safeQuerySelector('#profile-input');
+                if (input) input.focus();
+            }
+        },
+        'open-tn-modal-link': () => {
+            const modal = safeQuerySelector('#tn-modal');
+            if (modal) {
+                modal.classList.add('show');
+                const input = safeQuerySelector('#tn_input');
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+            }
+        },
+        'open-dep-modal-link': () => {
+            const modal = safeQuerySelector('#dep-modal');
+            if (modal) {
+                modal.classList.add('show');
+                const input = safeQuerySelector('#dep_input');
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+            }
+        }
+    };
+    
+    Object.keys(modalLinks).forEach(id => {
+        const element = safeQuerySelector(`#${id}`);
+        if (element) {
+            element.addEventListener('click', function(e) {
+                e.preventDefault();
+                modalLinks[id]();
+            });
+        }
+    });
+}
+
 function loadAndRenderConfig() {
     const container = safeQuerySelector('#groups-container');
     if (!container) {
@@ -1316,19 +1528,34 @@ function loadAndRenderConfig() {
     }
   ]
 }
-
 `);
-    
-    Object.keys(modalLinks).forEach(id => {
-        const element = safeQuerySelector(`#${id}`);
-        if (element) {
-            element.addEventListener('click', function(e) {
-                e.preventDefault();
-                modalLinks[id]();
-            });
-        }
-    });
+        
+        console.log('✅ JSON загружен, групп:', config.groups.length);
+        console.log('🔄 Начинаю построение маппинга карточек...');
+        buildCardDataMap(config.groups);
+        console.log('🔄 Начинаю рендеринг групп...');
+        renderGroups(config.groups);
+        Logger.info('Конфигурация загружена и отрендерена', { groupsCount: config.groups.length });
+        console.log('✅ Конфигурация успешно отрендерена');
+    } catch (error) {
+        console.error('❌ Ошибка при загрузке конфигурации:', error);
+        Logger.error('Ошибка загрузки конфигурации', { error: error.message });
+    }
 }
+
+// Построение маппинга ID карточек на их данные
+
+
+
+
+
+
+
+
+
+
+
+
 
 // === 1. Адаптация расположения кнопок сверху в зависимости от количества панелей ===
 function adjustTopActions() {
@@ -1407,7 +1634,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Запускаем проверку после загрузки конфигурации
     setTimeout(() => {
-        checkAllCards();
+    checkAllCards();
         // Периодическая проверка раз в 2 минуты
         setInterval(checkAllCards, CONFIG.LINK_CHECK_INTERVAL);
     }, 500);
@@ -1478,7 +1705,7 @@ document.addEventListener('DOMContentLoaded', function () {
             permissionModal.classList.remove('show');
         }
     });
-});
+    });
 
     // === 5. Модалка роли ===
     const roleModal = safeQuerySelector('#role-modal');
@@ -1493,8 +1720,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Разблокировка кнопки "Открыть" если оба поля не пустые
     function checkRoleInputs() {
         if (openRoleLinkBtn && empInput && roleInput) {
-            openRoleLinkBtn.disabled = !(empInput.value.trim() && roleInput.value.trim());
-        }
+        openRoleLinkBtn.disabled = !(empInput.value.trim() && roleInput.value.trim());
+    }
     }
     if (closeRoleModalBtn) {
         closeRoleModalBtn.onclick = function () {
@@ -1573,11 +1800,11 @@ if (sgClearBtn) sgClearBtn.onclick = function () {
 
 // Закрыть модалку (открытие обрабатывается в initDynamicEventHandlers)
 if (closeScriptgenModalBtn) {
-    closeScriptgenModalBtn.onclick = function() {
+closeScriptgenModalBtn.onclick = function() {
         if (scriptgenModal) {
-            scriptgenModal.classList.remove('show');
+    scriptgenModal.classList.remove('show');
         }
-    };
+};
 }
 // Клик вне окна — закрыть
 window.addEventListener('click', function(e) {
@@ -1585,7 +1812,7 @@ window.addEventListener('click', function(e) {
 });
 // Копировать в буфер
 if (sgCopyBtn) {
-    sgCopyBtn.onclick = function() {
+sgCopyBtn.onclick = function() {
         if (sgResult && sgResult.value) {
             copyToClipboard(sgResult.value, sgCopyBtn);
         }
@@ -1630,7 +1857,7 @@ function generateScriptSber(type) {
             return;
         }
         
-        const baseUrl = (type === 'alpha' ? urlAlpha : urlSigma) + apiPath;
+    const baseUrl = (type === 'alpha' ? urlAlpha : urlSigma) + apiPath;
 
     let code = `// ==UserScript==\n`;
     code += `// Скрипт для DevTools. Выгрузка лидеров для всех Tournament ID (одна страница на турнир)\n`;
@@ -1722,7 +1949,7 @@ function generateScriptSber(type) {
     code += `  console.log(\`🏁 Обработка завершена. Всего: \${ids.length}. Успешно: \${processed}. Пропущено: \${skipped}. Ошибок: \${errors}. Файл скачан.\`);\n`;
     code += `})();\n`;
 
-        sgResult.value = code;
+    sgResult.value = code;
         Logger.info('Скрипт успешно сгенерирован', { type, idsCount: ids.length });
     } catch (error) {
         Logger.error('Ошибка при генерации скрипта', error);
@@ -1798,7 +2025,7 @@ tnGenBtn.onclick = function() {
 };
 
 if (tnCopyBtn) {
-    tnCopyBtn.onclick = function() {
+tnCopyBtn.onclick = function() {
         if (outTn && outTn.value) {
             copyToClipboard(outTn.value, tnCopyBtn);
         }
@@ -1816,12 +2043,12 @@ const depInput = document.getElementById('dep_input');
 const outDep = document.getElementById('out_dep');
 
 if (openDepModalBtn) {
-  openDepModalBtn.onclick = function() {
-    depModal.classList.add('show');
-    outDep.value = '';
-    depInput.value = '';
-    depInput.focus();
-  };
+openDepModalBtn.onclick = function() {
+  depModal.classList.add('show');
+  outDep.value = '';
+  depInput.value = '';
+  depInput.focus();
+};
 }
 depCloseBtn.onclick = function() { depModal.classList.remove('show'); };
 window.addEventListener('click', e => { if (e.target === depModal) depModal.classList.remove('show'); });
@@ -1882,7 +2109,7 @@ depGenBtn.onclick = function() {
 };
 
 if (depCopyBtn) {
-    depCopyBtn.onclick = function() {
+depCopyBtn.onclick = function() {
         if (outDep && outDep.value) {
             copyToClipboard(outDep.value, depCopyBtn);
         }
@@ -1950,43 +2177,43 @@ document.addEventListener('DOMContentLoaded', function () {
   const newsModal = document.getElementById('news-modal');
 
   if (newsBtn) {
-    newsBtn.addEventListener('click', () => newsModal.classList.add('show'));
+  newsBtn.addEventListener('click', () => newsModal.classList.add('show'));
   }
 
   const newsCloseBtn = document.getElementById('news-close-btn');
   if (newsCloseBtn) {
     newsCloseBtn.addEventListener('click', () => {
-      document.getElementById('news_input').value = '';
-      document.getElementById('news-output').value = '';
-      document.getElementById('news-copy-btn').disabled = true;
-      newsModal.classList.remove('show');
-    });
+    document.getElementById('news_input').value = '';
+    document.getElementById('news-output').value = '';
+    document.getElementById('news-copy-btn').disabled = true;
+    newsModal.classList.remove('show');
+  });
   }
 
   const newsClearBtn = document.getElementById('news-clear-btn');
   if (newsClearBtn) {
     newsClearBtn.addEventListener('click', () => {
-      const input = document.getElementById('news_input');
-      input.value = '';
-      input.focus();
-      document.getElementById('news-output').value = '';
-      document.getElementById('news-copy-btn').disabled = true;
-    });
+    const input = document.getElementById('news_input');
+    input.value = '';
+    input.focus();
+    document.getElementById('news-output').value = '';
+    document.getElementById('news-copy-btn').disabled = true;
+  });
   }
 
   const newsDefaultBtn = document.getElementById('news-default-btn');
   if (newsDefaultBtn) {
     newsDefaultBtn.addEventListener('click', () => {
-      document.getElementById('news_input').value = '715429170081770418; 715429169708477428';
-      document.getElementById('news-output').value = '';
-      document.getElementById('news-copy-btn').disabled = true;
-    });
+    document.getElementById('news_input').value = '715429170081770418; 715429169708477428';
+    document.getElementById('news-output').value = '';
+    document.getElementById('news-copy-btn').disabled = true;
+  });
   }
 
   const newsCopyBtn = document.getElementById('news-copy-btn');
   if (newsCopyBtn) {
     newsCopyBtn.addEventListener('click', () => {
-      const result = document.getElementById('news-output');
+    const result = document.getElementById('news-output');
       if (result && result.value) {
         copyToClipboard(result.value, newsCopyBtn);
       }
@@ -2118,7 +2345,7 @@ function buildRewardScript({codes, baseUrl, cookie}) {
   }
 
   main();
-})();`
+})();`;
 }
 
 
