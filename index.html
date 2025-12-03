@@ -1973,43 +1973,122 @@ function loadAndRenderConfig() {
 
 
 
-// === Адаптация размеров групп для избежания прокрутки ===
+// === Адаптация размеров групп - кнопки заполняют весь блок ===
 function adaptGroupsToFit() {
     const groups = document.querySelectorAll('.ios-group');
-    // Оптимальные размеры для текста в 2 строки максимум
-    const BASE_FONT_SIZE = 15; // Базовый размер шрифта
-    const MIN_FONT_SIZE = 11; // Минимальный размер шрифта
-    const MIN_PADDING = 6; // Минимальный padding (верх/низ)
-    const MIN_HEIGHT = 44; // Минимальная высота карточки (для 2 строк)
-    const MAX_HEIGHT = 64; // Максимальная высота карточки (для 2 строк текста)
-    const MIN_GAP = 6; // Минимальный gap между карточками
+    // Константы для адаптации
+    const OPTIMAL_FONT_SIZE = 18; // Оптимальный максимальный размер шрифта
+    const MIN_FONT_SIZE = 10; // Минимальный размер шрифта
+    const MIN_PADDING = 4; // Минимальный padding (верх/низ)
+    const MIN_HEIGHT = 36; // Минимальная высота карточки
+    const MIN_GAP = 4; // Минимальный gap между карточками
+    const CARDS_PER_COLUMN_THRESHOLD = 6; // Порог для переключения на 2 колонки
     // Заголовок группы не уменьшаем - он должен оставаться одинаковым на всех группах
     
     groups.forEach(group => {
         const cardsContainer = group.querySelector('.ios-group-cards');
         if (!cardsContainer) return;
         
-        // Получаем текущие значения из computed styles
-        const firstCard = cardsContainer.querySelector('.ios-card');
-        if (!firstCard) return;
+        const cards = cardsContainer.querySelectorAll('.ios-card');
+        if (cards.length === 0) return;
         
-        const computedStyle = window.getComputedStyle(firstCard);
-        const originalFontSize = parseFloat(computedStyle.fontSize);
-        const originalPaddingTop = parseFloat(computedStyle.paddingTop);
-        const originalPaddingBottom = parseFloat(computedStyle.paddingBottom);
-        const originalMinHeight = parseFloat(computedStyle.minHeight);
-        const originalGap = parseFloat(window.getComputedStyle(cardsContainer).gap) || 8;
+        const cardsCount = cards.length;
         
-        let currentFontSize = originalFontSize;
-        let currentPaddingTop = originalPaddingTop;
-        let currentPaddingBottom = originalPaddingBottom;
-        let currentMinHeight = originalMinHeight;
-        let currentGap = originalGap;
+        // Вычисляем доступную высоту контейнера
+        const containerPadding = parseFloat(window.getComputedStyle(cardsContainer).paddingTop) + 
+                                parseFloat(window.getComputedStyle(cardsContainer).paddingBottom);
+        const availableHeight = cardsContainer.clientHeight - containerPadding;
         
-        // Сохраняем оригинальный layout (column)
-        const originalDisplay = window.getComputedStyle(cardsContainer).display;
-        const originalFlexDirection = window.getComputedStyle(cardsContainer).flexDirection;
-        let isTwoColumns = false;
+        // Определяем количество колонок
+        const useTwoColumns = cardsCount > CARDS_PER_COLUMN_THRESHOLD;
+        const rowsCount = useTwoColumns ? Math.ceil(cardsCount / 2) : cardsCount;
+        
+        // Вычисляем оптимальную высоту кнопки для заполнения всего блока
+        const currentGap = parseFloat(window.getComputedStyle(cardsContainer).gap) || 8;
+        const totalGapHeight = (rowsCount - 1) * currentGap;
+        const optimalCardHeight = (availableHeight - totalGapHeight) / rowsCount;
+        
+        // Применяем layout (одна или две колонки)
+        if (useTwoColumns) {
+            cardsContainer.style.display = 'grid';
+            cardsContainer.style.gridTemplateColumns = '1fr 1fr';
+            cardsContainer.style.flexDirection = 'unset';
+        } else {
+            cardsContainer.style.display = 'flex';
+            cardsContainer.style.flexDirection = 'column';
+            cardsContainer.style.gridTemplateColumns = 'unset';
+        }
+        
+        // Адаптируем размеры кнопок и шрифта
+        let cardHeight = Math.max(MIN_HEIGHT, optimalCardHeight);
+        let fontSize = OPTIMAL_FONT_SIZE;
+        let padding = 10;
+        
+        // Вычисляем оптимальный размер шрифта на основе высоты кнопки
+        // Формула: fontSize примерно = (cardHeight - padding*2) / 3.5 (для 2 строк)
+        const calculatedFontSize = Math.min(
+            OPTIMAL_FONT_SIZE,
+            Math.max(MIN_FONT_SIZE, (cardHeight - padding * 2) / 3.5)
+        );
+        fontSize = calculatedFontSize;
+        
+        // Проверяем, помещаются ли кнопки
+        let needsReduction = false;
+        if (useTwoColumns) {
+            // Для двух колонок проверяем, помещаются ли все кнопки
+            const testHeight = rowsCount * cardHeight + totalGapHeight;
+            if (testHeight > availableHeight) {
+                needsReduction = true;
+            }
+        } else {
+            const testHeight = cardsCount * cardHeight + totalGapHeight;
+            if (testHeight > availableHeight) {
+                needsReduction = true;
+            }
+        }
+        
+        // Если не помещается, уменьшаем размеры
+        if (needsReduction) {
+            // Уменьшаем до тех пор, пока не поместится или не достигнем минимума
+            let iterations = 0;
+            while (iterations < 30) {
+                const testHeight = rowsCount * cardHeight + totalGapHeight;
+                if (testHeight <= availableHeight || cardHeight <= MIN_HEIGHT) {
+                    break;
+                }
+                
+                // Уменьшаем размеры
+                cardHeight = Math.max(MIN_HEIGHT, cardHeight - 2);
+                fontSize = Math.max(MIN_FONT_SIZE, fontSize - 0.3);
+                padding = Math.max(MIN_PADDING, padding - 0.2);
+                
+                iterations++;
+            }
+        }
+        
+        // Применяем вычисленные размеры ко всем кнопкам
+        cards.forEach(card => {
+            card.style.minHeight = cardHeight + 'px';
+            card.style.maxHeight = cardHeight + 'px';
+            card.style.height = cardHeight + 'px';
+            card.style.fontSize = fontSize + 'px';
+            card.style.paddingTop = padding + 'px';
+            card.style.paddingBottom = padding + 'px';
+        });
+        
+        // Применяем размер шрифта к заголовкам
+        const cardTitles = cardsContainer.querySelectorAll('.ios-card-title');
+        cardTitles.forEach(title => {
+            title.style.fontSize = fontSize + 'px';
+        });
+        
+        // Проверяем, нужна ли прокрутка после всех изменений
+        const finalHeight = rowsCount * cardHeight + totalGapHeight;
+        if (finalHeight > availableHeight && cardHeight <= MIN_HEIGHT) {
+            cardsContainer.style.overflowY = 'auto';
+        } else {
+            cardsContainer.style.overflowY = 'hidden';
+        }
         
         // Функция проверки необходимости прокрутки
         function needsScroll() {
