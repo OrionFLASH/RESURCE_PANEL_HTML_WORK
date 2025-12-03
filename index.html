@@ -16,7 +16,7 @@
     
 <style>
 :root {
-    /* Liquid Glass iOS 26 - Светлая тема */
+    
     --glass-bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 50%, #d4e0ed 100%);
     --glass-white: rgba(255, 255, 255, 0.7);
     --glass-white-light: rgba(255, 255, 255, 0.6);
@@ -146,13 +146,13 @@ body {
     min-height: 0;
     gap: 8px;
     padding: 12px;
-    padding-bottom: 12px; /* Минимальный отступ снизу */
+    padding-bottom: 12px; 
     overflow-y: auto;
     overflow-x: hidden;
-    align-items: stretch; /* Равномерное выравнивание кнопок */
-    justify-content: flex-start; /* Прибиваем кнопки к верху */
+    align-items: stretch; 
+    justify-content: flex-start; 
 }
-/* Скроллбар в стиле iOS */
+
 .ios-group-cards::-webkit-scrollbar {
     width: 6px;
 }
@@ -171,18 +171,18 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%; /* Заполняет всю ширину контейнера */
-    box-sizing: border-box; /* Учитывает padding в ширине */
+    width: 100%; 
+    box-sizing: border-box; 
     background: var(--glass-white-light);
     backdrop-filter: blur(10px) saturate(150%);
     -webkit-backdrop-filter: blur(10px) saturate(150%);
     border: 1px solid var(--glass-white-border-light);
     border-radius: 16px;
     margin: 0;
-    font-size: 15px; /* Оптимальный размер шрифта */
-    min-height: 48px; /* Минимальная высота для 2 строк текста */
-    max-height: 64px; /* Максимальная высота для 2 строк текста */
-    padding: 10px 14px; /* Padding для комфортного отображения */
+    font-size: 15px; 
+    min-height: 48px; 
+    max-height: 64px; 
+    padding: 10px 14px; 
     font-weight: 500;
     box-shadow: var(--glass-card-shadow);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -196,7 +196,7 @@ body {
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
-    line-height: 1.5; /* Увеличен line-height для лучшей читаемости */
+    line-height: 1.5; 
 }
 .ios-card:hover, .ios-card:focus {
     background: var(--glass-blue-light);
@@ -220,10 +220,10 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     flex: 1 1 auto;
-    line-height: 1.5; /* Увеличен line-height для лучшего заполнения */
+    line-height: 1.5; 
     word-wrap: break-word;
     overflow-wrap: break-word;
-    width: 100%; /* Заполняет всю ширину кнопки */
+    width: 100%; 
 }
 .ios-card-status {
     margin-left: 13px;
@@ -250,7 +250,7 @@ body {
 }
 
 
-/* ==== Модалки (универсальные) - Liquid Glass стиль ==== */
+
 .modal {
     display: none;
     position: fixed;
@@ -263,7 +263,7 @@ body {
     transition: background .22s;
 }
 .modal.show { display: flex; }
-/* Унифицированный размер для всех модальных окон */
+
 .modal-content {
     background: var(--glass-white);
     backdrop-filter: blur(30px) saturate(180%);
@@ -284,7 +284,7 @@ body {
     color: var(--glass-text);
     box-sizing: border-box;
 }
-/* Скроллбар для модальных окон */
+
 .modal-content::-webkit-scrollbar {
     width: 8px;
 }
@@ -299,14 +299,14 @@ body {
 .modal-content::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 0, 0, 0.3);
 }
-/* Унифицированный размер для всех модальных окон */
+
 .modal-content.modal-large,
 .modal-content.modal-small,
 .modal-content {
-    max-width: 700px; /* Единый размер для всех модалок */
+    max-width: 700px; 
     min-width: 500px;
     width: 92vw;
-    padding: 32px 32px 24px 32px; /* Единый padding */
+    padding: 32px 32px 24px 32px; 
 }
 @keyframes modalIn {
     from { opacity: 0; transform: scale(.98) translateY(40px);}
@@ -325,28 +325,28 @@ body {
 }
 .modal-buttons {
     display: flex;
-    gap: 10px; /* Уменьшен gap для более аккуратного вида */
+    gap: 10px; 
     margin-top: 24px;
     flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
 }
-/* Унифицированный порядок кнопок: основные действия слева, служебные справа */
+
 .modal-buttons-primary {
     display: flex;
-    gap: 10px; /* Уменьшен gap */
+    gap: 10px; 
     flex-wrap: wrap;
     flex: 1;
     align-items: center;
 }
 .modal-buttons-secondary {
     display: flex;
-    gap: 10px; /* Уменьшен gap */
+    gap: 10px; 
     flex-wrap: wrap;
     margin-left: auto;
     align-items: center;
 }
-/* Унифицированные стили для всех кнопок в модальных окнах */
+
 .modal-button {
     min-width: 100px;
     white-space: nowrap;
@@ -358,17 +358,17 @@ body {
 .modal-button:disabled:hover {
     background: var(--sber-blue);
 }
-/* Унифицированные кнопки в стиле iOS 26 - аккуратные и одинаковые */
+
 .modal-button, .export-button {
     background: var(--glass-blue);
     color: #ffffff;
     border: none;
-    border-radius: 12px; /* iOS 26 стиль - более скругленные углы */
-    font-size: 17px; /* Увеличен размер шрифта для лучшей читаемости */
+    border-radius: 12px; 
+    font-size: 17px; 
     font-weight: 600;
-    padding: 12px 24px; /* Единый padding для всех кнопок */
-    min-width: 110px; /* Минимальная ширина для единообразия */
-    height: 44px; /* Фиксированная высота в стиле iOS */
+    padding: 12px 24px; 
+    min-width: 110px; 
+    height: 44px; 
     box-shadow: 
         0 2px 8px rgba(0, 122, 255, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.25);
@@ -396,7 +396,7 @@ body {
         0 1px 4px rgba(0, 122, 255, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
-/* Кнопка "По умолчанию" - вторичный стиль */
+
 #default-btn, .modal-button[type="button"]:not(.modal-clear-btn):not([id*="alpha"]):not([id*="sigma"]):not([id*="gen"]):not([id*="copy"]) {
     background: rgba(0, 0, 0, 0.06);
     color: var(--glass-text);
@@ -419,17 +419,17 @@ body {
     transform: translateY(0);
     background: rgba(0, 0, 0, 0.08);
 }
-/* Кнопка очистки в стиле iOS 26 - аккуратная */
+
 .modal-clear-btn {
     background: var(--glass-red);
     color: #ffffff;
     border: none;
-    border-radius: 12px; /* iOS 26 стиль */
-    font-size: 17px; /* Увеличен размер шрифта для лучшей читаемости */
+    border-radius: 12px; 
+    font-size: 17px; 
     margin-left: 8px;
-    padding: 12px 20px; /* Единый padding */
-    min-width: 44px; /* Минимальная ширина для квадратных кнопок */
-    height: 44px; /* Фиксированная высота в стиле iOS */
+    padding: 12px 20px; 
+    min-width: 44px; 
+    height: 44px; 
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 
         0 2px 8px rgba(255, 59, 48, 0.25),
@@ -454,12 +454,12 @@ body {
         0 1px 4px rgba(255, 59, 48, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
-/* Унифицированные поля ввода в стиле iOS 26 */
+
 input, textarea {
-    border-radius: 10px; /* iOS 26 стиль */
+    border-radius: 10px; 
     border: 1px solid rgba(0, 0, 0, 0.1);
-    font-size: 15px; /* Единый размер шрифта */
-    padding: 12px 16px; /* Единый padding */
+    font-size: 15px; 
+    padding: 12px 16px; 
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -481,9 +481,9 @@ input:focus, textarea:focus {
         0 2px 8px rgba(0, 122, 255, 0.15);
     color: var(--glass-text);
 }
-/* Единая высота для input */
+
 input[type="text"] {
-    height: 44px; /* Фиксированная высота в стиле iOS */
+    height: 44px; 
 }
 .result-box {
     background: rgba(255, 255, 255, 0.6);
@@ -500,7 +500,7 @@ input[type="text"] {
     white-space: pre-wrap;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
-/* Унифицированные стили для результатов */
+
 .result, .result-box {
     background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(10px);
@@ -527,11 +527,11 @@ input[type="text"] {
     font-size: 13px;
     min-height: 68px;
 }
-/* Для больших результатов в модальных окнах */
+
 .modal-large .result {
     min-height: 200px;
 }
-/* Унифицированные стили для подсказок */
+
 .modal-hint {
     color: var(--glass-text-secondary);
     font-size: 0.95em;
@@ -543,7 +543,7 @@ input[type="text"] {
     font-weight: 600;
 }
 
-/* Унифицированные стили для модальных окон с формами */
+
 .modal-form-group {
     margin-bottom: 18px;
 }
@@ -566,11 +566,11 @@ input[type="text"] {
 .modal-input-row .modal-clear-btn {
     flex-shrink: 0;
 }
-/* Унифицированные стили для всех модальных окон - используются общие классы */
+
 #sg-copy-btn {
     margin-top: 10px;
 }
-/* Унифицированные медиа-запросы для всех модальных окон */
+
 @media (max-width: 1200px) {
     .modal-content {
         max-width: 96vw;
@@ -611,7 +611,7 @@ input[type="text"] {
     }
 }
 
-/* ==== Прогресс-бар ==== */
+
 .progress-bar {
     background: linear-gradient(90deg, var(--glass-blue) 0%, var(--glass-purple) 100%);
     height: 4px;
@@ -619,7 +619,7 @@ input[type="text"] {
     box-shadow: 0 1px 3px rgba(0, 122, 255, 0.3);
 }
 
-/* Стили для скрытого кода */
+
 .group-psi-footnote {
   font-size: 12px;
   color: var(--glass-text-secondary);
@@ -635,7 +635,7 @@ input[type="text"] {
 }
 
 
-/* ==== Адаптивная сетка ==== */
+
 @media (max-width: 1600px) {
     .groups-container { 
         grid-template-columns: repeat(4, 1fr);
@@ -680,7 +680,7 @@ input[type="text"] {
     }
 }
 
-/* Адаптация по высоте экрана */
+
 @media (max-height: 900px) {
     .ios-title { font-size: 28px; margin-bottom: 16px; }
     .top-actions { margin-bottom: 12px; gap: 10px; }
@@ -801,12 +801,12 @@ input[type="text"] {
 
     <div class="modal-form-group">
       <label for="sg-urlAlpha" class="modal-label">Request Base URL (ALPHA):</label>
-    <input type="text" id="sg-urlAlpha" value="https://efs-our-business-prom.omega.sbrf.ru" />
+    <input type="text" id="sg-urlAlpha" value="https:
     </div>
 
     <div class="modal-form-group">
       <label for="sg-urlSigma" class="modal-label">Request Base URL (SIGMA):</label>
-    <input type="text" id="sg-urlSigma" value="https://salesheroes.sberbank.ru" />
+    <input type="text" id="sg-urlSigma" value="https:
     </div>
 
     <div class="modal-buttons">
@@ -965,23 +965,23 @@ input[type="text"] {
 
 <!-- ======= Встроенная конфигурация (fallback для работы без сервера) ======= -->
 <script>
-// Встроенные данные конфигурации (используются при ошибке загрузки config.json)
-// Эти данные автоматически обновляются при изменении config.json
+
+
 let embeddedConfig = null;
-// === Константы конфигурации ===
+
 const CONFIG = {
-    LINK_CHECK_INTERVAL: 120000, // 2 минуты в миллисекундах
-    REQUEST_DELAY: 1000, // Задержка между запросами
-    PROFILE_REQUEST_DELAY: 10, // Задержка для запросов профилей
-    FETCH_TIMEOUT: 5000, // Таймаут для fetch-запросов
-    MAX_PARALLEL_REQUESTS: 5, // Максимум параллельных запросов
-    PROGRESS_BAR_ANIMATION_STEP: 24, // Шаг анимации прогресс-бара
-    PROGRESS_BAR_ANIMATION_INTERVAL: 100, // Интервал анимации прогресс-бара
-    LOGGING_ENABLED: false // Включить/выключить логирование
+    LINK_CHECK_INTERVAL: 120000, 
+    REQUEST_DELAY: 1000, 
+    PROFILE_REQUEST_DELAY: 10, 
+    FETCH_TIMEOUT: 5000, 
+    MAX_PARALLEL_REQUESTS: 5, 
+    PROGRESS_BAR_ANIMATION_STEP: 24, 
+    PROGRESS_BAR_ANIMATION_INTERVAL: 100, 
+    LOGGING_ENABLED: false 
 };
 
-// === Утилиты ===
-// Универсальная функция копирования в буфер обмена с fallback для SberBrowser
+
+
 function copyToClipboard(text, buttonElement) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => {
@@ -1001,7 +1001,7 @@ function copyToClipboard(text, buttonElement) {
     }
 }
 
-// Fallback для старых браузеров и SberBrowser
+
 function fallbackCopyToClipboard(text, buttonElement) {
     const textArea = document.createElement('textarea');
     textArea.value = text;
@@ -1028,7 +1028,7 @@ function fallbackCopyToClipboard(text, buttonElement) {
     }
 }
 
-// Безопасный поиск элемента
+
 function safeQuerySelector(selector, context = document) {
     const element = context.querySelector(selector);
     if (!element && CONFIG.LOGGING_ENABLED) {
@@ -1037,7 +1037,7 @@ function safeQuerySelector(selector, context = document) {
     return element;
 }
 
-// Логирование (отключаемое)
+
 const Logger = {
     log(level, message, data = null) {
         if (!CONFIG.LOGGING_ENABLED) return;
@@ -1055,7 +1055,7 @@ const Logger = {
     error(message, data) { this.log('ERROR', message, data); }
 };
 
-// Универсальный менеджер модальных окон
+
 const ModalManager = {
     modals: new Map(),
     
@@ -1063,7 +1063,7 @@ const ModalManager = {
         const modal = safeQuerySelector(`#${id}`);
         if (!modal) return;
         
-        // Конфигурация модального окна с значениями по умолчанию
+        
         const config = {
             closeOnBackdrop: options.closeOnBackdrop !== false,
             closeOnEscape: options.closeOnEscape !== false,
@@ -1078,7 +1078,7 @@ const ModalManager = {
         const { modal, config } = this.modals.get(id);
         if (!modal) return;
         
-        // Закрытие по клику вне окна
+        
         if (config.closeOnBackdrop) {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
@@ -1135,7 +1135,7 @@ const ModalManager = {
     }
 };
 
-// Глобальная обработка Escape для закрытия модальных окон
+
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         const openModal = document.querySelector('.modal.show');
@@ -1150,13 +1150,13 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// === Загрузка и рендеринг конфигурации ===
-let cardDataMap = new Map(); // Маппинг ID карточек на их данные
 
-// Загрузка конфигурации из JSON (встроенные данные)
+let cardDataMap = new Map(); 
 
 
-// Построение маппинга ID карточек на их данные
+
+
+
 function buildCardDataMap(groups) {
     cardDataMap.clear();
     groups.forEach(group => {
@@ -1168,12 +1168,12 @@ function buildCardDataMap(groups) {
     });
 }
 
-// Получение данных карточки по ID
+
 function getCardDataById(id) {
     return cardDataMap.get(id);
 }
 
-// Рендеринг групп
+
 function renderGroups(groups) {
     const container = safeQuerySelector('#groups-container');
     if (!container) {
@@ -1181,7 +1181,7 @@ function renderGroups(groups) {
         return;
     }
     
-    // Очищаем контейнер
+    
     container.innerHTML = '';
     
     groups.forEach(group => {
@@ -1189,32 +1189,32 @@ function renderGroups(groups) {
         container.appendChild(groupElement);
     });
     
-    // Инициализируем обработчики для новых элементов
+    
     initDynamicEventHandlers();
     
-    // Адаптируем кнопки после рендеринга
+    
     adjustTopActions();
 }
 
-// Создание элемента группы
+
 function createGroupElement(group) {
     const article = document.createElement('article');
     article.className = 'ios-group';
     const headerId = group.isAdmin ? 'group-admin-header' : `group-${group.id}-header`;
     article.setAttribute('aria-labelledby', headerId);
     
-    // Заголовок группы
+    
     const header = document.createElement('div');
     header.className = group.isAdmin ? `ios-group-header group-admin` : `ios-group-header group-${group.id}`;
     header.id = headerId;
     header.textContent = group.name;
     article.appendChild(header);
     
-    // Контейнер карточек
+    
     const cardsContainer = document.createElement('div');
     cardsContainer.className = 'ios-group-cards';
     
-    // Создаем карточки
+    
     group.cards.forEach(card => {
         const cardElement = createCardElement(card);
         cardsContainer.appendChild(cardElement);
@@ -1222,32 +1222,32 @@ function createGroupElement(group) {
     
     article.appendChild(cardsContainer);
     
-    // Код для копирования больше не отображается под группами (скрыт)
-    // if (group.code) {
-    //     const footnote = document.createElement('div');
-    //     footnote.className = 'group-psi-footnote';
-    //     const codeSpan = document.createElement('span');
-    //     codeSpan.className = 'group-psi-footnote-code';
-    //     codeSpan.textContent = group.code;
-    //     footnote.appendChild(codeSpan);
-    //     article.appendChild(footnote);
-    // }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     return article;
 }
 
-// Создание элемента карточки
+
 function createCardElement(card) {
     const link = document.createElement('a');
     link.href = card.url || '#';
     link.className = 'ios-card';
     
-    // Если это модальное окно или специальная ссылка, не открываем в новой вкладке
+    
     if (!card.isModal && card.url && card.url !== '#' && !card.url.startsWith('#')) {
         link.target = '_blank';
-        // Убираем focus state после клика на ссылку
+        
         link.addEventListener('click', function(e) {
-            // Даем время на открытие ссылки, затем убираем focus
+            
             setTimeout(() => {
                 this.blur();
             }, 100);
@@ -1266,14 +1266,14 @@ function createCardElement(card) {
     return link;
 }
 
-// Инициализация обработчиков для динамически созданных элементов
+
 function initDynamicEventHandlers() {
-    // Обработчики для карточек с копированием кода
+    
     cardDataMap.forEach((cardData, cardId) => {
         const cardElement = safeQuerySelector(`#${cardId}`);
         if (cardElement && cardData.copyCode) {
             cardElement.addEventListener('click', function(e) {
-                // Если это ссылка с href="#", предотвращаем переход
+                
                 if (cardElement.href === '#' || cardElement.href.endsWith('#')) {
                     e.preventDefault();
                 }
@@ -1284,7 +1284,7 @@ function initDynamicEventHandlers() {
         }
     });
     
-    // Обработчики для модальных окон (группа Администрирование)
+    
     const modalLinks = {
         'open-permission-modal-link': () => {
             const modal = safeQuerySelector('#permission-modal');
@@ -1366,7 +1366,7 @@ function initDynamicEventHandlers() {
         }
     });
     
-    // Обработчик для кнопки "Экспорт ссылок"
+    
     const exportLinksBtn = safeQuerySelector('#export-links-btn-link');
     if (exportLinksBtn) {
         exportLinksBtn.addEventListener('click', function(e) {
@@ -1376,10 +1376,10 @@ function initDynamicEventHandlers() {
     }
 }
 
-// Глобальная переменная для хранения конфигурации (для экспорта)
+
 let globalConfig = null;
 
-// Функция экспорта конфигурации в JSON файл (глобальная)
+
 function exportConfigToJSON() {
     if (!globalConfig) {
         console.error('❌ Конфигурация не загружена');
@@ -1387,7 +1387,7 @@ function exportConfigToJSON() {
         return;
     }
     
-    // Формируем имя файла с датой и временем
+    
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -1397,10 +1397,10 @@ function exportConfigToJSON() {
     const seconds = String(now.getSeconds()).padStart(2, '0');
     const filename = `resource_panel_config_${year}${month}${day}_${hours}${minutes}${seconds}.json`;
     
-    // Формируем JSON с красивым форматированием
+    
     const jsonString = JSON.stringify(globalConfig, null, 2);
     
-    // Создаем Blob и скачиваем файл
+    
     const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1414,6 +1414,11 @@ function exportConfigToJSON() {
     console.log(`✅ Конфигурация экспортирована в файл: ${filename}`);
 }
 
+/**
+ * Загружает конфигурацию из встроенного JSON и рендерит все группы и карточки на странице
+ * Сохраняет конфигурацию в глобальную переменную globalConfig для последующего экспорта
+ * Вызывает адаптацию размеров групп после рендеринга
+ */
 function loadAndRenderConfig() {
     const container = safeQuerySelector('#groups-container');
     if (!container) {
@@ -1428,7 +1433,7 @@ function loadAndRenderConfig() {
     try {
         console.log('🔄 Использую встроенную конфигурацию...');
         
-        // Встроенные данные конфигурации
+        
         const config = JSON.parse(`{
   "groups": [
     {
@@ -1438,31 +1443,31 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "SberJazz",
-          "url": "https://jazz.sberbank.ru/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Дейли (Герои продаж)",
-          "url": "https://jazz.sberbank.ru/sber-7g5cqu?psw=OBUVBwADHB0IBRIRXxcLDgcPDw",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ПКАП Встреча",
-          "url": "https://jazz.sberbank.ru/sber-gzdl5c?psw=OEcNEgsBXAZeVwoEVBVLFVFdFw",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ПКАП Сергей",
-          "url": "https://jazz.sberbank.ru/sber-jd9r1x?psw=OBoIEQsCHAVcCg8HVBYLFlMAEg",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "iMAC",
-          "url": "https://jazz.sberbank.ru/sber-mnv6vl?psw=OEEKAUUdDBVeUQ0XGgkbBlFbEA",
+          "url": "https:
           "id": null,
           "copyCode": null
         }
@@ -1475,79 +1480,79 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "(PROM) ГП - Alpha",
-          "url": "https://efs-our-business-prom.omega.sbrf.ru/salesheroes/community",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PROM) ГП - Sigma",
-          "url": "https://salesheroes.sberbank.ru/salesheroes",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PSI) ГП - Alpha",
-          "url": "https://iam-enigma-psi.omega.sbrf.ru/",
+          "url": "https:
           "id": "psi-alpha-btn",
           "copyCode": "92863949"
         },
         {
           "title": "(PSI) ГП - Sigma",
-          "url": "https://salesheroes-psi.sigma.sbrf.ru/salesheroes",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ИФТ СБ",
-          "url": "https://iam-enigma-ift-sb.delta.sbrf.ru/salesheroes/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ИФТ ГФ",
-          "url": "https://iam-enigma-ift.delta.sbrf.ru/salesheroes",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ИФТ СБ Сигма",
-          "url": "https://salesheroes-sb.sigma.sbrf.ru/salesheroes",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ИФТ ГФ (Сигма)",
-          "url": "https://salesheroes-gf.sigma.sbrf.ru/salesheroes",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ИФТ СБ (новый)",
-          "url": "https://efs-ift-sb.delta.sbrf.ru/salesheroes",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ИФТ ГФ (новый)",
-          "url": "https://efs-ift-gf.delta.sbrf.ru/salesheroes",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PROM) КАП",
-          "url": "https://pvlos-sys000001.omega.sbrf.ru/SberDataCorr",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PSI) КАП",
-          "url": "https://tklos-sys000001.omega.sbrf.ru/SberDataCorr",
+          "url": "https:
           "id": "psi2-alpha-btn",
           "copyCode": "92863949"
         },
         {
           "title": "(PSI) КАП (New)",
-          "url": "https://tvlos-sys000001.cloud.omega.sbrf.ru/",
+          "url": "https:
           "id": "psi2-alpha-btn-new",
           "copyCode": "92863949"
         }
@@ -1560,79 +1565,79 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "СберЧат",
-          "url": "https://sberchat.sberbank.ru/#/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Адресная книга",
-          "url": "https://addressbook/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Service Manager (Alpha)",
-          "url": "https://servicemanager.omega.sbrf.ru/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Мои доступы (Alpha)",
-          "url": "https://smd.omega.sbrf.ru/SberAccess/#/pa?tab=0",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Пульс (Alpha)",
-          "url": "https://hr.ca.sbrf.ru/platform/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Clickstream",
-          "url": "https://clickstream-prom.ca.sbrf.ru/frontend/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Citrix Workspace",
-          "url": "https://cab-snp-cx00001.omega.sbrf.ru/",
+          "url": "https:
           "id": "citrix-alpha-btn",
           "copyCode": "omega\\\\01803187"
         },
         {
           "title": "SberESM",
-          "url": "https://sberesm.omega.sbrf.ru/efs-ermops-static/app-ops_esm",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(ИФТ) Загрузка данных CTL",
-          "url": "https://ctl-ift.qa.df.sbrf.ru:9080/#/sign-in",
+          "url": "https:
           "id": "ctl-sigma-btn",
           "copyCode": "lakomkin-oo"
         },
         {
           "title": "(PSI) Тенгри",
-          "url": "https://ci02587203-psi-iam-proxy-client-geo.omega.sbrf.ru/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PROM) Тенгри (Indicator)",
-          "url": "https://ci02587203-iam-proxy-main.prom-29-30-apps.ocp-geo.ocp.ca.sbrf.ru/indicator-efs-empl/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PROM) Тенгри (Ulogger)",
-          "url": "https://ci02587203-iam-proxy-main.prom-29-30-apps.ocp-geo.ocp.ca.sbrf.ru/indicator-efs-empl/a/logger/logs?orgId=1",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PROM) Тенгри (Base)",
-          "url": "https://ci02587203-prom-iam-proxy-main-geo.omega.sbrf.ru/indicator-efs-empl/a/logger/logs?orgId=6&from=now-15m&to=now",
+          "url": "https:
           "id": null,
           "copyCode": null
         }
@@ -1645,49 +1650,49 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "(PROM GF_SK) Редактирование СУП",
-          "url": "https://iamproxy-prom-gfsk.ingress.apps.arqgec5q.k8s.ca.sbrf.ru/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PROM GF_MG) Редактирование СУП",
-          "url": "https://iamproxy-prom-gfmg.ingress.apps.arq6r3xx.k8s.ca.sbrf.ru/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PSI) Редактирование СУП [EFSEMP-IAM-GF-SK]",
-          "url": "https://iamproxy-psi-gfsk.ingress.apps.aq6omvfr.k8s.ca.sbrf.ru/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PSI) Редактирование СУП [EFSEMP-IAM-GF-MG]",
-          "url": "https://iamproxy-psi-gfmg.ingress.apps.aq664prc.k8s.ca.sbrf.ru/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PSI) Редактирование СУП [EFSEMP-IAM-SB-SK]",
-          "url": "https://iamproxy-psi-sbsk.ingress.apps.aq6jo46q.k8s.ca.sbrf.ru/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "(PSI) Редактирование СУП [EFSEMP-IAM-SB-MG]",
-          "url": "https://iamproxy-psi-sbmg.ingress.apps.aq6655vb.k8s.ca.sbrf.ru/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "О управлении СУП пром",
-          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=12034673436",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "О доступе к управлению СУП пром",
-          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=11862715264",
+          "url": "https:
           "id": null,
           "copyCode": null
         }
@@ -1700,43 +1705,43 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "QS",
-          "url": "https://vpokib.ca.sbrf.ru/main/hub/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "VARM LabZone Office Alpha i57z",
-          "url": "https://a-lz.omega.sbrf.ru",
+          "url": "https:
           "id": "varm-alpha-btn",
           "copyCode": "omega\\\\01803187"
         },
         {
           "title": "HUE",
-          "url": "http://pklis-mvp003253.labiac.df.sbrf.ru:8888/",
+          "url": "http:
           "id": null,
           "copyCode": null
         },
         {
           "title": "JupyterHub",
-          "url": "https://pklis-mvp003259.labiac.df.sbrf.ru:8000/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "AMBARI",
-          "url": "http://pklis-mvp003251.labiac.df.sbrf.ru:8080/",
+          "url": "http:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ДБ GigaChat (Sigma)",
-          "url": "https://oko-qs.sigma.sbrf.ru/prom/sense/app/ea9927f5-64f7-473e-8c3d-c46bd4cea768/sheet/062666f6-eafd-4b58-815d-59754ef81c33/state/analysis",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ДБ QS (Sigma)",
-          "url": "https://oko-qs.sigma.sbrf.ru",
+          "url": "https:
           "id": null,
           "copyCode": null
         }
@@ -1749,55 +1754,55 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "БекЛог Фабрика",
-          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=17521445497",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Авто ТУРНИРЫ",
-          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=11671348420",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "СПРИНТ",
-          "url": "https://jira.sberbank.ru/secure/RapidBoard.jspa?rapidView=32210&view=planning.nodetail&selectedIssue=HERO-3166&issueLimit=100",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ПКАП",
-          "url": "https://jira.delta.sbrf.ru/secure/StructureBoard.jspa?s=19119#",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Структура",
-          "url": "https://confluence.delta.sbrf.ru/pages/viewpage.action?pageId=9073267075",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "БТ фабрика",
-          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=9528155757",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "DevOps-портал",
-          "url": "https://sso.devopsportal.sigma.sbrf.ru/dop/#/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Задачи 2 кв",
-          "url": "https://jira.sberbank.ru/browse/HERO-4358",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Задачи 1 кв",
-          "url": "https://jira.sberbank.ru/secure/RapidBoard.jspa?rapidView=32210&view=planning.nodetail&selectedIssue=HERO-3088&issueLimit=100",
+          "url": "https:
           "id": null,
           "copyCode": null
         }
@@ -1810,55 +1815,55 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "Друг",
-          "url": "https://sberfriend.ca.sbrf.ru/sberfriend/#/dashboard",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Service Manager (Sigma)",
-          "url": "https://adv-gate.sigma.sbrf.ru/Citrix/ADVWeb/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ЕСР (Sigma)",
-          "url": "https://esr.sigma.sbrf.ru/",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Доска Команд",
-          "url": "https://agile.sber.ru/dashboard/#/?0%5BlocationState%5D=true",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Мои доступы (Sigma)",
-          "url": "https://sberu.sigma.sbrf.ru/SberWelcome/#/pa",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Пульс (Sigma)",
-          "url": "https://hr.sberbank.ru/platform/dashboard",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "Почта (Sigma)",
-          "url": "https://mail.sberbank.ru/owa/#path=/mail",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "График периодов",
-          "url": "https://confluence.ca.sbrf.ru/pages/viewpage.action?pageId=8956707657",
+          "url": "https:
           "id": null,
           "copyCode": null
         },
         {
           "title": "ТФС/Пакетная выгрузка (бэклог)",
-          "url": "https://selfportal.dev.df.sbrf.ru/support/templates/supportfd",
+          "url": "https:
           "id": null,
           "copyCode": null
         }
@@ -1938,7 +1943,7 @@ function loadAndRenderConfig() {
   ]
 }`);
         
-        // Сохраняем конфигурацию в глобальную переменную для экспорта
+        
         globalConfig = config;
         
         console.log('✅ JSON загружен, групп:', config.groups.length);
@@ -1949,7 +1954,7 @@ function loadAndRenderConfig() {
         Logger.info('Конфигурация загружена и отрендерена', { groupsCount: config.groups.length });
         console.log('✅ Конфигурация успешно отрендерена');
         
-        // Адаптивное уменьшение размеров для избежания прокрутки
+        
         setTimeout(() => {
             adaptGroupsToFit();
         }, 100);
@@ -1959,7 +1964,6 @@ function loadAndRenderConfig() {
     }
 }
 
-// Построение маппинга ID карточек на их данные
 
 
 
@@ -1973,17 +1977,18 @@ function loadAndRenderConfig() {
 
 
 
-// === Адаптация размеров групп - кнопки заполняют весь блок ===
+
+
 function adaptGroupsToFit() {
     const groups = document.querySelectorAll('.ios-group');
-    // Константы для адаптации
-    const OPTIMAL_FONT_SIZE = 18; // Оптимальный максимальный размер шрифта
-    const MIN_FONT_SIZE = 10; // Минимальный размер шрифта
-    const MIN_PADDING = 4; // Минимальный padding (верх/низ)
-    const MIN_HEIGHT = 36; // Минимальная высота карточки
-    const MIN_GAP = 4; // Минимальный gap между карточками
-    const CARDS_PER_COLUMN_THRESHOLD = 6; // Порог для переключения на 2 колонки
-    // Заголовок группы не уменьшаем - он должен оставаться одинаковым на всех группах
+    
+    const OPTIMAL_FONT_SIZE = 18; 
+    const MIN_FONT_SIZE = 10; 
+    const MIN_PADDING = 4; 
+    const MIN_HEIGHT = 36; 
+    const MIN_GAP = 4; 
+    const CARDS_PER_COLUMN_THRESHOLD = 6; 
+    
     
     groups.forEach(group => {
         const cardsContainer = group.querySelector('.ios-group-cards');
@@ -1994,21 +1999,21 @@ function adaptGroupsToFit() {
         
         const cardsCount = cards.length;
         
-        // Вычисляем доступную высоту контейнера
+        
         const containerPadding = parseFloat(window.getComputedStyle(cardsContainer).paddingTop) + 
                                 parseFloat(window.getComputedStyle(cardsContainer).paddingBottom);
         const availableHeight = cardsContainer.clientHeight - containerPadding;
         
-        // Определяем количество колонок
+        
         const useTwoColumns = cardsCount > CARDS_PER_COLUMN_THRESHOLD;
         const rowsCount = useTwoColumns ? Math.ceil(cardsCount / 2) : cardsCount;
         
-        // Вычисляем оптимальную высоту кнопки для заполнения всего блока
+        
         const currentGap = parseFloat(window.getComputedStyle(cardsContainer).gap) || 8;
         const totalGapHeight = (rowsCount - 1) * currentGap;
         const optimalCardHeight = (availableHeight - totalGapHeight) / rowsCount;
         
-        // Применяем layout (одна или две колонки)
+        
         if (useTwoColumns) {
             cardsContainer.style.display = 'grid';
             cardsContainer.style.gridTemplateColumns = '1fr 1fr';
@@ -2019,23 +2024,23 @@ function adaptGroupsToFit() {
             cardsContainer.style.gridTemplateColumns = 'unset';
         }
         
-        // Адаптируем размеры кнопок и шрифта
+        
         let cardHeight = Math.max(MIN_HEIGHT, optimalCardHeight);
         let fontSize = OPTIMAL_FONT_SIZE;
         let padding = 10;
         
-        // Вычисляем оптимальный размер шрифта на основе высоты кнопки
-        // Формула: fontSize примерно = (cardHeight - padding*2) / 3.5 (для 2 строк)
+        
+        
         const calculatedFontSize = Math.min(
             OPTIMAL_FONT_SIZE,
             Math.max(MIN_FONT_SIZE, (cardHeight - padding * 2) / 3.5)
         );
         fontSize = calculatedFontSize;
         
-        // Проверяем, помещаются ли кнопки
+        
         let needsReduction = false;
         if (useTwoColumns) {
-            // Для двух колонок проверяем, помещаются ли все кнопки
+            
             const testHeight = rowsCount * cardHeight + totalGapHeight;
             if (testHeight > availableHeight) {
                 needsReduction = true;
@@ -2047,9 +2052,9 @@ function adaptGroupsToFit() {
             }
         }
         
-        // Если не помещается, уменьшаем размеры
+        
         if (needsReduction) {
-            // Уменьшаем до тех пор, пока не поместится или не достигнем минимума
+            
             let iterations = 0;
             while (iterations < 30) {
                 const testHeight = rowsCount * cardHeight + totalGapHeight;
@@ -2057,7 +2062,7 @@ function adaptGroupsToFit() {
                     break;
                 }
                 
-                // Уменьшаем размеры
+                
                 cardHeight = Math.max(MIN_HEIGHT, cardHeight - 2);
                 fontSize = Math.max(MIN_FONT_SIZE, fontSize - 0.3);
                 padding = Math.max(MIN_PADDING, padding - 0.2);
@@ -2066,7 +2071,7 @@ function adaptGroupsToFit() {
             }
         }
         
-        // Применяем вычисленные размеры ко всем кнопкам
+        
         cards.forEach(card => {
             card.style.minHeight = cardHeight + 'px';
             card.style.maxHeight = cardHeight + 'px';
@@ -2076,13 +2081,13 @@ function adaptGroupsToFit() {
             card.style.paddingBottom = padding + 'px';
         });
         
-        // Применяем размер шрифта к заголовкам
+        
         const cardTitles = cardsContainer.querySelectorAll('.ios-card-title');
         cardTitles.forEach(title => {
             title.style.fontSize = fontSize + 'px';
         });
         
-        // Проверяем, нужна ли прокрутка после всех изменений
+        
         const finalHeight = rowsCount * cardHeight + totalGapHeight;
         if (finalHeight > availableHeight && cardHeight <= MIN_HEIGHT) {
             cardsContainer.style.overflowY = 'auto';
@@ -2092,9 +2097,9 @@ function adaptGroupsToFit() {
     });
 }
 
-// === 1. Адаптация расположения кнопок сверху в зависимости от количества панелей ===
+
 function adjustTopActions() {
-    // Если групп меньше 3 — ставим кнопки одну под одной (column), иначе в ряд
+    
     const groupsCount = document.querySelectorAll('.groups-container .ios-group').length;
     const actions = document.getElementById('top-actions');
     if (actions && groupsCount < 3) {
@@ -2104,9 +2109,9 @@ function adjustTopActions() {
     }
 }
 
-// === 1. Адаптация расположения кнопок сверху в зависимости от количества панелей ===
+
 function adjustTopActions() {
-    // Если групп меньше 3 — ставим кнопки одну под одной (column), иначе в ряд
+    
     const groupsCount = document.querySelectorAll('.groups-container .ios-group').length;
     const actions = document.getElementById('top-actions');
     if (actions && groupsCount < 3) {
@@ -2117,9 +2122,9 @@ function adjustTopActions() {
 }
 window.addEventListener('resize', adjustTopActions);
 
-// === Единый обработчик инициализации ===
+
 document.addEventListener('DOMContentLoaded', function () {
-    // === 1. Регистрация модальных окон в ModalManager ===
+    
     ModalManager.register('permission-modal');
     ModalManager.register('role-modal');
     ModalManager.register('scriptgen-modal');
@@ -2129,16 +2134,16 @@ document.addEventListener('DOMContentLoaded', function () {
     ModalManager.register('reward-modal');
     ModalManager.register('profile-modal');
     
-    // === 2. Загрузка конфигурации и рендеринг групп ===
+    
     loadAndRenderConfig();
     
-    // Адаптация кнопок после загрузки конфигурации
+    
     setTimeout(() => {
         adjustTopActions();
-        // Адаптация размеров групп выполняется внутри loadAndRenderConfig
+        
     }, 100);
     
-    // Адаптация при изменении размера окна
+    
     let resizeTimeout;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);
@@ -2148,8 +2153,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 150);
     });
     
-    // === 3. Проверка доступности ссылок и статусы ===
-    // Проставляет статус (зеленый или красный) для каждой кнопки-ссылки
+    
+    
     function setStatus(card, isAvailable) {
     const title = card.querySelector('.ios-card-title');
     if (!title) return;
@@ -2160,20 +2165,20 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 }
 
-    // Асинхронно проверяет доступность по HEAD-запросу
+    
     function checkCard(card) {
         const url = card.getAttribute('href');
         if (!url || url.startsWith('#') || url.startsWith('javascript')) return;
-        if (!/^https?:\/\//i.test(url)) return;
+        if (!/^https?:\/\
         fetch(url, { method: 'HEAD', mode: 'no-cors' })
             .then(() => setStatus(card, true))
             .catch(() => setStatus(card, false));
     }
-    // Проверить все карточки, одновременно анимируем прогресс-бар
+    
     function checkAllCards() {
         const allCards = document.querySelectorAll('a.ios-card');
         allCards.forEach(checkCard);
-        // Анимация прогресс-бара (для UX)
+        
         const progressBar = safeQuerySelector('#progress-bar');
         if (progressBar) {
             progressBar.style.width = "0%";
@@ -2190,14 +2195,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
-    // Запускаем проверку после загрузки конфигурации
+    
     setTimeout(() => {
     checkAllCards();
-        // Периодическая проверка раз в 2 минуты
+        
         setInterval(checkAllCards, CONFIG.LINK_CHECK_INTERVAL);
     }, 500);
 
-    // === 4. Переключатель темы (пока только добавляет класс к body, для расширения функционала) ===
+    
     const themeSwitcher = document.getElementById('theme-switcher');
     if (themeSwitcher) {
         themeSwitcher.addEventListener('change', function () {
@@ -2206,7 +2211,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // === 5. Модалка Permission ===
+    
     const permissionModal = safeQuerySelector('#permission-modal');
     const closePermissionBtn = safeQuerySelector('#close-btn');
     const clearPermissionBtn = safeQuerySelector('#clear-btn');
@@ -2227,7 +2232,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     if (decodeBtn) {
         decodeBtn.onclick = function () {
-            // Алгоритм декодирования HEX-права в биты
+            
             const input = permissionInput.value.trim();
             if (!input) {
                 permissionResult.textContent = '';
@@ -2257,9 +2262,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         };
     }
-    // Закрытие модалки кликом вне окна обрабатывается в ModalManager
+    
 
-    // === 6. Модалка роли ===
+    
     const roleModal = safeQuerySelector('#role-modal');
     const closeRoleModalBtn = safeQuerySelector('#close-role-modal');
     const openRoleLinkBtn = safeQuerySelector('#open-role-link');
@@ -2269,7 +2274,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const clearRoleBtn = safeQuerySelector('#clear-role-btn');
     const defaultBtn = safeQuerySelector('#default-btn');
 
-    // Разблокировка кнопки "Открыть" если оба поля не пустые
+    
     function checkRoleInputs() {
         if (openRoleLinkBtn && empInput && roleInput) {
         openRoleLinkBtn.disabled = !(empInput.value.trim() && roleInput.value.trim());
@@ -2280,7 +2285,7 @@ document.addEventListener('DOMContentLoaded', function () {
             roleModal.classList.remove('show');
         };
     }
-    // Закрытие модалки кликом вне окна (обрабатывается в ModalManager)
+    
     if(empInput) empInput.addEventListener('input', checkRoleInputs);
     if(roleInput) roleInput.addEventListener('input', checkRoleInputs);
     if(clearEmpBtn) clearEmpBtn.onclick = function() {
@@ -2294,10 +2299,10 @@ document.addEventListener('DOMContentLoaded', function () {
         checkRoleInputs();
     };
     if(openRoleLinkBtn) openRoleLinkBtn.onclick = function() {
-        // Формируем url по шаблону и открываем его в новом окне
+        
         const emp = encodeURIComponent(empInput.value.trim());
         const role = encodeURIComponent(roleInput.value.trim());
-        const url = `https://iam-enigma-psi.omega.sbrf.ru/rmkib.support/api/v1/service/auth/explain/html?employee-number=${emp}&role=${role}`;
+        const url = `https:
         window.open(url, '_blank');
     };
     if(defaultBtn) {
@@ -2309,15 +2314,15 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
-    // === 7. Экспорт ссылок в JSON ===
-    // Функция exportConfigToJSON() объявлена глобально выше
+    
+    
 
-// ====== Модалка генератора скрипта SalesHeroes (единый стиль) ======
+
 const scriptgenModal = safeQuerySelector('#scriptgen-modal');
 const closeScriptgenModalBtn = safeQuerySelector('#close-scriptgen-modal');
 const sgResult = safeQuerySelector('#sg-result');
 const sgCopyBtn = safeQuerySelector('#sg-copy-btn');
-// --- ScriptGen: Кнопки "По умолчанию" и "Очистить" ---
+
 const sgTournamentIds = safeQuerySelector('#sg-tournamentIds');
 const sgServiceName = safeQuerySelector('#sg-serviceName');
 const sgUrlAlpha = safeQuerySelector('#sg-urlAlpha');
@@ -2326,12 +2331,12 @@ const sgApiPath = safeQuerySelector('#sg-apiPath');
 const sgDefaultBtn = safeQuerySelector('#sg-default-btn');
 const sgClearBtn = safeQuerySelector('#sg-clear-btn');
 
-// Стартовые значения (меняйте здесь, если понадобится другое)
-// Новые значения по умолчанию
-const defaultTournamentIds = 't_01_2025-1_05-1_1_3051, t_01_2025-1_05-1_1_3041'; // теперь любые разделители
+
+
+const defaultTournamentIds = 't_01_2025-1_05-1_1_3051, t_01_2025-1_05-1_1_3041'; 
 const defaultServiceName = 'leadersForAdmin';
-const defaultUrlAlpha = 'https://efs-our-business-prom.omega.sbrf.ru';
-const defaultUrlSigma = 'https://salesheroes.sberbank.ru';
+const defaultUrlAlpha = 'https:
+const defaultUrlSigma = 'https:
 const defaultApiPath = '/bo/rmkib.gamification/api/v1/tournaments/';
 
 if (sgDefaultBtn) {
@@ -2340,13 +2345,13 @@ if (sgDefaultBtn) {
         sgServiceName.value = defaultServiceName;
         sgUrlAlpha.value = defaultUrlAlpha;
         sgUrlSigma.value = defaultUrlSigma;
-        sgApiPath.value = defaultApiPath;    // Новое поле!
+        sgApiPath.value = defaultApiPath;    
         sgResult.value = '';
         sgTournamentIds.focus();
     });
 }
 
-// "Очистить" — очищает только Tournament IDs и результат
+
 if (sgClearBtn) {
     sgClearBtn.addEventListener('click', function () {
         sgTournamentIds.value = '';
@@ -2355,7 +2360,7 @@ if (sgClearBtn) {
     });
 }
 
-// Закрыть модалку (открытие обрабатывается в initDynamicEventHandlers)
+
 if (closeScriptgenModalBtn) {
     closeScriptgenModalBtn.addEventListener('click', function(e) {
         e.preventDefault();
@@ -2365,7 +2370,7 @@ if (closeScriptgenModalBtn) {
         }
     });
 }
-// Обработчики для кнопок генерации скрипта
+
 const scriptgenAlphaBtn = safeQuerySelector('#scriptgen-alpha-btn');
 const scriptgenSigmaBtn = safeQuerySelector('#scriptgen-sigma-btn');
 
@@ -2380,7 +2385,7 @@ if (scriptgenSigmaBtn) {
         generateScriptSber('sigma');
     });
 }
-// Копировать в буфер
+
 if (sgCopyBtn) {
     sgCopyBtn.addEventListener('click', function() {
         if (sgResult && sgResult.value) {
@@ -2389,7 +2394,7 @@ if (sgCopyBtn) {
     });
 }
 
-// Валидация Tournament IDs
+
 function validateTournamentIds(input) {
     const ids = input.split(/[^a-zA-Z0-9\-_]+/g)
         .map(s => s.trim())
@@ -2429,10 +2434,10 @@ function generateScriptSber(type) {
         
     const baseUrl = (type === 'alpha' ? urlAlpha : urlSigma) + apiPath;
 
-    let code = `// ==UserScript==\n`;
-    code += `// Скрипт для DevTools. Выгрузка лидеров для всех Tournament ID (одна страница на турнир)\n`;
+    let code = `
+    code += `
     code += `(async () => {\n`;
-    code += `  // === Удаление photoData рекурсивно ===\n`;
+    code += `  
     code += `  function removePhotoData(obj) {\n`;
     code += `    if (Array.isArray(obj)) {\n`;
     code += `      obj.forEach(removePhotoData);\n`;
@@ -2447,7 +2452,7 @@ function generateScriptSber(type) {
     code += `    }\n`;
     code += `  }\n\n`;
 
-    code += `  // === Генерация timestamp ===\n`;
+    code += `  
     code += `  function getTimestamp() {\n`;
     code += `    const d = new Date();\n`;
     code += `    const pad = n => n.toString().padStart(2, '0');\n`;
@@ -2481,7 +2486,7 @@ function generateScriptSber(type) {
     code += `        continue;\n`;
     code += `      }\n`;
     code += `      data = await resp.json();\n`;
-    code += `      // Число участников\n`;
+    code += `      
     code += `      let leadersCount = 0;\n`;
     code += `      try {\n`;
     code += `        const leadersArr = data?.body?.tournament?.leaders || data?.body?.badge?.leaders;\n`;
@@ -2525,7 +2530,7 @@ function generateScriptSber(type) {
         Logger.error('Ошибка при генерации скрипта', error);
         const sgResult = safeQuerySelector('#sg-result');
         if (sgResult) {
-            sgResult.value = `// Ошибка: ${error.message}`;
+            sgResult.value = `
         }
     }
 }
@@ -2533,9 +2538,9 @@ function generateScriptSber(type) {
 
 
 
-// ====== 5-я и 6-я модалки генератора для addressBook ======
 
-// --- ТН ---
+
+
 const tnModal = document.getElementById('tn-modal');
 const openTnModalBtn = document.getElementById('open-tn-modal-link');
 const tnCloseBtn = document.getElementById('tn-close-btn');
@@ -2551,22 +2556,18 @@ if (tnCloseBtn) {
         tnModal.classList.remove('show');
     });
 }
-    // Закрытие по клику вне окна обрабатывается в ModalManager
+    
 
 if (tnGenBtn) {
     tnGenBtn.addEventListener('click', function() {
         let input = tnInput.value;
   let tnList = input.split(/\D+/).map(x => x.trim()).filter(x => x.length > 0).map(x => x.padStart(8, '0'));
   if (tnList.length === 0) {
-    outTn.value = '// Не найдено ни одного табельного номера.';
+    outTn.value = '
     return;
   }
   let js = `
-/**
- * Скрипт для DevTools addressBook (по ТН)
- * Сохраняет все ответы в один JSON-файл
- * GET /api/home/empInfoFull?empId=<tn>
- */
+
 (async () => {
   const tnList = ${JSON.stringify(tnList, null, 2)};
   const results = [];
@@ -2590,7 +2591,7 @@ if (tnGenBtn) {
     }
     if (i < tnList.length - 1) await new Promise(r => setTimeout(r, 10));
   }
-  // Скачать JSON-файл:
+  
   const blob = new Blob([JSON.stringify(results, null, 2)], {type: 'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2611,7 +2612,7 @@ if (tnCopyBtn) {
 }
 
 
-// --- КОДЫ ПОДРАЗДЕЛЕНИЙ ---
+
 const depModal = document.getElementById('dep-modal');
 const openDepModalBtn = document.getElementById('open-dep-modal-link');
 const depCloseBtn = document.getElementById('dep-close-btn');
@@ -2635,22 +2636,18 @@ if (depCloseBtn) {
         depModal.classList.remove('show');
     });
 }
-    // Закрытие по клику вне окна обрабатывается в ModalManager
+    
 
 if (depGenBtn) {
     depGenBtn.addEventListener('click', function() {
         let input = depInput.value;
   let depList = input.split(/\D+/).map(x => x.trim()).filter(x => x.length > 0);
   if (depList.length === 0) {
-    outDep.value = '// Не найдено ни одного кода подразделения.';
+    outDep.value = '
     return;
   }
   let js = `
-/**
- * Скрипт для DevTools addressBook (по коду подразделения)
- * Сохраняет все ответы в один JSON-файл
- * POST /api/home/departments/<код>/employees:search
- */
+
 (async () => {
   const depList = ${JSON.stringify(depList, null, 2)};
   const results = [];
@@ -2682,7 +2679,7 @@ if (depGenBtn) {
     }
     if (i < depList.length - 1) await new Promise(r => setTimeout(r, 1000));
   }
-  // Скачать JSON-файл:
+  
   const blob = new Blob([JSON.stringify(results, null, 2)], {type: 'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2704,7 +2701,7 @@ if (depCopyBtn) {
 
 
 
-// Функция генерации скрипта для новостей (общая для всех обработчиков)
+
 function generateNewsScript(env) {
   const raw = document.getElementById('news_input').value;
   const output = document.getElementById('news-output');
@@ -2720,8 +2717,8 @@ function generateNewsScript(env) {
   }
 
   const baseURL = env === 'alpha'
-    ? 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/news/'
-    : 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/news/';
+    ? 'https:
+    : 'https:
 
   let script = `(async function() {\n`;
   script += `  const delay = ms => new Promise(r => setTimeout(r, ms));\n`;
@@ -2755,7 +2752,7 @@ function generateNewsScript(env) {
   document.getElementById('news-copy-btn').disabled = false;
 }
 
-    // === 8. Модалка News (Выгрузка деталки по новостям) ===
+    
     const newsBtn = safeQuerySelector('#open-news-modal-link');
     const newsModal = safeQuerySelector('#news-modal');
     const newsCloseBtn = safeQuerySelector('#news-close-btn');
@@ -2810,7 +2807,7 @@ function generateNewsScript(env) {
         }
     });
 
-    // === 9. Модалка Reward (Выгрузка по наградам) ===
+    
     const rewardModal = safeQuerySelector('#reward-modal');
     const openRewardModalBtn = safeQuerySelector('#open-reward-modal-link');
     const closeRewardModalBtn = safeQuerySelector('#reward-close-btn');
@@ -2822,7 +2819,7 @@ function generateNewsScript(env) {
     const alphaBtn = safeQuerySelector('#reward-alpha-btn');
     const sigmaBtn = safeQuerySelector('#reward-sigma-btn');
 
-  // Открыть модалку
+  
     if (openRewardModalBtn && rewardModal) {
         openRewardModalBtn.addEventListener('click', function () {
       rewardModal.classList.add('show');
@@ -2832,8 +2829,8 @@ function generateNewsScript(env) {
         });
   }
 
-  // Закрыть модалку
-    // Закрыть модалку
+  
+    
     if (closeRewardModalBtn && rewardModal) {
         closeRewardModalBtn.addEventListener('click', function (e) {
             e.preventDefault();
@@ -2845,7 +2842,7 @@ function generateNewsScript(env) {
         });
     }
 
-  // Очистить всё
+  
   if (clearBtn) {
         clearBtn.addEventListener('click', function () {
             if (rewardInput) rewardInput.value = '';
@@ -2855,7 +2852,7 @@ function generateNewsScript(env) {
         });
   }
 
-    // По умолчанию
+    
     if (rewardDefaultBtn && rewardInput) {
         rewardDefaultBtn.addEventListener('click', function () {
             rewardInput.value = 'r_01_2025-0_10-1_2; r_01_2025-0_10-1_1';
@@ -2865,10 +2862,10 @@ function generateNewsScript(env) {
         });
   }
 
-  // Генерация скрипта для Alpha/Sigma
+  
 function buildRewardScript({codes, baseUrl, cookie}) {
-  return `// ==UserScript==
-// DevTools: выгрузка всех страниц для каждого кода REWARD
+  return `
+
 (() => {
   const CODES = \`${codes.join(';')}\`.split(/[ ,;\\n]+/).filter(Boolean);
   const BASE_URL = '${baseUrl}';
@@ -2894,7 +2891,7 @@ function buildRewardScript({codes, baseUrl, cookie}) {
       console.log(\`▶️ Начинаю выгрузку по коду: \${code}\`);
       const first = await fetchPage(code, 1);
       results[code] = [first];
-      // Корректно достаём поле с количеством участников!
+      
       let total = 0;
       if (first && first.body && first.body.badge && first.body.badge.contestants) {
         let cnt = first.body.badge.contestants;
@@ -2917,7 +2914,7 @@ function buildRewardScript({codes, baseUrl, cookie}) {
       }
       await sleep(DELAY_MS);
     }
-    // Сохраняем результат
+    
     const blob = new Blob([JSON.stringify(results, null, 2)], {type: 'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -2932,35 +2929,35 @@ function buildRewardScript({codes, baseUrl, cookie}) {
 
 
 
-  const REWARD_COOKIE = ''; // Здесь можно указать свой cookie
+  const REWARD_COOKIE = ''; 
 
-  // Генерировать Alpha
+  
     if (alphaBtn && rewardInput && rewardOutput) {
         alphaBtn.addEventListener('click', function () {
             const codes = rewardInput.value.split(/[ ,;\n]+/).filter(Boolean);
             rewardOutput.value = buildRewardScript({
         codes,
-        baseUrl: 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/badges/',
+        baseUrl: 'https:
         cookie: REWARD_COOKIE
       });
             if (copyBtn) copyBtn.disabled = false;
         });
   }
 
-  // Генерировать Sigma
+  
     if (sigmaBtn && rewardInput && rewardOutput) {
         sigmaBtn.addEventListener('click', function () {
             const codes = rewardInput.value.split(/[ ,;\n]+/).filter(Boolean);
             rewardOutput.value = buildRewardScript({
         codes,
-        baseUrl: 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/badges/',
+        baseUrl: 'https:
         cookie: REWARD_COOKIE
       });
             if (copyBtn) copyBtn.disabled = false;
         });
   }
 
-  // Копировать результат
+  
     if (copyBtn && rewardOutput) {
         copyBtn.addEventListener('click', function () {
             if (rewardOutput.value) {
@@ -2969,7 +2966,7 @@ function buildRewardScript({codes, baseUrl, cookie}) {
         });
     }
 
-    // Очистить результат при изменении ввода
+    
     if (rewardInput && rewardOutput) {
         rewardInput.addEventListener('input', function () {
             rewardOutput.value = '';
@@ -2977,8 +2974,8 @@ function buildRewardScript({codes, baseUrl, cookie}) {
         });
     }
 
-    // Закрытие модалки по клику вне окна (обрабатывается в ModalManager)
-    // Обработчики для кнопок с копированием кода теперь в initDynamicEventHandlers()
+    
+    
 });
 </script>
 
