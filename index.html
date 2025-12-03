@@ -1869,12 +1869,12 @@ function loadAndRenderConfig() {
 // === Адаптация размеров групп для избежания прокрутки ===
 function adaptGroupsToFit() {
     const groups = document.querySelectorAll('.ios-group');
-    const MIN_FONT_SIZE = 8; // Минимальный размер шрифта
-    const MIN_PADDING = 1; // Минимальный padding
-    const MIN_HEIGHT = 12; // Минимальная высота карточки
-    const MIN_GAP = 1; // Минимальный gap между карточками
-    const MIN_HEADER_FONT = 10; // Минимальный размер шрифта заголовка
-    const MIN_HEADER_PADDING = 2; // Минимальный padding заголовка
+    const MIN_FONT_SIZE = 10; // Минимальный размер шрифта для Liquid Glass
+    const MIN_PADDING = 6; // Минимальный padding (верх/низ)
+    const MIN_HEIGHT = 36; // Минимальная высота карточки
+    const MIN_GAP = 4; // Минимальный gap между карточками
+    const MIN_HEADER_FONT = 12; // Минимальный размер шрифта заголовка
+    const MIN_HEADER_PADDING = 8; // Минимальный padding заголовка (верх/низ)
     
     groups.forEach(group => {
         const cardsContainer = group.querySelector('.ios-group-cards');
