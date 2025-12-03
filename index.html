@@ -2537,7 +2537,7 @@ if (tnCloseBtn) {
 
 if (tnGenBtn) {
     tnGenBtn.addEventListener('click', function() {
-  let input = tnInput.value;
+        let input = tnInput.value;
   let tnList = input.split(/\D+/).map(x => x.trim()).filter(x => x.length > 0).map(x => x.padStart(8, '0'));
   if (tnList.length === 0) {
     outTn.value = '// Не найдено ни одного табельного номера.';
@@ -2584,11 +2584,11 @@ if (tnGenBtn) {
 };
 
 if (tnCopyBtn) {
-tnCopyBtn.onclick = function() {
+    tnCopyBtn.addEventListener('click', function() {
         if (outTn && outTn.value) {
             copyToClipboard(outTn.value, tnCopyBtn);
         }
-    };
+    });
 }
 
 
@@ -2609,11 +2609,18 @@ openDepModalBtn.onclick = function() {
   depInput.focus();
 };
 }
-depCloseBtn.onclick = function() { depModal.classList.remove('show'); };
+if (depCloseBtn) {
+    depCloseBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        depModal.classList.remove('show');
+    });
+}
     // Закрытие по клику вне окна обрабатывается в ModalManager
 
-depGenBtn.onclick = function() {
-  let input = depInput.value;
+if (depGenBtn) {
+    depGenBtn.addEventListener('click', function() {
+        let input = depInput.value;
   let depList = input.split(/\D+/).map(x => x.trim()).filter(x => x.length > 0);
   if (depList.length === 0) {
     outDep.value = '// Не найдено ни одного кода подразделения.';
