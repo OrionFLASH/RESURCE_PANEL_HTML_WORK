@@ -176,6 +176,7 @@ body {
     margin: 0;
     font-size: 14px;
     min-height: 48px;
+    max-height: 72px; /* Максимальная высота для 3 строк текста */
     padding: 12px 16px;
     font-weight: 500;
     box-shadow: var(--glass-card-shadow);
@@ -1195,6 +1196,13 @@ function createCardElement(card) {
     // Если это модальное окно или специальная ссылка, не открываем в новой вкладке
     if (!card.isModal && card.url && card.url !== '#' && !card.url.startsWith('#')) {
         link.target = '_blank';
+        // Убираем focus state после клика на ссылку
+        link.addEventListener('click', function(e) {
+            // Даем время на открытие ссылки, затем убираем focus
+            setTimeout(() => {
+                this.blur();
+            }, 100);
+        });
     }
     
     if (card.id) {
@@ -1869,10 +1877,13 @@ function loadAndRenderConfig() {
 // === Адаптация размеров групп для избежания прокрутки ===
 function adaptGroupsToFit() {
     const groups = document.querySelectorAll('.ios-group');
-    const MIN_FONT_SIZE = 10; // Минимальный размер шрифта для Liquid Glass
-    const MIN_PADDING = 6; // Минимальный padding (верх/низ)
-    const MIN_HEIGHT = 36; // Минимальная высота карточки
-    const MIN_GAP = 4; // Минимальный gap между карточками
+    // Оптимальные размеры для текста в 3 строки максимум
+    const BASE_FONT_SIZE = 14; // Базовый размер шрифта
+    const MIN_FONT_SIZE = 11; // Минимальный размер шрифта (не слишком маленький)
+    const MIN_PADDING = 8; // Минимальный padding (верх/низ) для читаемости
+    const MIN_HEIGHT = 48; // Минимальная высота карточки (для 3 строк текста)
+    const MAX_HEIGHT = 72; // Максимальная высота карточки (чтобы не было огромных кнопок)
+    const MIN_GAP = 6; // Минимальный gap между карточками
     // Заголовок группы не уменьшаем - он должен оставаться одинаковым на всех группах
     
     groups.forEach(group => {
@@ -1920,7 +1931,8 @@ function adaptGroupsToFit() {
             cardsContainer.style.gap = currentGapValue;
             
             isTwoColumns = true;
-            Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" переключена на двухколоночный layout`);
+            // Убрано логирование в консоль - только для разработки
+            // console.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" переключена на двухколоночный layout`);
         }
         
         // Функция возврата к одноколоночному layout
@@ -1932,15 +1944,16 @@ function adaptGroupsToFit() {
             cardsContainer.style.gridTemplateColumns = 'unset';
             
             isTwoColumns = false;
-            Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" возвращена к одноколоночному layout`);
+            // Убрано логирование в консоль - только для разработки
+            // console.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" возвращена к одноколоночному layout`);
         }
         
         // Рекурсивная функция для уменьшения размеров
+        // Теперь уменьшаем только если текст не помещается в 3 строки
         function reduceSizes(iteration = 0) {
-            if (iteration > 30) {
+            if (iteration > 20) {
                 // Достигнут максимум итераций - оставляем прокрутку
                 cardsContainer.style.overflowY = 'auto';
-                Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" требует прокрутки после уменьшения размеров`);
                 return;
             }
             
@@ -1961,22 +1974,25 @@ function adaptGroupsToFit() {
             if (atMinSize) {
                 // Достигнут минимум - оставляем прокрутку
                 cardsContainer.style.overflowY = 'auto';
-                Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" требует прокрутки (достигнут минимум)`);
                 return;
             }
             
-            // Уменьшаем размеры карточек
+            // Уменьшаем размеры карточек (но не слишком сильно)
+            // Цель: текст должен помещаться в 3 строки, но не быть огромным
             if (currentFontSize > MIN_FONT_SIZE) {
-                currentFontSize = Math.max(MIN_FONT_SIZE, currentFontSize - 0.5);
+                currentFontSize = Math.max(MIN_FONT_SIZE, currentFontSize - 0.3);
             }
             if (currentPaddingTop > MIN_PADDING) {
-                currentPaddingTop = Math.max(MIN_PADDING, currentPaddingTop - 0.3);
+                currentPaddingTop = Math.max(MIN_PADDING, currentPaddingTop - 0.2);
             }
             if (currentPaddingBottom > MIN_PADDING) {
-                currentPaddingBottom = Math.max(MIN_PADDING, currentPaddingBottom - 0.3);
+                currentPaddingBottom = Math.max(MIN_PADDING, currentPaddingBottom - 0.2);
             }
-            if (currentMinHeight > MIN_HEIGHT) {
-                currentMinHeight = Math.max(MIN_HEIGHT, currentMinHeight - 0.5);
+            // Высота должна быть достаточной для 3 строк, но не больше MAX_HEIGHT
+            if (currentMinHeight > MAX_HEIGHT) {
+                currentMinHeight = MAX_HEIGHT;
+            } else if (currentMinHeight > MIN_HEIGHT) {
+                currentMinHeight = Math.max(MIN_HEIGHT, currentMinHeight - 0.3);
             }
             if (currentGap > MIN_GAP) {
                 currentGap = Math.max(MIN_GAP, currentGap - 0.2);
@@ -1988,7 +2004,9 @@ function adaptGroupsToFit() {
                 card.style.fontSize = currentFontSize + 'px';
                 card.style.paddingTop = currentPaddingTop + 'px';
                 card.style.paddingBottom = currentPaddingBottom + 'px';
-                card.style.minHeight = currentMinHeight + 'px';
+                // Ограничиваем максимальную высоту
+                card.style.minHeight = Math.min(currentMinHeight, MAX_HEIGHT) + 'px';
+                card.style.maxHeight = MAX_HEIGHT + 'px';
             });
             
             const cardTitles = cardsContainer.querySelectorAll('.ios-card-title');
@@ -2027,12 +2045,14 @@ function adaptGroupsToFit() {
                             if (!needsScroll()) {
                                 // Двухколоночный layout помог - всё хорошо
                                 cardsContainer.style.overflowY = 'hidden';
-                                Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" уместилась в двухколоночном layout`);
+                                // Убрано логирование в консоль - только для разработки
+                                // console.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" уместилась в двухколоночном layout`);
                                 return;
                             }
                             
                             // Шаг 3: Двухколоночный layout не помог - уменьшаем размеры
-                            Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" требует уменьшения размеров`);
+                            // Убрано логирование в консоль - только для разработки
+                            // console.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" требует уменьшения размеров`);
                             reduceSizes();
                         });
                     });
