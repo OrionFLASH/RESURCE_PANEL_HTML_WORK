@@ -146,10 +146,11 @@ body {
     min-height: 0;
     gap: 8px;
     padding: 12px;
-    padding-bottom: 16px; /* Свободное место внизу блока группы */
+    padding-bottom: 12px; /* Минимальный отступ снизу */
     overflow-y: auto;
     overflow-x: hidden;
     align-items: stretch; /* Равномерное выравнивание кнопок */
+    justify-content: flex-start; /* Прибиваем кнопки к верху */
 }
 /* Скроллбар в стиле iOS */
 .ios-group-cards::-webkit-scrollbar {
@@ -2046,8 +2047,38 @@ function adaptGroupsToFit() {
             // console.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" возвращена к одноколоночному layout`);
         }
         
+        // Функция для увеличения размеров, если есть свободное место
+        function increaseSizesIfNeeded() {
+            // Проверяем, есть ли свободное место внизу
+            const availableHeight = cardsContainer.clientHeight;
+            const usedHeight = cardsContainer.scrollHeight;
+            const freeSpace = availableHeight - usedHeight;
+            
+            // Если есть достаточно свободного места (больше 20px), увеличиваем кнопки
+            if (freeSpace > 20 && currentMinHeight < MAX_HEIGHT) {
+                const cards = cardsContainer.querySelectorAll('.ios-card');
+                const cardsCount = cards.length;
+                const spacePerCard = freeSpace / cardsCount;
+                
+                // Увеличиваем высоту кнопок, но не больше MAX_HEIGHT
+                if (spacePerCard > 2) {
+                    const newHeight = Math.min(
+                        currentMinHeight + Math.min(spacePerCard * 0.5, 4),
+                        MAX_HEIGHT
+                    );
+                    
+                    if (newHeight > currentMinHeight) {
+                        currentMinHeight = newHeight;
+                        cards.forEach(card => {
+                            card.style.minHeight = currentMinHeight + 'px';
+                        });
+                    }
+                }
+            }
+        }
+        
         // Рекурсивная функция для уменьшения размеров
-        // Теперь уменьшаем только если текст не помещается в 3 строки
+        // Теперь уменьшаем только если текст не помещается в 2 строки
         function reduceSizes(iteration = 0) {
             if (iteration > 20) {
                 // Достигнут максимум итераций - оставляем прокрутку
@@ -2059,6 +2090,8 @@ function adaptGroupsToFit() {
             if (!needsScroll()) {
                 // Прокрутка не нужна - скрываем её
                 cardsContainer.style.overflowY = 'hidden';
+                // Пытаемся увеличить размеры, если есть место
+                increaseSizesIfNeeded();
                 return;
             }
             
