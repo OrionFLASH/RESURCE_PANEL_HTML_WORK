@@ -294,19 +294,14 @@ body {
 .modal-content::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 0, 0, 0.3);
 }
-/* Для модальных окон с большим количеством полей или результатов */
-.modal-content.modal-large {
-    max-width: 1000px;
-    min-width: 600px;
-    width: 96vw;
-    padding: 40px 40px 30px 40px;
-}
-/* Для компактных модальных окон */
-.modal-content.modal-small {
-    max-width: 600px;
-    min-width: 400px;
-    width: 90vw;
-    padding: 32px 32px 24px 32px;
+/* Унифицированный размер для всех модальных окон */
+.modal-content.modal-large,
+.modal-content.modal-small,
+.modal-content {
+    max-width: 700px; /* Единый размер для всех модалок */
+    min-width: 500px;
+    width: 92vw;
+    padding: 32px 32px 24px 32px; /* Единый padding */
 }
 @keyframes modalIn {
     from { opacity: 0; transform: scale(.98) translateY(40px);}
@@ -355,30 +350,38 @@ body {
 .modal-button:disabled:hover {
     background: var(--sber-blue);
 }
+/* Унифицированные кнопки в стиле iOS 26 */
 .modal-button, .export-button {
     background: var(--glass-blue);
     color: #ffffff;
     border: none;
-    border-radius: 12px;
-    font-size: 16px;
+    border-radius: 10px; /* iOS 26 стиль - более скругленные углы */
+    font-size: 15px; /* Единый размер шрифта */
     font-weight: 600;
-    padding: 12px 24px;
+    padding: 11px 22px; /* Единый padding для всех кнопок */
+    min-width: 100px; /* Минимальная ширина для единообразия */
+    height: 44px; /* Фиксированная высота в стиле iOS */
     box-shadow: 
-        0 2px 8px rgba(0, 122, 255, 0.25),
+        0 1px 3px rgba(0, 122, 255, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     margin-top: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
 }
 .modal-button:hover, .export-button:hover {
     background: #0051D5;
-    transform: translateY(-1px);
+    transform: scale(1.02);
     box-shadow: 
-        0 4px 12px rgba(0, 122, 255, 0.35),
+        0 2px 6px rgba(0, 122, 255, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .modal-button:active, .export-button:active {
-    transform: translateY(0);
+    transform: scale(0.98);
+    background: #0047B8;
 }
 #default-btn {
     background: rgba(0, 0, 0, 0.05);
@@ -391,34 +394,43 @@ body {
     background: rgba(0, 0, 0, 0.08);
     border-color: rgba(0, 0, 0, 0.15);
 }
+/* Кнопка очистки в стиле iOS 26 */
 .modal-clear-btn {
     background: var(--glass-red);
     color: #ffffff;
     border: none;
-    border-radius: 12px;
-    font-size: 16px;
+    border-radius: 10px; /* iOS 26 стиль */
+    font-size: 15px; /* Единый размер шрифта */
     margin-left: 8px;
-    padding: 12px 20px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 11px 18px; /* Единый padding */
+    min-width: 44px; /* Минимальная ширина для квадратных кнопок */
+    height: 44px; /* Фиксированная высота в стиле iOS */
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 
-        0 2px 8px rgba(255, 59, 48, 0.25),
+        0 1px 3px rgba(255, 59, 48, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 .modal-clear-btn:hover {
     background: var(--glass-red-hover);
-    transform: translateY(-1px);
+    transform: scale(1.02);
     box-shadow: 
-        0 4px 12px rgba(255, 59, 48, 0.35),
+        0 2px 6px rgba(255, 59, 48, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .modal-clear-btn:active {
-    transform: translateY(0);
+    transform: scale(0.98);
+    background: #D32F2F;
 }
+/* Унифицированные поля ввода в стиле iOS 26 */
 input, textarea {
-    border-radius: 12px;
+    border-radius: 10px; /* iOS 26 стиль */
     border: 1px solid rgba(0, 0, 0, 0.1);
-    font-size: 16px;
-    padding: 12px 16px;
+    font-size: 15px; /* Единый размер шрифта */
+    padding: 12px 16px; /* Единый padding */
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -428,6 +440,8 @@ input, textarea {
     box-sizing: border-box;
     transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.5;
 }
 input:focus, textarea:focus {
     border-color: var(--glass-blue);
@@ -437,6 +451,10 @@ input:focus, textarea:focus {
         0 0 0 3px rgba(0, 122, 255, 0.1),
         0 2px 8px rgba(0, 122, 255, 0.15);
     color: var(--glass-text);
+}
+/* Единая высота для input */
+input[type="text"] {
+    height: 44px; /* Фиксированная высота в стиле iOS */
 }
 .result-box {
     background: rgba(255, 255, 255, 0.6);
@@ -2771,14 +2789,17 @@ function generateNewsScript(env) {
   }
 
   // Закрыть модалку
+    // Закрыть модалку
     if (closeRewardModalBtn && rewardModal) {
-        closeRewardModalBtn.addEventListener('click', function () {
-      rewardModal.classList.remove('show');
+        closeRewardModalBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            rewardModal.classList.remove('show');
             if (rewardInput) rewardInput.value = '';
             if (rewardOutput) rewardOutput.value = '';
             if (copyBtn) copyBtn.disabled = true;
         });
-  }
+    }
 
   // Очистить всё
   if (clearBtn) {
