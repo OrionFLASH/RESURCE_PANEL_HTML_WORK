@@ -2677,11 +2677,11 @@ if (depGenBtn) {
 }
 
 if (depCopyBtn) {
-depCopyBtn.onclick = function() {
+    depCopyBtn.addEventListener('click', function() {
         if (outDep && outDep.value) {
             copyToClipboard(outDep.value, depCopyBtn);
         }
-    };
+    });
 }
 
 
