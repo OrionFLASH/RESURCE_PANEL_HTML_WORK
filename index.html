@@ -1915,7 +1915,20 @@ document.addEventListener('DOMContentLoaded', function () {
     loadAndRenderConfig();
     
     // Адаптация кнопок после загрузки конфигурации
-    setTimeout(adjustTopActions, 100);
+    setTimeout(() => {
+        adjustTopActions();
+        // Адаптация размеров групп выполняется внутри loadAndRenderConfig
+    }, 100);
+    
+    // Адаптация при изменении размера окна
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            adaptGroupsToFit();
+            adjustTopActions();
+        }, 150);
+    });
     
     // === 3. Проверка доступности ссылок и статусы ===
     // Проставляет статус (зеленый или красный) для каждой кнопки-ссылки
