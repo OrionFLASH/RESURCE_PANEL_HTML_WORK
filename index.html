@@ -2754,7 +2754,7 @@ function generateNewsScript(env) {
     const closeRewardModalBtn = safeQuerySelector('#reward-close-btn');
     const clearBtn = safeQuerySelector('#reward-clear-btn');
     const copyBtn = safeQuerySelector('#reward-copy-btn');
-    const defaultBtn = safeQuerySelector('#reward-default-btn');
+    const rewardDefaultBtn = safeQuerySelector('#reward-default-btn');
     const rewardInput = safeQuerySelector('#reward-input');
     const rewardOutput = safeQuerySelector('#reward-result');
     const alphaBtn = safeQuerySelector('#reward-alpha-btn');
@@ -2790,9 +2790,9 @@ function generateNewsScript(env) {
         });
   }
 
-  // По умолчанию
-    if (defaultBtn && rewardInput) {
-        defaultBtn.addEventListener('click', function () {
+    // По умолчанию
+    if (rewardDefaultBtn && rewardInput) {
+        rewardDefaultBtn.addEventListener('click', function () {
             rewardInput.value = 'r_01_2025-0_10-1_2; r_01_2025-0_10-1_1';
             if (rewardOutput) rewardOutput.value = '';
             if (copyBtn) copyBtn.disabled = true;
@@ -2913,14 +2913,8 @@ function buildRewardScript({codes, baseUrl, cookie}) {
     }
 
     // Закрытие модалки по клику вне окна (обрабатывается в ModalManager)
+    // Обработчики для кнопок с копированием кода теперь в initDynamicEventHandlers()
 });
-</script>
-
-
-// Обработчики для кнопок с копированием кода теперь в initDynamicEventHandlers()
-	
-// Обработчики для кнопок с копированием кода теперь в initDynamicEventHandlers()
-
 </script>
 
 <script>
