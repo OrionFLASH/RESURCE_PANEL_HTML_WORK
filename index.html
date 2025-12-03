@@ -320,23 +320,26 @@ body {
 }
 .modal-buttons {
     display: flex;
-    gap: 12px;
+    gap: 10px; /* Уменьшен gap для более аккуратного вида */
     margin-top: 24px;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
 }
 /* Унифицированный порядок кнопок: основные действия слева, служебные справа */
 .modal-buttons-primary {
     display: flex;
-    gap: 12px;
+    gap: 10px; /* Уменьшен gap */
     flex-wrap: wrap;
     flex: 1;
+    align-items: center;
 }
 .modal-buttons-secondary {
     display: flex;
-    gap: 12px;
+    gap: 10px; /* Уменьшен gap */
     flex-wrap: wrap;
     margin-left: auto;
+    align-items: center;
 }
 /* Унифицированные стили для всех кнопок в модальных окнах */
 .modal-button {
@@ -350,80 +353,101 @@ body {
 .modal-button:disabled:hover {
     background: var(--sber-blue);
 }
-/* Унифицированные кнопки в стиле iOS 26 */
+/* Унифицированные кнопки в стиле iOS 26 - аккуратные и одинаковые */
 .modal-button, .export-button {
     background: var(--glass-blue);
     color: #ffffff;
     border: none;
-    border-radius: 10px; /* iOS 26 стиль - более скругленные углы */
+    border-radius: 12px; /* iOS 26 стиль - более скругленные углы */
     font-size: 15px; /* Единый размер шрифта */
     font-weight: 600;
-    padding: 11px 22px; /* Единый padding для всех кнопок */
-    min-width: 100px; /* Минимальная ширина для единообразия */
+    padding: 12px 24px; /* Единый padding для всех кнопок */
+    min-width: 110px; /* Минимальная ширина для единообразия */
     height: 44px; /* Фиксированная высота в стиле iOS */
     box-shadow: 
-        0 1px 3px rgba(0, 122, 255, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        0 2px 8px rgba(0, 122, 255, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
     cursor: pointer;
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-top: 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     white-space: nowrap;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: -0.2px;
 }
 .modal-button:hover, .export-button:hover {
     background: #0051D5;
-    transform: scale(1.02);
+    transform: translateY(-1px);
     box-shadow: 
-        0 2px 6px rgba(0, 122, 255, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        0 4px 12px rgba(0, 122, 255, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 .modal-button:active, .export-button:active {
-    transform: scale(0.98);
+    transform: translateY(0);
     background: #0047B8;
+    box-shadow: 
+        0 1px 4px rgba(0, 122, 255, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
-#default-btn {
-    background: rgba(0, 0, 0, 0.05);
+/* Кнопка "По умолчанию" - вторичный стиль */
+#default-btn, .modal-button[type="button"]:not(.modal-clear-btn):not([id*="alpha"]):not([id*="sigma"]):not([id*="gen"]):not([id*="copy"]) {
+    background: rgba(0, 0, 0, 0.06);
     color: var(--glass-text);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.12);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+    box-shadow: 
+        0 1px 3px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
-#default-btn:hover {
+#default-btn:hover, .modal-button[type="button"]:not(.modal-clear-btn):not([id*="alpha"]):not([id*="sigma"]):not([id*="gen"]):not([id*="copy"]):hover {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.18);
+    transform: translateY(-1px);
+    box-shadow: 
+        0 2px 6px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+#default-btn:active, .modal-button[type="button"]:not(.modal-clear-btn):not([id*="alpha"]):not([id*="sigma"]):not([id*="gen"]):not([id*="copy"]):active {
+    transform: translateY(0);
     background: rgba(0, 0, 0, 0.08);
-    border-color: rgba(0, 0, 0, 0.15);
 }
-/* Кнопка очистки в стиле iOS 26 */
+/* Кнопка очистки в стиле iOS 26 - аккуратная */
 .modal-clear-btn {
     background: var(--glass-red);
     color: #ffffff;
     border: none;
-    border-radius: 10px; /* iOS 26 стиль */
+    border-radius: 12px; /* iOS 26 стиль */
     font-size: 15px; /* Единый размер шрифта */
     margin-left: 8px;
-    padding: 11px 18px; /* Единый padding */
+    padding: 12px 20px; /* Единый padding */
     min-width: 44px; /* Минимальная ширина для квадратных кнопок */
     height: 44px; /* Фиксированная высота в стиле iOS */
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 
-        0 1px 3px rgba(255, 59, 48, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        0 2px 8px rgba(255, 59, 48, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 .modal-clear-btn:hover {
     background: var(--glass-red-hover);
-    transform: scale(1.02);
+    transform: translateY(-1px);
     box-shadow: 
-        0 2px 6px rgba(255, 59, 48, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        0 4px 12px rgba(255, 59, 48, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 .modal-clear-btn:active {
-    transform: scale(0.98);
+    transform: translateY(0);
     background: #D32F2F;
+    box-shadow: 
+        0 1px 4px rgba(255, 59, 48, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 /* Унифицированные поля ввода в стиле iOS 26 */
 input, textarea {
@@ -778,8 +802,8 @@ input[type="text"] {
 
     <div class="modal-buttons">
       <div class="modal-buttons-primary">
-      <button class="modal-button" id="scriptgen-alpha-btn">Генерировать ALPHA</button>
-      <button class="modal-button" id="scriptgen-sigma-btn">Генерировать SIGMA</button>
+        <button class="modal-button" id="scriptgen-alpha-btn">Генерировать ALPHA</button>
+        <button class="modal-button" id="scriptgen-sigma-btn">Генерировать SIGMA</button>
       </div>
       <div class="modal-buttons-secondary">
       <button class="modal-button" id="sg-default-btn" type="button">По умолчанию</button>
