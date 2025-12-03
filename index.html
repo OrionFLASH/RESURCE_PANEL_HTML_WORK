@@ -549,17 +549,13 @@ input[type="text"] {
         width: 96vw;
         padding: 32px 24px 24px 24px;
     }
-    .modal-content.modal-large {
-        max-width: 98vw;
-        min-width: 500px;
-        width: 98vw;
-        padding: 36px 20px 28px 20px;
-    }
-    .modal-content.modal-small {
-        max-width: 94vw;
-        min-width: 350px;
-        width: 94vw;
-        padding: 28px 20px 20px 20px;
+    .modal-content.modal-large,
+    .modal-content.modal-small,
+    .modal-content {
+        max-width: 96vw;
+        min-width: 400px;
+        width: 96vw;
+        padding: 28px 24px 20px 24px;
     }
 }
 @media (max-width: 600px) {
@@ -569,7 +565,8 @@ input[type="text"] {
         padding: 24px 16px 20px 16px;
     }
     .modal-content.modal-large,
-    .modal-content.modal-small {
+    .modal-content.modal-small,
+    .modal-content {
         min-width: 90vw;
         width: 90vw;
         padding: 24px 16px 20px 16px;
@@ -781,8 +778,8 @@ input[type="text"] {
 
     <div class="modal-buttons">
       <div class="modal-buttons-primary">
-      <button class="modal-button" onclick="generateScriptSber('alpha')">Генерировать ALPHA</button>
-      <button class="modal-button" onclick="generateScriptSber('sigma')">Генерировать SIGMA</button>
+      <button class="modal-button" id="scriptgen-alpha-btn">Генерировать ALPHA</button>
+      <button class="modal-button" id="scriptgen-sigma-btn">Генерировать SIGMA</button>
       </div>
       <div class="modal-buttons-secondary">
       <button class="modal-button" id="sg-default-btn" type="button">По умолчанию</button>
@@ -2323,35 +2320,52 @@ const defaultUrlAlpha = 'https://efs-our-business-prom.omega.sbrf.ru';
 const defaultUrlSigma = 'https://salesheroes.sberbank.ru';
 const defaultApiPath = '/bo/rmkib.gamification/api/v1/tournaments/';
 
-if (sgDefaultBtn) sgDefaultBtn.onclick = function () {
-    sgTournamentIds.value = defaultTournamentIds;
-    sgServiceName.value = defaultServiceName;
-    sgUrlAlpha.value = defaultUrlAlpha;
-    sgUrlSigma.value = defaultUrlSigma;
-    sgApiPath.value = defaultApiPath;    // Новое поле!
-    sgResult.value = '';
-    sgTournamentIds.focus();
-};
+if (sgDefaultBtn) {
+    sgDefaultBtn.addEventListener('click', function () {
+        sgTournamentIds.value = defaultTournamentIds;
+        sgServiceName.value = defaultServiceName;
+        sgUrlAlpha.value = defaultUrlAlpha;
+        sgUrlSigma.value = defaultUrlSigma;
+        sgApiPath.value = defaultApiPath;    // Новое поле!
+        sgResult.value = '';
+        sgTournamentIds.focus();
+    });
+}
 
 // "Очистить" — очищает только Tournament IDs и результат
-if (sgClearBtn) sgClearBtn.onclick = function () {
-    sgTournamentIds.value = '';
-    sgResult.value = '';
-    sgTournamentIds.focus();
-};
+if (sgClearBtn) {
+    sgClearBtn.addEventListener('click', function () {
+        sgTournamentIds.value = '';
+        sgResult.value = '';
+        sgTournamentIds.focus();
+    });
+}
 
 // Закрыть модалку (открытие обрабатывается в initDynamicEventHandlers)
 if (closeScriptgenModalBtn) {
-closeScriptgenModalBtn.onclick = function() {
+    closeScriptgenModalBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
         if (scriptgenModal) {
-    scriptgenModal.classList.remove('show');
+            scriptgenModal.classList.remove('show');
         }
-};
+    });
 }
-// Клик вне окна — закрыть
-window.addEventListener('click', function(e) {
-    if (e.target === scriptgenModal) scriptgenModal.classList.remove('show');
-});
+// Обработчики для кнопок генерации скрипта
+const scriptgenAlphaBtn = safeQuerySelector('#scriptgen-alpha-btn');
+const scriptgenSigmaBtn = safeQuerySelector('#scriptgen-sigma-btn');
+
+if (scriptgenAlphaBtn) {
+    scriptgenAlphaBtn.addEventListener('click', function() {
+        generateScriptSber('alpha');
+    });
+}
+
+if (scriptgenSigmaBtn) {
+    scriptgenSigmaBtn.addEventListener('click', function() {
+        generateScriptSber('sigma');
+    });
+}
 // Копировать в буфер
 if (sgCopyBtn) {
 sgCopyBtn.onclick = function() {
