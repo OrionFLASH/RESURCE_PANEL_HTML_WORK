@@ -719,11 +719,11 @@ input:focus, textarea:focus {
         </div>
         <div class="modal-buttons">
             <div class="modal-buttons-primary">
-                <button class="modal-button" id="open-role-link" disabled>Открыть</button>
+            <button class="modal-button" id="open-role-link" disabled>Открыть</button>
             </div>
             <div class="modal-buttons-secondary">
                 <button class="modal-button" id="default-btn">По умолчанию</button>
-                <button class="modal-button" id="close-role-modal">Закрыть</button>
+            <button class="modal-button" id="close-role-modal">Закрыть</button>
             </div>
         </div>
     </div>
@@ -736,39 +736,39 @@ input:focus, textarea:focus {
 
     <div class="modal-form-group">
       <label for="sg-tournamentIds" class="modal-label">Tournament IDs (через ;):</label>
-      <textarea id="sg-tournamentIds" rows="2">t_01_2025-1_05-1_1_3051; t_01_2025-1_05-1_1_3041</textarea>
+    <textarea id="sg-tournamentIds" rows="2">t_01_2025-1_05-1_1_3051; t_01_2025-1_05-1_1_3041</textarea>
     </div>
 
     <div class="modal-form-group">
       <label for="sg-serviceName" class="modal-label">Service Name:</label>
-      <input type="text" id="sg-serviceName" value="leadersForAdmin" />
+    <input type="text" id="sg-serviceName" value="leadersForAdmin" />
     </div>
 
     <div class="modal-form-group">
       <label for="sg-apiPath" class="modal-label">Request API Path:</label>
-      <input type="text" id="sg-apiPath" value="/bo/rmkib.gamification/api/v1/tournaments/" />
+    <input type="text" id="sg-apiPath" value="/bo/rmkib.gamification/api/v1/tournaments/" />
     </div>
 
     <div class="modal-form-group">
       <label for="sg-urlAlpha" class="modal-label">Request Base URL (ALPHA):</label>
-      <input type="text" id="sg-urlAlpha" value="https://efs-our-business-prom.omega.sbrf.ru" />
+    <input type="text" id="sg-urlAlpha" value="https://efs-our-business-prom.omega.sbrf.ru" />
     </div>
 
     <div class="modal-form-group">
       <label for="sg-urlSigma" class="modal-label">Request Base URL (SIGMA):</label>
-      <input type="text" id="sg-urlSigma" value="https://salesheroes.sberbank.ru" />
+    <input type="text" id="sg-urlSigma" value="https://salesheroes.sberbank.ru" />
     </div>
 
     <div class="modal-buttons">
       <div class="modal-buttons-primary">
-        <button class="modal-button" onclick="generateScriptSber('alpha')">Генерировать ALPHA</button>
-        <button class="modal-button" onclick="generateScriptSber('sigma')">Генерировать SIGMA</button>
+      <button class="modal-button" onclick="generateScriptSber('alpha')">Генерировать ALPHA</button>
+      <button class="modal-button" onclick="generateScriptSber('sigma')">Генерировать SIGMA</button>
       </div>
       <div class="modal-buttons-secondary">
-        <button class="modal-button" id="sg-default-btn" type="button">По умолчанию</button>
-        <button class="modal-button" id="sg-clear-btn" type="button">Очистить</button>
+      <button class="modal-button" id="sg-default-btn" type="button">По умолчанию</button>
+      <button class="modal-button" id="sg-clear-btn" type="button">Очистить</button>
         <button class="modal-button" id="sg-copy-btn">Копировать</button>
-        <button class="modal-button" id="close-scriptgen-modal">Закрыть</button>
+      <button class="modal-button" id="close-scriptgen-modal">Закрыть</button>
       </div>
     </div>
 
@@ -784,16 +784,16 @@ input:focus, textarea:focus {
     <h2 class="modal-title" id="tn-modal-title">Генератор скрипта для addressBook по ТН</h2>
     <div class="modal-form-group">
       <label for="tn_input" class="modal-label">Введите ТН через любые разделители (пробелы, ; , : . и т.д.):</label>
-      <textarea id="tn_input" rows="3" placeholder="12345, 54321; 13579 24680"></textarea>
+    <textarea id="tn_input" rows="3" placeholder="12345, 54321; 13579 24680"></textarea>
     </div>
     <div class="modal-buttons">
       <div class="modal-buttons-primary">
-        <button class="modal-button" id="tn-gen-btn">Сгенерировать скрипт</button>
+      <button class="modal-button" id="tn-gen-btn">Сгенерировать скрипт</button>
       </div>
       <div class="modal-buttons-secondary">
-        <button class="modal-button" id="tn-copy-btn">Копировать</button>
-        <button class="modal-button" id="tn-close-btn">Закрыть</button>
-      </div>
+      <button class="modal-button" id="tn-copy-btn">Копировать</button>
+      <button class="modal-button" id="tn-close-btn">Закрыть</button>
+    </div>
     </div>
     <textarea class="result" id="out_tn" readonly placeholder="Здесь появится скрипт"></textarea>
     <div class="modal-hint">
@@ -807,16 +807,16 @@ input:focus, textarea:focus {
     <h2 class="modal-title" id="dep-modal-title">Генератор скрипта для addressBook по коду подразделения</h2>
     <div class="modal-form-group">
       <label for="dep_input" class="modal-label">Введите коды подразделений через любые разделители (пробелы, ; , : . и т.д.):</label>
-      <textarea id="dep_input" rows="3" placeholder="10294215, 10294220; 10294444"></textarea>
+    <textarea id="dep_input" rows="3" placeholder="10294215, 10294220; 10294444"></textarea>
     </div>
     <div class="modal-buttons">
       <div class="modal-buttons-primary">
-        <button class="modal-button" id="dep-gen-btn">Сгенерировать скрипт</button>
+      <button class="modal-button" id="dep-gen-btn">Сгенерировать скрипт</button>
       </div>
       <div class="modal-buttons-secondary">
-        <button class="modal-button" id="dep-copy-btn">Копировать</button>
-        <button class="modal-button" id="dep-close-btn">Закрыть</button>
-      </div>
+      <button class="modal-button" id="dep-copy-btn">Копировать</button>
+      <button class="modal-button" id="dep-close-btn">Закрыть</button>
+    </div>
     </div>
     <textarea class="result" id="out_dep" readonly placeholder="Здесь появится скрипт"></textarea>
     <div class="modal-hint">
@@ -831,19 +831,19 @@ input:focus, textarea:focus {
     <h2 class="modal-title" id="news-modal-title">Выгрузка деталки по новостям</h2>
     <div class="modal-form-group">
       <label for="news_input" class="modal-label">Введите коды новостей через пробел, запятую или ;</label>
-      <textarea id="news_input" rows="3" placeholder="715429170081770418; 715429169708477428"></textarea>
+    <textarea id="news_input" rows="3" placeholder="715429170081770418; 715429169708477428"></textarea>
     </div>
     <div class="modal-buttons">
       <div class="modal-buttons-primary">
-        <button class="modal-button" id="news-alpha-btn">Alpha</button>
-        <button class="modal-button" id="news-sigma-btn">Sigma</button>
+      <button class="modal-button" id="news-alpha-btn">Alpha</button>
+      <button class="modal-button" id="news-sigma-btn">Sigma</button>
       </div>
       <div class="modal-buttons-secondary">
-        <button class="modal-button" id="news-default-btn">По умолчанию</button>
-        <button class="modal-button" id="news-copy-btn" disabled>Копировать</button>
-        <button class="modal-button" id="news-clear-btn">Очистить</button>
-        <button class="modal-button" id="news-close-btn">Закрыть</button>
-      </div>
+      <button class="modal-button" id="news-default-btn">По умолчанию</button>
+      <button class="modal-button" id="news-copy-btn" disabled>Копировать</button>
+      <button class="modal-button" id="news-clear-btn">Очистить</button>
+      <button class="modal-button" id="news-close-btn">Закрыть</button>
+    </div>
     </div>
     <textarea class="result" id="news-output" readonly placeholder="Здесь появится сгенерированный скрипт"></textarea>
   </div>
@@ -855,19 +855,19 @@ input:focus, textarea:focus {
     <h2 class="modal-title" id="reward-modal-title">Выгрузка данных по наградам</h2>
     <div class="modal-form-group">
       <label for="reward-input" class="modal-label">Введите коды наград через пробел, запятую или ;</label>
-      <textarea id="reward-input" rows="3" placeholder="r_01_2025-0_10-1_2; r_01_2025-0_10-1_1"></textarea>
+    <textarea id="reward-input" rows="3" placeholder="r_01_2025-0_10-1_2; r_01_2025-0_10-1_1"></textarea>
     </div>
     <div class="modal-buttons">
       <div class="modal-buttons-primary">
-        <button class="modal-button" id="reward-alpha-btn">Alpha</button>
-        <button class="modal-button" id="reward-sigma-btn">Sigma</button>
+      <button class="modal-button" id="reward-alpha-btn">Alpha</button>
+      <button class="modal-button" id="reward-sigma-btn">Sigma</button>
       </div>
       <div class="modal-buttons-secondary">
-        <button class="modal-button" id="reward-default-btn">По умолчанию</button>
-        <button class="modal-button" id="reward-copy-btn" disabled>Копировать</button>
-        <button class="modal-button" id="reward-clear-btn">Очистить</button>
-        <button class="modal-button" id="reward-close-btn">Закрыть</button>
-      </div>
+      <button class="modal-button" id="reward-default-btn">По умолчанию</button>
+      <button class="modal-button" id="reward-copy-btn" disabled>Копировать</button>
+      <button class="modal-button" id="reward-clear-btn">Очистить</button>
+      <button class="modal-button" id="reward-close-btn">Закрыть</button>
+    </div>
     </div>
     <textarea id="reward-result" class="result" rows="10" readonly placeholder="Сгенерированный скрипт появится здесь"></textarea>
     <div class="modal-hint">
@@ -884,19 +884,19 @@ input:focus, textarea:focus {
     <h2 class="modal-title" id="profile-modal-title">Выгрузка профилей по табельным</h2>
     <div class="modal-form-group">
       <label for="profile-input" class="modal-label">Введите табельные номера (через пробел, точку с запятой, запятую, перевод строки и т.д.):</label>
-      <textarea id="profile-input" rows="3" placeholder="01234567; 78965432&#10;11223344"></textarea>
+    <textarea id="profile-input" rows="3" placeholder="01234567; 78965432&#10;11223344"></textarea>
     </div>
     <div class="modal-buttons">
       <div class="modal-buttons-primary">
-        <button class="modal-button" id="profile-alpha-btn">ALPHA</button>
-        <button class="modal-button" id="profile-sigma-btn">SIGMA</button>
+      <button class="modal-button" id="profile-alpha-btn">ALPHA</button>
+      <button class="modal-button" id="profile-sigma-btn">SIGMA</button>
       </div>
       <div class="modal-buttons-secondary">
-        <button class="modal-button" id="profile-copy-btn">Копировать</button>
-        <button class="modal-button" id="profile-default-btn">По умолчанию</button>
-        <button class="modal-button" id="profile-clear-btn">Очистить</button>
-        <button class="modal-button" id="profile-close-btn">Закрыть</button>
-      </div>
+      <button class="modal-button" id="profile-copy-btn">Копировать</button>
+      <button class="modal-button" id="profile-default-btn">По умолчанию</button>
+      <button class="modal-button" id="profile-clear-btn">Очистить</button>
+      <button class="modal-button" id="profile-close-btn">Закрыть</button>
+    </div>
     </div>
     <textarea class="result" id="profile-output" readonly placeholder="Здесь появится скрипт для DevTools"></textarea>
     <div class="modal-hint">
@@ -1873,8 +1873,7 @@ function adaptGroupsToFit() {
     const MIN_PADDING = 6; // Минимальный padding (верх/низ)
     const MIN_HEIGHT = 36; // Минимальная высота карточки
     const MIN_GAP = 4; // Минимальный gap между карточками
-    const MIN_HEADER_FONT = 12; // Минимальный размер шрифта заголовка
-    const MIN_HEADER_PADDING = 8; // Минимальный padding заголовка (верх/низ)
+    // Заголовок группы не уменьшаем - он должен оставаться одинаковым на всех группах
     
     groups.forEach(group => {
         const cardsContainer = group.querySelector('.ios-group-cards');
@@ -1890,12 +1889,6 @@ function adaptGroupsToFit() {
         let currentPaddingBottom = parseFloat(computedStyle.paddingBottom);
         let currentMinHeight = parseFloat(computedStyle.minHeight);
         let currentGap = parseFloat(window.getComputedStyle(cardsContainer).gap) || 2;
-        
-        const header = group.querySelector('.ios-group-header');
-        const headerComputed = header ? window.getComputedStyle(header) : null;
-        let currentHeaderFont = headerComputed ? parseFloat(headerComputed.fontSize) : 18;
-        let currentHeaderPaddingTop = headerComputed ? parseFloat(headerComputed.paddingTop) : 8;
-        let currentHeaderPaddingBottom = headerComputed ? parseFloat(headerComputed.paddingBottom) : 8;
         
         // Рекурсивная функция для адаптации с учетом пересчета layout
         function adaptGroup(iteration = 0) {
@@ -1915,15 +1908,12 @@ function adaptGroupsToFit() {
                 return;
             }
             
-            // Проверяем, достигли ли мы минимума
+            // Проверяем, достигли ли мы минимума (заголовок не уменьшаем, поэтому не проверяем его)
             const atMinSize = currentFontSize <= MIN_FONT_SIZE && 
                              currentPaddingTop <= MIN_PADDING && 
                              currentPaddingBottom <= MIN_PADDING &&
                              currentMinHeight <= MIN_HEIGHT &&
-                             currentGap <= MIN_GAP &&
-                             currentHeaderFont <= MIN_HEADER_FONT &&
-                             currentHeaderPaddingTop <= MIN_HEADER_PADDING &&
-                             currentHeaderPaddingBottom <= MIN_HEADER_PADDING;
+                             currentGap <= MIN_GAP;
             
             if (atMinSize) {
                 // Достигнут минимум - оставляем прокрутку
@@ -1949,16 +1939,7 @@ function adaptGroupsToFit() {
                 currentGap = Math.max(MIN_GAP, currentGap - 0.2);
             }
             
-            // Уменьшаем размеры заголовка
-            if (currentHeaderFont > MIN_HEADER_FONT) {
-                currentHeaderFont = Math.max(MIN_HEADER_FONT, currentHeaderFont - 0.5);
-            }
-            if (currentHeaderPaddingTop > MIN_HEADER_PADDING) {
-                currentHeaderPaddingTop = Math.max(MIN_HEADER_PADDING, currentHeaderPaddingTop - 0.3);
-            }
-            if (currentHeaderPaddingBottom > MIN_HEADER_PADDING) {
-                currentHeaderPaddingBottom = Math.max(MIN_HEADER_PADDING, currentHeaderPaddingBottom - 0.3);
-            }
+            // Заголовок группы не уменьшаем - он должен оставаться одинаковым на всех группах
             
             // Применяем изменения
             const cards = cardsContainer.querySelectorAll('.ios-card');
@@ -1976,11 +1957,7 @@ function adaptGroupsToFit() {
             
             cardsContainer.style.gap = currentGap + 'px';
             
-            if (header) {
-                header.style.fontSize = currentHeaderFont + 'px';
-                header.style.paddingTop = currentHeaderPaddingTop + 'px';
-                header.style.paddingBottom = currentHeaderPaddingBottom + 'px';
-            }
+            // Заголовок группы не изменяем - он должен оставаться одинаковым на всех группах
             
             // Ждем пересчета layout и проверяем снова
             requestAnimationFrame(() => {
@@ -2631,7 +2608,7 @@ function generateNewsScript(env) {
     const newsOutput = safeQuerySelector('#news-output');
 
     if (newsBtn && newsModal) {
-        newsBtn.addEventListener('click', () => newsModal.classList.add('show'));
+  newsBtn.addEventListener('click', () => newsModal.classList.add('show'));
     }
 
     if (newsCloseBtn) {
@@ -2666,9 +2643,9 @@ function generateNewsScript(env) {
                 copyToClipboard(newsOutput.value, newsCopyBtn);
             }
         });
-    }
+  }
 
-    ['alpha', 'sigma'].forEach(env => {
+  ['alpha', 'sigma'].forEach(env => {
         const btn = safeQuerySelector(`#news-${env}-btn`);
         if (btn) {
             btn.addEventListener('click', () => generateNewsScript(env));
@@ -2687,37 +2664,37 @@ function generateNewsScript(env) {
     const alphaBtn = safeQuerySelector('#reward-alpha-btn');
     const sigmaBtn = safeQuerySelector('#reward-sigma-btn');
 
-    // Открыть модалку
+  // Открыть модалку
     if (openRewardModalBtn && rewardModal) {
         openRewardModalBtn.addEventListener('click', function () {
-            rewardModal.classList.add('show');
+      rewardModal.classList.add('show');
             if (rewardInput) rewardInput.focus();
             if (rewardOutput) rewardOutput.value = '';
             if (copyBtn) copyBtn.disabled = true;
         });
-    }
+  }
 
-    // Закрыть модалку
+  // Закрыть модалку
     if (closeRewardModalBtn && rewardModal) {
         closeRewardModalBtn.addEventListener('click', function () {
-            rewardModal.classList.remove('show');
+      rewardModal.classList.remove('show');
             if (rewardInput) rewardInput.value = '';
             if (rewardOutput) rewardOutput.value = '';
             if (copyBtn) copyBtn.disabled = true;
         });
-    }
+  }
 
-    // Очистить всё
-    if (clearBtn) {
+  // Очистить всё
+  if (clearBtn) {
         clearBtn.addEventListener('click', function () {
             if (rewardInput) rewardInput.value = '';
             if (rewardOutput) rewardOutput.value = '';
             if (copyBtn) copyBtn.disabled = true;
             if (rewardInput) rewardInput.focus();
         });
-    }
+  }
 
-    // По умолчанию
+  // По умолчанию
     if (defaultBtn && rewardInput) {
         defaultBtn.addEventListener('click', function () {
             rewardInput.value = 'r_01_2025-0_10-1_2; r_01_2025-0_10-1_1';
@@ -2725,7 +2702,7 @@ function generateNewsScript(env) {
             if (copyBtn) copyBtn.disabled = true;
             rewardInput.focus();
         });
-    }
+  }
 
   // Генерация скрипта для Alpha/Sigma
 function buildRewardScript({codes, baseUrl, cookie}) {
@@ -2796,33 +2773,33 @@ function buildRewardScript({codes, baseUrl, cookie}) {
 
   const REWARD_COOKIE = ''; // Здесь можно указать свой cookie
 
-    // Генерировать Alpha
+  // Генерировать Alpha
     if (alphaBtn && rewardInput && rewardOutput) {
         alphaBtn.addEventListener('click', function () {
             const codes = rewardInput.value.split(/[ ,;\n]+/).filter(Boolean);
             rewardOutput.value = buildRewardScript({
-                codes,
-                baseUrl: 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/badges/',
-                cookie: REWARD_COOKIE
-            });
+        codes,
+        baseUrl: 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/badges/',
+        cookie: REWARD_COOKIE
+      });
             if (copyBtn) copyBtn.disabled = false;
         });
-    }
+  }
 
-    // Генерировать Sigma
+  // Генерировать Sigma
     if (sigmaBtn && rewardInput && rewardOutput) {
         sigmaBtn.addEventListener('click', function () {
             const codes = rewardInput.value.split(/[ ,;\n]+/).filter(Boolean);
             rewardOutput.value = buildRewardScript({
-                codes,
-                baseUrl: 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/badges/',
-                cookie: REWARD_COOKIE
-            });
+        codes,
+        baseUrl: 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/badges/',
+        cookie: REWARD_COOKIE
+      });
             if (copyBtn) copyBtn.disabled = false;
         });
-    }
+  }
 
-    // Копировать результат
+  // Копировать результат
     if (copyBtn && rewardOutput) {
         copyBtn.addEventListener('click', function () {
             if (rewardOutput.value) {
