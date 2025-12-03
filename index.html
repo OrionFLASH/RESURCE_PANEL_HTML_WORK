@@ -1884,31 +1884,74 @@ function adaptGroupsToFit() {
         if (!firstCard) return;
         
         const computedStyle = window.getComputedStyle(firstCard);
-        let currentFontSize = parseFloat(computedStyle.fontSize);
-        let currentPaddingTop = parseFloat(computedStyle.paddingTop);
-        let currentPaddingBottom = parseFloat(computedStyle.paddingBottom);
-        let currentMinHeight = parseFloat(computedStyle.minHeight);
-        let currentGap = parseFloat(window.getComputedStyle(cardsContainer).gap) || 2;
+        const originalFontSize = parseFloat(computedStyle.fontSize);
+        const originalPaddingTop = parseFloat(computedStyle.paddingTop);
+        const originalPaddingBottom = parseFloat(computedStyle.paddingBottom);
+        const originalMinHeight = parseFloat(computedStyle.minHeight);
+        const originalGap = parseFloat(window.getComputedStyle(cardsContainer).gap) || 8;
         
-        // Рекурсивная функция для адаптации с учетом пересчета layout
-        function adaptGroup(iteration = 0) {
+        let currentFontSize = originalFontSize;
+        let currentPaddingTop = originalPaddingTop;
+        let currentPaddingBottom = originalPaddingBottom;
+        let currentMinHeight = originalMinHeight;
+        let currentGap = originalGap;
+        
+        // Сохраняем оригинальный layout (column)
+        const originalDisplay = window.getComputedStyle(cardsContainer).display;
+        const originalFlexDirection = window.getComputedStyle(cardsContainer).flexDirection;
+        let isTwoColumns = false;
+        
+        // Функция проверки необходимости прокрутки
+        function needsScroll() {
+            return cardsContainer.scrollHeight > cardsContainer.clientHeight + 1; // +1 для учета погрешности
+        }
+        
+        // Функция применения двухколоночного layout
+        function applyTwoColumns() {
+            if (isTwoColumns) return; // Уже применено
+            
+            // Сохраняем текущий gap
+            const currentGapValue = window.getComputedStyle(cardsContainer).gap;
+            
+            // Применяем grid с 2 колонками
+            cardsContainer.style.display = 'grid';
+            cardsContainer.style.gridTemplateColumns = '1fr 1fr';
+            cardsContainer.style.flexDirection = 'unset';
+            cardsContainer.style.gap = currentGapValue;
+            
+            isTwoColumns = true;
+            Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" переключена на двухколоночный layout`);
+        }
+        
+        // Функция возврата к одноколоночному layout
+        function revertToSingleColumn() {
+            if (!isTwoColumns) return; // Уже одноколоночный
+            
+            cardsContainer.style.display = originalDisplay;
+            cardsContainer.style.flexDirection = originalFlexDirection;
+            cardsContainer.style.gridTemplateColumns = 'unset';
+            
+            isTwoColumns = false;
+            Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" возвращена к одноколоночному layout`);
+        }
+        
+        // Рекурсивная функция для уменьшения размеров
+        function reduceSizes(iteration = 0) {
             if (iteration > 30) {
                 // Достигнут максимум итераций - оставляем прокрутку
                 cardsContainer.style.overflowY = 'auto';
-                Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" требует прокрутки после адаптации`);
+                Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" требует прокрутки после уменьшения размеров`);
                 return;
             }
             
             // Проверяем, нужна ли прокрутка
-            const needsScroll = cardsContainer.scrollHeight > cardsContainer.clientHeight + 1; // +1 для учета погрешности
-            
-            if (!needsScroll) {
+            if (!needsScroll()) {
                 // Прокрутка не нужна - скрываем её
                 cardsContainer.style.overflowY = 'hidden';
                 return;
             }
             
-            // Проверяем, достигли ли мы минимума (заголовок не уменьшаем, поэтому не проверяем его)
+            // Проверяем, достигли ли мы минимума
             const atMinSize = currentFontSize <= MIN_FONT_SIZE && 
                              currentPaddingTop <= MIN_PADDING && 
                              currentPaddingBottom <= MIN_PADDING &&
@@ -1939,8 +1982,6 @@ function adaptGroupsToFit() {
                 currentGap = Math.max(MIN_GAP, currentGap - 0.2);
             }
             
-            // Заголовок группы не уменьшаем - он должен оставаться одинаковым на всех группах
-            
             // Применяем изменения
             const cards = cardsContainer.querySelectorAll('.ios-card');
             cards.forEach(card => {
@@ -1957,12 +1998,44 @@ function adaptGroupsToFit() {
             
             cardsContainer.style.gap = currentGap + 'px';
             
-            // Заголовок группы не изменяем - он должен оставаться одинаковым на всех группах
-            
             // Ждем пересчета layout и проверяем снова
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    adaptGroup(iteration + 1);
+                    reduceSizes(iteration + 1);
+                });
+            });
+        }
+        
+        // Основная логика адаптации
+        function adaptGroup() {
+            // Шаг 1: Проверяем, нужна ли прокрутка в одноколоночном режиме
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (!needsScroll()) {
+                        // Прокрутка не нужна - всё хорошо
+                        cardsContainer.style.overflowY = 'hidden';
+                        revertToSingleColumn();
+                        return;
+                    }
+                    
+                    // Шаг 2: Пробуем двухколоночный layout
+                    applyTwoColumns();
+                    
+                    // Ждем пересчета layout после применения grid
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            if (!needsScroll()) {
+                                // Двухколоночный layout помог - всё хорошо
+                                cardsContainer.style.overflowY = 'hidden';
+                                Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" уместилась в двухколоночном layout`);
+                                return;
+                            }
+                            
+                            // Шаг 3: Двухколоночный layout не помог - уменьшаем размеры
+                            Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" требует уменьшения размеров`);
+                            reduceSizes();
+                        });
+                    });
                 });
             });
         }
