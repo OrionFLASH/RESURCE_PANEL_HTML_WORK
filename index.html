@@ -2238,9 +2238,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         };
     }
-    // Закрытие модалки кликом вне окна
-    // Закрытие по клику вне окна обрабатывается в ModalManager
-    });
+    // Закрытие модалки кликом вне окна обрабатывается в ModalManager
 
     // === 6. Модалка роли ===
     const roleModal = safeQuerySelector('#role-modal');
@@ -2603,12 +2601,12 @@ const depInput = document.getElementById('dep_input');
 const outDep = document.getElementById('out_dep');
 
 if (openDepModalBtn) {
-openDepModalBtn.onclick = function() {
-  depModal.classList.add('show');
-  outDep.value = '';
-  depInput.value = '';
-  depInput.focus();
-};
+    openDepModalBtn.addEventListener('click', function() {
+        depModal.classList.add('show');
+        outDep.value = '';
+        depInput.value = '';
+        depInput.focus();
+    });
 }
 if (depCloseBtn) {
     depCloseBtn.addEventListener('click', function(e) {
