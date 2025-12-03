@@ -1419,6 +1419,11 @@ function exportConfigToJSON() {
  * Сохраняет конфигурацию в глобальную переменную globalConfig для последующего экспорта
  * Вызывает адаптацию размеров групп после рендеринга
  */
+/**
+ * Загружает конфигурацию из встроенного JSON и рендерит все группы и карточки на странице
+ * Сохраняет конфигурацию в глобальную переменную globalConfig для последующего экспорта
+ * Вызывает адаптацию размеров групп после рендеринга
+ */
 function loadAndRenderConfig() {
     const container = safeQuerySelector('#groups-container');
     if (!container) {
@@ -2169,7 +2174,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function checkCard(card) {
         const url = card.getAttribute('href');
         if (!url || url.startsWith('#') || url.startsWith('javascript')) return;
-        if (!/^https?:\/\
+        if (!/^https?:\/\//i.test(url)) return;
         fetch(url, { method: 'HEAD', mode: 'no-cors' })
             .then(() => setStatus(card, true))
             .catch(() => setStatus(card, false));
@@ -2434,9 +2439,7 @@ function generateScriptSber(type) {
         
     const baseUrl = (type === 'alpha' ? urlAlpha : urlSigma) + apiPath;
 
-    let code = `
-    code += `
-    code += `(async () => {\n`;
+    let code = `(async () => {\n`;
     code += `  
     code += `  function removePhotoData(obj) {\n`;
     code += `    if (Array.isArray(obj)) {\n`;
@@ -2717,8 +2720,8 @@ function generateNewsScript(env) {
   }
 
   const baseURL = env === 'alpha'
-    ? 'https:
-    : 'https:
+    ? 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/news/'
+    : 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/news/';
 
   let script = `(async function() {\n`;
   script += `  const delay = ms => new Promise(r => setTimeout(r, ms));\n`;
@@ -2937,7 +2940,7 @@ function buildRewardScript({codes, baseUrl, cookie}) {
             const codes = rewardInput.value.split(/[ ,;\n]+/).filter(Boolean);
             rewardOutput.value = buildRewardScript({
         codes,
-        baseUrl: 'https:
+        baseUrl: 'https://efs-our-business-prom.omega.sbrf.ru/bo/rmkib.gamification/api/v1/badges/',
         cookie: REWARD_COOKIE
       });
             if (copyBtn) copyBtn.disabled = false;
@@ -2950,7 +2953,7 @@ function buildRewardScript({codes, baseUrl, cookie}) {
             const codes = rewardInput.value.split(/[ ,;\n]+/).filter(Boolean);
             rewardOutput.value = buildRewardScript({
         codes,
-        baseUrl: 'https:
+        baseUrl: 'https://salesheroes.sberbank.ru/bo/rmkib.gamification/api/v1/badges/',
         cookie: REWARD_COOKIE
       });
             if (copyBtn) copyBtn.disabled = false;
