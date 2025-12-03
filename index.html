@@ -174,10 +174,10 @@ body {
     border: 1px solid var(--glass-white-border-light);
     border-radius: 16px;
     margin: 0;
-    font-size: 14px;
-    min-height: 48px;
-    max-height: 72px; /* Максимальная высота для 3 строк текста */
-    padding: 12px 16px;
+    font-size: 15px; /* Увеличен базовый размер шрифта */
+    min-height: 52px; /* Увеличена минимальная высота для лучшего заполнения */
+    max-height: 78px; /* Увеличена максимальная высота для 3 строк текста */
+    padding: 10px 14px; /* Немного уменьшен padding для большего места под текст */
     font-weight: 500;
     box-shadow: var(--glass-card-shadow);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -191,7 +191,7 @@ body {
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
-    line-height: 1.4;
+    line-height: 1.5; /* Увеличен line-height для лучшей читаемости */
 }
 .ios-card:hover, .ios-card:focus {
     background: var(--glass-blue-light);
@@ -215,9 +215,10 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     flex: 1 1 auto;
-    line-height: 1.4;
+    line-height: 1.5; /* Увеличен line-height для лучшего заполнения */
     word-wrap: break-word;
     overflow-wrap: break-word;
+    width: 100%; /* Заполняет всю ширину кнопки */
 }
 .ios-card-status {
     margin-left: 13px;
@@ -1173,16 +1174,16 @@ function createGroupElement(group) {
     
     article.appendChild(cardsContainer);
     
-    // Добавляем код для копирования, если есть
-    if (group.code) {
-        const footnote = document.createElement('div');
-        footnote.className = 'group-psi-footnote';
-        const codeSpan = document.createElement('span');
-        codeSpan.className = 'group-psi-footnote-code';
-        codeSpan.textContent = group.code;
-        footnote.appendChild(codeSpan);
-        article.appendChild(footnote);
-    }
+    // Код для копирования больше не отображается под группами (скрыт)
+    // if (group.code) {
+    //     const footnote = document.createElement('div');
+    //     footnote.className = 'group-psi-footnote';
+    //     const codeSpan = document.createElement('span');
+    //     codeSpan.className = 'group-psi-footnote-code';
+    //     codeSpan.textContent = group.code;
+    //     footnote.appendChild(codeSpan);
+    //     article.appendChild(footnote);
+    // }
     
     return article;
 }
@@ -1878,11 +1879,11 @@ function loadAndRenderConfig() {
 function adaptGroupsToFit() {
     const groups = document.querySelectorAll('.ios-group');
     // Оптимальные размеры для текста в 3 строки максимум
-    const BASE_FONT_SIZE = 14; // Базовый размер шрифта
-    const MIN_FONT_SIZE = 11; // Минимальный размер шрифта (не слишком маленький)
-    const MIN_PADDING = 8; // Минимальный padding (верх/низ) для читаемости
-    const MIN_HEIGHT = 48; // Минимальная высота карточки (для 3 строк текста)
-    const MAX_HEIGHT = 72; // Максимальная высота карточки (чтобы не было огромных кнопок)
+    const BASE_FONT_SIZE = 15; // Базовый размер шрифта (увеличен)
+    const MIN_FONT_SIZE = 12; // Минимальный размер шрифта (увеличен для лучшей читаемости)
+    const MIN_PADDING = 6; // Минимальный padding (верх/низ) - уменьшен для большего места под текст
+    const MIN_HEIGHT = 52; // Минимальная высота карточки (увеличена для лучшего заполнения)
+    const MAX_HEIGHT = 78; // Максимальная высота карточки (увеличена для 3 строк текста)
     const MIN_GAP = 6; // Минимальный gap между карточками
     // Заголовок группы не уменьшаем - он должен оставаться одинаковым на всех группах
     
@@ -1978,21 +1979,25 @@ function adaptGroupsToFit() {
             }
             
             // Уменьшаем размеры карточек (но не слишком сильно)
-            // Цель: текст должен помещаться в 3 строки, но не быть огромным
+            // Цель: текст должен помещаться в 3 строки, но быть достаточно большим
+            // Приоритет: сохраняем размер текста, уменьшаем padding и gap
             if (currentFontSize > MIN_FONT_SIZE) {
-                currentFontSize = Math.max(MIN_FONT_SIZE, currentFontSize - 0.3);
+                // Уменьшаем шрифт медленнее, чтобы сохранить читаемость
+                currentFontSize = Math.max(MIN_FONT_SIZE, currentFontSize - 0.2);
             }
+            // Padding уменьшаем в первую очередь для большего места под текст
             if (currentPaddingTop > MIN_PADDING) {
-                currentPaddingTop = Math.max(MIN_PADDING, currentPaddingTop - 0.2);
+                currentPaddingTop = Math.max(MIN_PADDING, currentPaddingTop - 0.3);
             }
             if (currentPaddingBottom > MIN_PADDING) {
-                currentPaddingBottom = Math.max(MIN_PADDING, currentPaddingBottom - 0.2);
+                currentPaddingBottom = Math.max(MIN_PADDING, currentPaddingBottom - 0.3);
             }
             // Высота должна быть достаточной для 3 строк, но не больше MAX_HEIGHT
             if (currentMinHeight > MAX_HEIGHT) {
                 currentMinHeight = MAX_HEIGHT;
             } else if (currentMinHeight > MIN_HEIGHT) {
-                currentMinHeight = Math.max(MIN_HEIGHT, currentMinHeight - 0.3);
+                // Высоту уменьшаем медленнее, чтобы текст лучше заполнял кнопку
+                currentMinHeight = Math.max(MIN_HEIGHT, currentMinHeight - 0.2);
             }
             if (currentGap > MIN_GAP) {
                 currentGap = Math.max(MIN_GAP, currentGap - 0.2);
