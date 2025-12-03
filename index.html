@@ -2089,9 +2089,8 @@ function adaptGroupsToFit() {
         } else {
             cardsContainer.style.overflowY = 'hidden';
         }
-        
-        // Функция проверки необходимости прокрутки
-        function needsScroll() {
+    });
+}
             return cardsContainer.scrollHeight > cardsContainer.clientHeight + 1; // +1 для учета погрешности
         }
         
