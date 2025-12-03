@@ -1771,38 +1771,67 @@ function adaptGroupsToFit() {
         const cardsContainer = group.querySelector('.ios-group-cards');
         if (!cardsContainer) return;
         
-        // Проверяем, нужна ли прокрутка
-        const needsScroll = cardsContainer.scrollHeight > cardsContainer.clientHeight;
-        if (!needsScroll) return; // Если прокрутка не нужна - пропускаем
-        
         // Получаем текущие значения из computed styles
         const firstCard = cardsContainer.querySelector('.ios-card');
         if (!firstCard) return;
         
         const computedStyle = window.getComputedStyle(firstCard);
         let currentFontSize = parseFloat(computedStyle.fontSize);
-        let currentPadding = parseFloat(computedStyle.paddingTop) + parseFloat(computedStyle.paddingBottom);
+        let currentPaddingTop = parseFloat(computedStyle.paddingTop);
+        let currentPaddingBottom = parseFloat(computedStyle.paddingBottom);
         let currentMinHeight = parseFloat(computedStyle.minHeight);
-        let currentGap = parseFloat(window.getComputedStyle(cardsContainer).gap);
+        let currentGap = parseFloat(window.getComputedStyle(cardsContainer).gap) || 2;
         
         const header = group.querySelector('.ios-group-header');
         const headerComputed = header ? window.getComputedStyle(header) : null;
         let currentHeaderFont = headerComputed ? parseFloat(headerComputed.fontSize) : 18;
-        let currentHeaderPadding = headerComputed ? parseFloat(headerComputed.paddingTop) + parseFloat(headerComputed.paddingBottom) : 16;
+        let currentHeaderPaddingTop = headerComputed ? parseFloat(headerComputed.paddingTop) : 8;
+        let currentHeaderPaddingBottom = headerComputed ? parseFloat(headerComputed.paddingBottom) : 8;
         
-        // Уменьшаем размеры итеративно
-        let iteration = 0;
-        const maxIterations = 20; // Защита от бесконечного цикла
-        
-        while (cardsContainer.scrollHeight > cardsContainer.clientHeight && iteration < maxIterations) {
-            iteration++;
+        // Рекурсивная функция для адаптации с учетом пересчета layout
+        function adaptGroup(iteration = 0) {
+            if (iteration > 30) {
+                // Достигнут максимум итераций - оставляем прокрутку
+                cardsContainer.style.overflowY = 'auto';
+                Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" требует прокрутки после адаптации`);
+                return;
+            }
+            
+            // Проверяем, нужна ли прокрутка
+            const needsScroll = cardsContainer.scrollHeight > cardsContainer.clientHeight + 1; // +1 для учета погрешности
+            
+            if (!needsScroll) {
+                // Прокрутка не нужна - скрываем её
+                cardsContainer.style.overflowY = 'hidden';
+                return;
+            }
+            
+            // Проверяем, достигли ли мы минимума
+            const atMinSize = currentFontSize <= MIN_FONT_SIZE && 
+                             currentPaddingTop <= MIN_PADDING && 
+                             currentPaddingBottom <= MIN_PADDING &&
+                             currentMinHeight <= MIN_HEIGHT &&
+                             currentGap <= MIN_GAP &&
+                             currentHeaderFont <= MIN_HEADER_FONT &&
+                             currentHeaderPaddingTop <= MIN_HEADER_PADDING &&
+                             currentHeaderPaddingBottom <= MIN_HEADER_PADDING;
+            
+            if (atMinSize) {
+                // Достигнут минимум - оставляем прокрутку
+                cardsContainer.style.overflowY = 'auto';
+                Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" требует прокрутки (достигнут минимум)`);
+                return;
+            }
             
             // Уменьшаем размеры карточек
             if (currentFontSize > MIN_FONT_SIZE) {
                 currentFontSize = Math.max(MIN_FONT_SIZE, currentFontSize - 0.5);
             }
-            if (currentPadding > MIN_PADDING * 2) {
-                currentPadding = Math.max(MIN_PADDING * 2, currentPadding - 0.5);
+            if (currentPaddingTop > MIN_PADDING) {
+                currentPaddingTop = Math.max(MIN_PADDING, currentPaddingTop - 0.3);
+            }
+            if (currentPaddingBottom > MIN_PADDING) {
+                currentPaddingBottom = Math.max(MIN_PADDING, currentPaddingBottom - 0.3);
             }
             if (currentMinHeight > MIN_HEIGHT) {
                 currentMinHeight = Math.max(MIN_HEIGHT, currentMinHeight - 0.5);
@@ -1815,16 +1844,19 @@ function adaptGroupsToFit() {
             if (currentHeaderFont > MIN_HEADER_FONT) {
                 currentHeaderFont = Math.max(MIN_HEADER_FONT, currentHeaderFont - 0.5);
             }
-            if (currentHeaderPadding > MIN_HEADER_PADDING * 2) {
-                currentHeaderPadding = Math.max(MIN_HEADER_PADDING * 2, currentHeaderPadding - 0.5);
+            if (currentHeaderPaddingTop > MIN_HEADER_PADDING) {
+                currentHeaderPaddingTop = Math.max(MIN_HEADER_PADDING, currentHeaderPaddingTop - 0.3);
+            }
+            if (currentHeaderPaddingBottom > MIN_HEADER_PADDING) {
+                currentHeaderPaddingBottom = Math.max(MIN_HEADER_PADDING, currentHeaderPaddingBottom - 0.3);
             }
             
             // Применяем изменения
             const cards = cardsContainer.querySelectorAll('.ios-card');
             cards.forEach(card => {
                 card.style.fontSize = currentFontSize + 'px';
-                card.style.paddingTop = (currentPadding / 2) + 'px';
-                card.style.paddingBottom = (currentPadding / 2) + 'px';
+                card.style.paddingTop = currentPaddingTop + 'px';
+                card.style.paddingBottom = currentPaddingBottom + 'px';
                 card.style.minHeight = currentMinHeight + 'px';
             });
             
@@ -1837,26 +1869,20 @@ function adaptGroupsToFit() {
             
             if (header) {
                 header.style.fontSize = currentHeaderFont + 'px';
-                header.style.paddingTop = (currentHeaderPadding / 2) + 'px';
-                header.style.paddingBottom = (currentHeaderPadding / 2) + 'px';
+                header.style.paddingTop = currentHeaderPaddingTop + 'px';
+                header.style.paddingBottom = currentHeaderPaddingBottom + 'px';
             }
             
-            // Проверяем снова после небольшой задержки для пересчета layout
-            if (iteration < maxIterations) {
-                // Небольшая задержка для пересчета layout браузером
+            // Ждем пересчета layout и проверяем снова
+            requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    // Проверка будет в следующей итерации цикла
+                    adaptGroup(iteration + 1);
                 });
-            }
+            });
         }
         
-        // Если после всех уменьшений все еще нужна прокрутка - оставляем её
-        if (cardsContainer.scrollHeight > cardsContainer.clientHeight) {
-            cardsContainer.style.overflowY = 'auto';
-            Logger.debug(`Группа "${group.querySelector('.ios-group-header')?.textContent}" требует прокрутки после адаптации`);
-        } else {
-            cardsContainer.style.overflowY = 'hidden';
-        }
+        // Запускаем адаптацию
+        adaptGroup();
     });
 }
 
