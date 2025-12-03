@@ -2239,11 +2239,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
     // Закрытие модалки кликом вне окна
-    window.addEventListener('click', function (e) {
-        if (e.target === permissionModal) {
-            permissionModal.classList.remove('show');
-        }
-    });
+    // Закрытие по клику вне окна обрабатывается в ModalManager
     });
 
     // === 6. Модалка роли ===
@@ -2368,11 +2364,11 @@ if (scriptgenSigmaBtn) {
 }
 // Копировать в буфер
 if (sgCopyBtn) {
-sgCopyBtn.onclick = function() {
+    sgCopyBtn.addEventListener('click', function() {
         if (sgResult && sgResult.value) {
             copyToClipboard(sgResult.value, sgCopyBtn);
         }
-    };
+    });
 }
 
 // Валидация Tournament IDs
@@ -2530,10 +2526,17 @@ const tnCopyBtn = document.getElementById('tn-copy-btn');
 const tnInput = document.getElementById('tn_input');
 const outTn = document.getElementById('out_tn');
 
-tnCloseBtn.onclick = function() { tnModal.classList.remove('show'); };
-window.addEventListener('click', e => { if (e.target === tnModal) tnModal.classList.remove('show'); });
+if (tnCloseBtn) {
+    tnCloseBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        tnModal.classList.remove('show');
+    });
+}
+    // Закрытие по клику вне окна обрабатывается в ModalManager
 
-tnGenBtn.onclick = function() {
+if (tnGenBtn) {
+    tnGenBtn.addEventListener('click', function() {
   let input = tnInput.value;
   let tnList = input.split(/\D+/).map(x => x.trim()).filter(x => x.length > 0).map(x => x.padStart(8, '0'));
   if (tnList.length === 0) {
@@ -2607,7 +2610,7 @@ openDepModalBtn.onclick = function() {
 };
 }
 depCloseBtn.onclick = function() { depModal.classList.remove('show'); };
-window.addEventListener('click', e => { if (e.target === depModal) depModal.classList.remove('show'); });
+    // Закрытие по клику вне окна обрабатывается в ModalManager
 
 depGenBtn.onclick = function() {
   let input = depInput.value;
