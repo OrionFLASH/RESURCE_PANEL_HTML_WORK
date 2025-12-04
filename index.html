@@ -48,8 +48,8 @@ body {
 }
 .container {
     width: 100%;
-    max-width: 2300px;
-    margin: 0 auto;
+    max-width: 100%;
+    margin: 0;
     padding: 20px;
     box-sizing: border-box;
     display: flex;
@@ -104,6 +104,7 @@ body {
     min-height: 0;
     height: 100%;
     align-items: stretch;
+    box-sizing: border-box;
 }
 .ios-group {
     display: flex;
@@ -127,13 +128,16 @@ body {
 .ios-group-header {
     font-weight: 600;
     font-size: 20px;
-    color: var(--glass-text);
     padding: 16px 20px;
-    background: var(--glass-header-bg);
+    background: var(--glass-header-bg), linear-gradient(135deg, rgba(0, 122, 255, 0.7) 0%, rgba(88, 86, 214, 0.7) 100%);
+    background-clip: padding-box, text;
+    -webkit-background-clip: padding-box, text;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     text-align: center;
     user-select: none;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
     flex-shrink: 0;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     letter-spacing: -0.3px;
@@ -171,6 +175,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative; /* Для позиционирования псевдоэлементов */
     width: 100%; /* Заполняет всю ширину контейнера */
     box-sizing: border-box; /* Учитывает padding в ширине */
     background: var(--glass-white-light);
@@ -183,13 +188,13 @@ body {
     min-height: 48px; /* Минимальная высота для кнопки */
     max-height: 96px; /* Максимальная высота для 3 строк текста */
     padding: 10px 14px; /* Padding для комфортного отображения */
+    overflow: hidden; /* Чтобы полоски не выходили за границы */
     font-weight: 500;
     box-shadow: var(--glass-card-shadow);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     text-decoration: none;
     color: var(--glass-text);
     cursor: pointer;
-    position: relative;
     outline: none;
     flex-shrink: 0;
     text-align: center;
@@ -256,43 +261,107 @@ body {
     left: 0;
     top: 0;
     bottom: 0;
-    width: 8px;
+    width: 20px;
     border-radius: 16px 0 0 16px;
     z-index: 1;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    clip-path: ellipse(20px 100% at 10px 50%);
+}
+
+/* Текст на полоске слева (типы) */
+.ios-card.type-prom::before,
+.ios-card.type-psi::before,
+.ios-card.type-ift::before {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ios-card.type-prom::before {
+    content: 'PROM';
+}
+
+.ios-card.type-psi::before {
+    content: 'PSI';
+}
+
+.ios-card.type-ift::before {
+    content: 'IFT';
 }
 
 /* PROM - Зелено-салатовые оттенки */
 .ios-card.type-prom.available::before {
-    background: linear-gradient(90deg, #34C759 0%, #30D158 30%, rgba(52, 199, 89, 0.3) 100%);
+    background: linear-gradient(90deg, rgba(52, 199, 89, 0.05) 0%, rgba(52, 199, 89, 0.2) 25%, rgba(52, 199, 89, 0.5) 50%, #34C759 75%, #34C759 100%);
     box-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
+    color: rgba(15, 130, 35, 0.9);
+    font-size: 8px;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1.5px;
+    transform: rotate(180deg);
 }
 
 .ios-card.type-prom.unavailable::before {
-    background: linear-gradient(90deg, #8FD99F 0%, #A8E6B8 30%, rgba(142, 217, 159, 0.2) 100%);
+    background: linear-gradient(90deg, rgba(142, 217, 159, 0.03) 0%, rgba(142, 217, 159, 0.15) 25%, rgba(142, 217, 159, 0.4) 50%, #8FD99F 75%, #8FD99F 100%);
     opacity: 0.6;
+    color: rgba(50, 160, 70, 0.65);
+    font-size: 8px;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1.5px;
+    transform: rotate(180deg);
 }
 
 /* PSI - Желто-сиреневые */
 .ios-card.type-psi.available::before {
-    background: linear-gradient(90deg, #FFD60A 0%, #FFCC00 30%, rgba(255, 214, 10, 0.3) 100%);
+    background: linear-gradient(90deg, rgba(255, 214, 10, 0.05) 0%, rgba(255, 214, 10, 0.2) 25%, rgba(255, 214, 10, 0.5) 50%, #FFD60A 75%, #FFD60A 100%);
     box-shadow: 0 0 8px rgba(255, 214, 10, 0.4);
+    color: rgba(200, 150, 0, 0.9);
+    font-size: 8px;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1.5px;
+    transform: rotate(180deg);
 }
 
 .ios-card.type-psi.unavailable::before {
-    background: linear-gradient(90deg, #FFE680 0%, #FFEC99 30%, rgba(255, 230, 128, 0.2) 100%);
+    background: linear-gradient(90deg, rgba(255, 230, 128, 0.03) 0%, rgba(255, 230, 128, 0.15) 25%, rgba(255, 230, 128, 0.4) 50%, #FFE680 75%, #FFE680 100%);
     opacity: 0.6;
+    color: rgba(220, 180, 40, 0.65);
+    font-size: 8px;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1.5px;
+    transform: rotate(180deg);
 }
 
 /* IFT - Бледно-голубые */
 .ios-card.type-ift.available::before {
-    background: linear-gradient(90deg, #5AC8FA 0%, #64D2FF 30%, rgba(90, 200, 250, 0.3) 100%);
+    background: linear-gradient(90deg, rgba(90, 200, 250, 0.05) 0%, rgba(90, 200, 250, 0.2) 25%, rgba(90, 200, 250, 0.5) 50%, #5AC8FA 75%, #5AC8FA 100%);
     box-shadow: 0 0 8px rgba(90, 200, 250, 0.4);
+    color: rgba(0, 120, 200, 0.9);
+    font-size: 8px;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1.5px;
+    transform: rotate(180deg);
 }
 
 .ios-card.type-ift.unavailable::before {
-    background: linear-gradient(90deg, #A8E0FF 0%, #B8E8FF 30%, rgba(168, 224, 255, 0.2) 100%);
+    background: linear-gradient(90deg, rgba(168, 224, 255, 0.03) 0%, rgba(168, 224, 255, 0.15) 25%, rgba(168, 224, 255, 0.4) 50%, #A8E0FF 75%, #A8E0FF 100%);
     opacity: 0.6;
+    color: rgba(60, 140, 210, 0.65);
+    font-size: 8px;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1.5px;
+    transform: rotate(180deg);
 }
 
 /* OTHER - без раскраски (текущее отражение) */
@@ -307,32 +376,73 @@ body {
     right: 0;
     top: 0;
     bottom: 0;
-    width: 8px;
+    width: 20px;
     border-radius: 0 16px 16px 0;
     z-index: 1;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    clip-path: ellipse(20px 100% at 100% 50%);
+}
+
+/* Текст на полоске справа (сегменты) */
+.ios-card.segment-alpha::after,
+.ios-card.segment-sigma::after {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ios-card.segment-alpha::after {
+    content: 'ALPHA';
+}
+
+.ios-card.segment-sigma::after {
+    content: 'SIGMA';
 }
 
 /* SIGMA - Пурпурно-розовый градиент (справа, от яркого к тусклому) */
 .ios-card.segment-sigma.available::after {
-    background: linear-gradient(90deg, rgba(255, 45, 85, 0.3) 0%, rgba(255, 45, 85, 0.5) 30%, #FF2D55 100%);
+    background: linear-gradient(90deg, rgba(255, 45, 85, 0.05) 0%, rgba(255, 45, 85, 0.2) 25%, rgba(255, 45, 85, 0.5) 50%, #FF2D55 75%, #FF2D55 100%);
     box-shadow: 0 0 8px rgba(255, 45, 85, 0.4);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 8px;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1.5px;
 }
 
 .ios-card.segment-sigma.unavailable::after {
-    background: linear-gradient(90deg, rgba(255, 182, 193, 0.2) 0%, rgba(255, 182, 193, 0.3) 30%, rgba(255, 182, 193, 0.5) 100%);
+    background: linear-gradient(90deg, rgba(255, 182, 193, 0.03) 0%, rgba(255, 182, 193, 0.15) 25%, rgba(255, 182, 193, 0.4) 50%, rgba(255, 182, 193, 0.6) 75%, rgba(255, 182, 193, 0.6) 100%);
     opacity: 0.6;
+    color: rgba(200, 80, 100, 0.8);
+    font-size: 8px;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1.5px;
 }
 
 /* ALPHA - Фиолетово-индиго градиент (справа, от яркого к тусклому) */
 .ios-card.segment-alpha.available::after {
-    background: linear-gradient(90deg, rgba(88, 86, 214, 0.3) 0%, rgba(88, 86, 214, 0.5) 30%, #5856D6 100%);
+    background: linear-gradient(90deg, rgba(88, 86, 214, 0.05) 0%, rgba(88, 86, 214, 0.2) 25%, rgba(88, 86, 214, 0.5) 50%, #5856D6 75%, #5856D6 100%);
     box-shadow: 0 0 8px rgba(88, 86, 214, 0.4);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 8px;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1.5px;
 }
 
 .ios-card.segment-alpha.unavailable::after {
-    background: linear-gradient(90deg, rgba(175, 170, 255, 0.2) 0%, rgba(175, 170, 255, 0.3) 30%, rgba(175, 170, 255, 0.5) 100%);
+    background: linear-gradient(90deg, rgba(175, 170, 255, 0.03) 0%, rgba(175, 170, 255, 0.15) 25%, rgba(175, 170, 255, 0.4) 50%, rgba(175, 170, 255, 0.6) 75%, rgba(175, 170, 255, 0.6) 100%);
     opacity: 0.6;
+    color: rgba(120, 110, 200, 0.8);
+    font-size: 8px;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 1.5px;
 }
 
 /* UNIVERSAL - без раскраски */
@@ -1538,6 +1648,14 @@ function loadAndRenderConfig() {
       "code": null,
       "cards": [
         {
+          "title": "СберЧат",
+          "url": "https://sberchat.sberbank.ru/#/",
+          "id": null,
+          "copyCode": null,
+          "type": "OTHER",
+          "segment": "UNIVERSAL"
+        },
+        {
           "title": "SberJazz",
           "url": "https://jazz.sberbank.ru/",
           "id": null,
@@ -1618,38 +1736,6 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Герои продаж СБ",
-          "url": "https://iam-enigma-ift-sb.delta.sbrf.ru/salesheroes/",
-          "id": null,
-          "copyCode": null,
-          "type": "IFT",
-          "segment": "SIGMA"
-        },
-        {
-          "title": "Герои продаж ГФ",
-          "url": "https://iam-enigma-ift.delta.sbrf.ru/salesheroes",
-          "id": null,
-          "copyCode": null,
-          "type": "IFT",
-          "segment": "SIGMA"
-        },
-        {
-          "title": "Герои продаж СБ",
-          "url": "https://salesheroes-sb.sigma.sbrf.ru/salesheroes",
-          "id": null,
-          "copyCode": null,
-          "type": "OTHER",
-          "segment": "SIGMA"
-        },
-        {
-          "title": "Герои продаж ГФ",
-          "url": "https://salesheroes-gf.sigma.sbrf.ru/salesheroes",
-          "id": null,
-          "copyCode": null,
-          "type": "IFT",
-          "segment": "SIGMA"
-        },
-        {
-          "title": "Герои продаж СБ (новый)",
           "url": "https://efs-ift-sb.delta.sbrf.ru/salesheroes",
           "id": null,
           "copyCode": null,
@@ -1657,7 +1743,7 @@ function loadAndRenderConfig() {
           "segment": "SIGMA"
         },
         {
-          "title": "Герои продаж ГФ (новый)",
+          "title": "Герои продаж ГФ",
           "url": "https://efs-ift-gf.delta.sbrf.ru/salesheroes",
           "id": null,
           "copyCode": null,
@@ -1687,6 +1773,14 @@ function loadAndRenderConfig() {
           "copyCode": "92863949",
           "type": "PSI",
           "segment": "ALPHA"
+        },
+        {
+          "title": "Загрузка данных CTL",
+          "url": "https://ctl-ift.qa.df.sbrf.ru:9080/#/sign-in",
+          "id": "ctl-sigma-btn",
+          "copyCode": "lakomkin-oo",
+          "type": "IFT",
+          "segment": "SIGMA"
         }
       ]
     },
@@ -1695,14 +1789,6 @@ function loadAndRenderConfig() {
       "name": "Рабочие программы",
       "code": "omega\\\\01803187",
       "cards": [
-        {
-          "title": "СберЧат",
-          "url": "https://sberchat.sberbank.ru/#/",
-          "id": null,
-          "copyCode": null,
-          "type": "OTHER",
-          "segment": "UNIVERSAL"
-        },
         {
           "title": "Адресная книга",
           "url": "https://addressbook/",
@@ -1758,14 +1844,6 @@ function loadAndRenderConfig() {
           "copyCode": null,
           "type": "OTHER",
           "segment": "ALPHA"
-        },
-        {
-          "title": "Загрузка данных CTL",
-          "url": "https://ctl-ift.qa.df.sbrf.ru:9080/#/sign-in",
-          "id": "ctl-sigma-btn",
-          "copyCode": "lakomkin-oo",
-          "type": "IFT",
-          "segment": "SIGMA"
         },
         {
           "title": "Тенгри",
@@ -2081,7 +2159,7 @@ function loadAndRenderConfig() {
           "id": null,
           "copyCode": null,
           "type": "OTHER",
-          "segment": "UNIVERSAL"
+          "segment": "ALPHA"
         },
         {
           "title": "ТФС/Пакетная выгрузка (бэклог)",
