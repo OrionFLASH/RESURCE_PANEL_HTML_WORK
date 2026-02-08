@@ -1540,6 +1540,10 @@ function initDynamicEventHandlers() {
             if (modal) {
                 modal.classList.add('show');
                 const input = safeQuerySelector('#profile-input');
+                const output = safeQuerySelector('#profile-output');
+                const copyBtn = safeQuerySelector('#profile-copy-btn');
+                if (output) output.value = '';
+                if (copyBtn) copyBtn.disabled = true;
                 if (input) input.focus();
             }
         },
@@ -1672,7 +1676,7 @@ function loadAndRenderConfig() {
           "segment": "UNIVERSAL"
         },
         {
-          "title": "ПКАП Встреча",
+          "title": "ПКАП Встреча (K2)",
           "url": "https://jazz.sberbank.ru/sber-gzdl5c?psw=OEcNEgsBXAZeVwoEVBVLFVFdFw",
           "id": null,
           "copyCode": null,
@@ -1680,7 +1684,7 @@ function loadAndRenderConfig() {
           "segment": "UNIVERSAL"
         },
         {
-          "title": "ПКАП Сергей",
+          "title": "ПКАП Перевала Сергей",
           "url": "https://jazz.sberbank.ru/sber-jd9r1x?psw=OBoIEQsCHAVcCg8HVBYLFlMAEg",
           "id": null,
           "copyCode": null,
@@ -1688,7 +1692,7 @@ function loadAndRenderConfig() {
           "segment": "UNIVERSAL"
         },
         {
-          "title": "iMAC",
+          "title": "Встреча (open)",
           "url": "https://jazz.sberbank.ru/sber-mnv6vl?psw=OEEKAUUdDBVeUQ0XGgkbBlFbEA",
           "id": null,
           "copyCode": null,
@@ -1760,14 +1764,6 @@ function loadAndRenderConfig() {
         },
         {
           "title": "КАП",
-          "url": "https://tklos-sys000001.omega.sbrf.ru/SberDataCorr",
-          "id": "psi2-alpha-btn",
-          "copyCode": "92863949",
-          "type": "PSI",
-          "segment": "ALPHA"
-        },
-        {
-          "title": "КАП (New)",
           "url": "https://tvlos-sys000001.cloud.omega.sbrf.ru/",
           "id": "psi2-alpha-btn-new",
           "copyCode": "92863949",
@@ -1798,6 +1794,14 @@ function loadAndRenderConfig() {
           "segment": "UNIVERSAL"
         },
         {
+          "title": "SberESM",
+          "url": "https://sberesm.omega.sbrf.ru/efs-ermops-static/app-ops_esm",
+          "id": null,
+          "copyCode": null,
+          "type": "OTHER",
+          "segment": "ALPHA"
+        },
+        {
           "title": "Service Manager",
           "url": "https://servicemanager.omega.sbrf.ru/",
           "id": null,
@@ -1806,12 +1810,12 @@ function loadAndRenderConfig() {
           "segment": "ALPHA"
         },
         {
-          "title": "Мои доступы",
-          "url": "https://smd.omega.sbrf.ru/SberAccess/#/pa?tab=0",
+          "title": "Service Manager",
+          "url": "https://adv-gate.sigma.sbrf.ru/Citrix/ADVWeb/",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
-          "segment": "ALPHA"
+          "segment": "SIGMA"
         },
         {
           "title": "Пульс",
@@ -1822,24 +1826,24 @@ function loadAndRenderConfig() {
           "segment": "ALPHA"
         },
         {
-          "title": "Clickstream",
-          "url": "https://clickstream-prom.ca.sbrf.ru/frontend/",
+          "title": "Пульс",
+          "url": "https://hr.sberbank.ru/platform/dashboard",
+          "id": null,
+          "copyCode": null,
+          "type": "OTHER",
+          "segment": "SIGMA"
+        },
+        {
+          "title": "Друг",
+          "url": "https://sberfriend.ca.sbrf.ru/sberfriend/#/dashboard",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
           "segment": "UNIVERSAL"
         },
         {
-          "title": "Citrix Workspace",
-          "url": "https://cab-snp-cx00001.omega.sbrf.ru/",
-          "id": "citrix-alpha-btn",
-          "copyCode": "omega\\\\01803187",
-          "type": "OTHER",
-          "segment": "ALPHA"
-        },
-        {
-          "title": "SberESM",
-          "url": "https://sberesm.omega.sbrf.ru/efs-ermops-static/app-ops_esm",
+          "title": "Мои доступы",
+          "url": "https://smd.omega.sbrf.ru/SberAccess/#/pa?tab=0",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -1851,22 +1855,6 @@ function loadAndRenderConfig() {
           "id": null,
           "copyCode": null,
           "type": "PSI",
-          "segment": "ALPHA"
-        },
-        {
-          "title": "Тенгри (Indicator)",
-          "url": "https://ci02587203-iam-proxy-main.prom-29-30-apps.ocp-geo.ocp.ca.sbrf.ru/indicator-efs-empl/",
-          "id": null,
-          "copyCode": null,
-          "type": "PROM",
-          "segment": "ALPHA"
-        },
-        {
-          "title": "Тенгри (Ulogger)",
-          "url": "https://ci02587203-iam-proxy-main.prom-29-30-apps.ocp-geo.ocp.ca.sbrf.ru/indicator-efs-empl/a/logger/logs?orgId=1",
-          "id": null,
-          "copyCode": null,
-          "type": "PROM",
           "segment": "ALPHA"
         },
         {
@@ -1885,7 +1873,7 @@ function loadAndRenderConfig() {
       "code": null,
       "cards": [
         {
-          "title": "(GF_SK) Редактирование СУП",
+          "title": "Редактирование СУП (SK)",
           "url": "https://iamproxy-prom-gfsk.ingress.apps.arqgec5q.k8s.ca.sbrf.ru/",
           "id": null,
           "copyCode": null,
@@ -1893,7 +1881,7 @@ function loadAndRenderConfig() {
           "segment": "ALPHA"
         },
         {
-          "title": "(GF_MG) Редактирование СУП",
+          "title": "Редактирование СУП (MG)",
           "url": "https://iamproxy-prom-gfmg.ingress.apps.arq6r3xx.k8s.ca.sbrf.ru/",
           "id": null,
           "copyCode": null,
@@ -1901,32 +1889,16 @@ function loadAndRenderConfig() {
           "segment": "ALPHA"
         },
         {
-          "title": "Редактирование СУП [EFSEMP-IAM-GF-SK]",
-          "url": "https://iamproxy-psi-gfsk.ingress.apps.aq6omvfr.k8s.ca.sbrf.ru/",
+          "title": "Редактирование СУП [SK]",
+          "url": "https://iamproxy-psi-gfsk.ingress.apps.a6y9tlz1.k8s.omega.sbrf.ru/",
           "id": null,
           "copyCode": null,
           "type": "PSI",
           "segment": "ALPHA"
         },
         {
-          "title": "Редактирование СУП [EFSEMP-IAM-GF-MG]",
-          "url": "https://iamproxy-psi-gfmg.ingress.apps.aq664prc.k8s.ca.sbrf.ru/",
-          "id": null,
-          "copyCode": null,
-          "type": "PSI",
-          "segment": "ALPHA"
-        },
-        {
-          "title": "Редактирование СУП [EFSEMP-IAM-SB-SK]",
-          "url": "https://iamproxy-psi-sbsk.ingress.apps.aq6jo46q.k8s.ca.sbrf.ru/",
-          "id": null,
-          "copyCode": null,
-          "type": "PSI",
-          "segment": "ALPHA"
-        },
-        {
-          "title": "Редактирование СУП [EFSEMP-IAM-SB-MG]",
-          "url": "https://iamproxy-psi-sbmg.ingress.apps.aq6655vb.k8s.ca.sbrf.ru/",
+          "title": "Редактирование СУП [MG]",
+          "url": "https://iamproxy-psi-gfmg.ingress.apps.a6y5k6kq.k8s.omega.sbrf.ru/",
           "id": null,
           "copyCode": null,
           "type": "PSI",
@@ -1947,6 +1919,14 @@ function loadAndRenderConfig() {
           "copyCode": null,
           "type": "OTHER",
           "segment": "SIGMA"
+        },
+        {
+          "title": "Ссылки на АРМы. ПСИ. СУП",
+          "url": "https://confluence.ca.sbrf.ru/pages/viewpage.action?pageId=1907494673#",
+          "id": null,
+          "copyCode": null,
+          "type": "PSI",
+          "segment": "ALPHA"
         }
       ]
     },
@@ -1958,6 +1938,22 @@ function loadAndRenderConfig() {
         {
           "title": "QS",
           "url": "https://vpokib.ca.sbrf.ru/main/hub/",
+          "id": null,
+          "copyCode": null,
+          "type": "OTHER",
+          "segment": "ALPHA"
+        },
+		{
+          "title": "Дататека",
+          "url": "https://datateka.omega.sbrf.ru/desktop",
+          "id": null,
+          "copyCode": null,
+          "type": "OTHER",
+          "segment": "ALPHA"
+        },
+        {
+          "title": "SberHelp",
+          "url": "https://sberhelp.sberbank.ru",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -2026,6 +2022,14 @@ function loadAndRenderConfig() {
           "type": "OTHER",
           "segment": "SIGMA"
         },
+		{
+          "title": "Тестовые пользователи",
+          "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=11219247593",
+          "id": null,
+          "copyCode": null,
+          "type": "IFT",
+          "segment": "SIGMA"
+        },
         {
           "title": "Авто ТУРНИРЫ",
           "url": "https://confluence.sberbank.ru/pages/viewpage.action?pageId=11671348420",
@@ -2037,6 +2041,14 @@ function loadAndRenderConfig() {
         {
           "title": "СПРИНТ",
           "url": "https://jira.sberbank.ru/secure/RapidBoard.jspa?rapidView=32210&view=planning.nodetail&selectedIssue=HERO-3166&issueLimit=100",
+          "id": null,
+          "copyCode": null,
+          "type": "OTHER",
+          "segment": "SIGMA"
+        },
+        {
+          "title": "ЗАДАЧИ СПРИНТА",
+          "url": "https://jira.sberbank.ru/secure/StructureBoard.jspa?s=24740#",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -2098,20 +2110,12 @@ function loadAndRenderConfig() {
       "code": null,
       "cards": [
         {
-          "title": "Друг",
-          "url": "https://sberfriend.ca.sbrf.ru/sberfriend/#/dashboard",
-          "id": null,
-          "copyCode": null,
+          "title": "Терминальный xls",
+          "url": "https://cab-snp-cx00001.omega.sbrf.ru/",
+          "id": "citrix-alpha-btn",
+          "copyCode": "omega\\\\01803187",
           "type": "OTHER",
-          "segment": "UNIVERSAL"
-        },
-        {
-          "title": "Service Manager",
-          "url": "https://adv-gate.sigma.sbrf.ru/Citrix/ADVWeb/",
-          "id": null,
-          "copyCode": null,
-          "type": "OTHER",
-          "segment": "SIGMA"
+          "segment": "ALPHA"
         },
         {
           "title": "ЕСР",
@@ -2138,12 +2142,12 @@ function loadAndRenderConfig() {
           "segment": "SIGMA"
         },
         {
-          "title": "Пульс",
-          "url": "https://hr.sberbank.ru/platform/dashboard",
+          "title": "Clickstream",
+          "url": "https://clickstream-prom.ca.sbrf.ru/frontend/",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
-          "segment": "SIGMA"
+          "segment": "UNIVERSAL"
         },
         {
           "title": "Почта",
@@ -2154,7 +2158,7 @@ function loadAndRenderConfig() {
           "segment": "SIGMA"
         },
         {
-          "title": "График периодов",
+          "title": "График периодов инсайдер",
           "url": "https://confluence.ca.sbrf.ru/pages/viewpage.action?pageId=8956707657",
           "id": null,
           "copyCode": null,
@@ -2168,6 +2172,22 @@ function loadAndRenderConfig() {
           "copyCode": null,
           "type": "OTHER",
           "segment": "UNIVERSAL"
+        },
+        {
+          "title": "Портал Service Manager",
+          "url": "https://confluence.ca.sbrf.ru/display/ITSM/ITSM+USER+GUIDE",
+          "id": null,
+          "copyCode": null,
+          "type": "OTHER",
+          "segment": "ALPHA"
+        },
+        {
+          "title": "Портал Service Manager в Sigma",
+          "url": "https://sbtatlas.sigma.sbrf.ru/wiki/display/ITSMUG/ITSM+User+Guide",
+          "id": null,
+          "copyCode": null,
+          "type": "OTHER",
+          "segment": "SIGMA"
         }
       ]
     },
@@ -3318,12 +3338,115 @@ function buildRewardScript({codes, baseUrl, cookie}) {
     // === 10. Модалка Profile (Выгрузка профилей по табельным) ===
     const profileModal = safeQuerySelector('#profile-modal');
     const profileCloseBtn = safeQuerySelector('#profile-close-btn');
-    
+    const profileInput = safeQuerySelector('#profile-input');
+    const profileOutput = safeQuerySelector('#profile-output');
+    const profileAlphaBtn = safeQuerySelector('#profile-alpha-btn');
+    const profileSigmaBtn = safeQuerySelector('#profile-sigma-btn');
+    const profileCopyBtn = safeQuerySelector('#profile-copy-btn');
+    const profileDefaultBtn = safeQuerySelector('#profile-default-btn');
+    const profileClearBtn = safeQuerySelector('#profile-clear-btn');
+
+    // Форматирование табельных номеров: разбор ввода в массив 8-значных строк
+    function formatTabNumbers(inputStr) {
+        return inputStr.split(/[\s,;.:]+/).map(s => s.trim()).filter(Boolean)
+            .map(s => s.replace(/\D/g, '')).filter(Boolean)
+            .map(s => s.padStart(8, '0'));
+    }
+
+    // Генерация скрипта для выгрузки профилей по табельным (Alpha или Sigma)
+    function buildProfileScript(baseUrl) {
+        const tabList = formatTabNumbers(profileInput ? profileInput.value : '');
+        if (tabList.length === 0) {
+            return '// Введите хотя бы один табельный номер.';
+        }
+        const apiPath = '/bo/rmkib.gamification/api/v1/employees/';
+        const fullBase = baseUrl.replace(/\/$/, '') + apiPath;
+        return `// ==UserScript==
+// DevTools: выгрузка профилей по табельным номерам
+(() => {
+  const TN_LIST = ${JSON.stringify(tabList, null, 2)};
+  const BASE_URL = '${fullBase}';
+  const DELAY_MS = 100;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  (async () => {
+    const results = [];
+    for (let i = 0; i < TN_LIST.length; i++) {
+      const tn = TN_LIST[i];
+      try {
+        const resp = await fetch(BASE_URL + tn, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'accept': 'application/json', 'content-type': 'application/json' }
+        });
+        if (resp.ok) {
+          results.push({ tn, data: await resp.json() });
+          console.log('[' + (i + 1) + '/' + TN_LIST.length + '] OK', tn);
+        } else {
+          results.push({ tn, error: 'HTTP ' + resp.status });
+          console.log('[' + (i + 1) + '/' + TN_LIST.length + '] HTTP ' + resp.status, tn);
+        }
+      } catch (e) {
+        results.push({ tn, error: String(e) });
+        console.log('[' + (i + 1) + '/' + TN_LIST.length + '] Ошибка', tn, e);
+      }
+      if (i < TN_LIST.length - 1) await sleep(DELAY_MS);
+    }
+    const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'profiles_by_tn.json';
+    a.click();
+    console.log('Выгрузка профилей завершена.');
+  })();
+})();`;
+    }
+
     if (profileCloseBtn && profileModal) {
         profileCloseBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             profileModal.classList.remove('show');
+        });
+    }
+
+    if (profileAlphaBtn && profileInput && profileOutput) {
+        profileAlphaBtn.addEventListener('click', function() {
+            profileOutput.value = buildProfileScript('https://efs-our-business-prom.omega.sbrf.ru');
+            if (profileCopyBtn) profileCopyBtn.disabled = false;
+        });
+    }
+    if (profileSigmaBtn && profileInput && profileOutput) {
+        profileSigmaBtn.addEventListener('click', function() {
+            profileOutput.value = buildProfileScript('https://salesheroes.sberbank.ru');
+            if (profileCopyBtn) profileCopyBtn.disabled = false;
+        });
+    }
+    if (profileCopyBtn && profileOutput) {
+        profileCopyBtn.addEventListener('click', function() {
+            if (profileOutput.value) copyToClipboard(profileOutput.value, profileCopyBtn);
+        });
+    }
+    if (profileDefaultBtn && profileInput) {
+        profileDefaultBtn.addEventListener('click', function() {
+            profileInput.value = '01234567; 78965432\n11223344';
+            if (profileOutput) profileOutput.value = '';
+            if (profileCopyBtn) profileCopyBtn.disabled = true;
+            profileInput.focus();
+        });
+    }
+    if (profileClearBtn && profileInput && profileOutput) {
+        profileClearBtn.addEventListener('click', function() {
+            profileInput.value = '';
+            profileOutput.value = '';
+            if (profileCopyBtn) profileCopyBtn.disabled = true;
+            profileInput.focus();
+        });
+    }
+    if (profileInput && profileOutput && profileCopyBtn) {
+        profileInput.addEventListener('input', function() {
+            profileOutput.value = '';
+            profileCopyBtn.disabled = true;
         });
     }
 });
