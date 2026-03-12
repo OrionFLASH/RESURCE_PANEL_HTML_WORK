@@ -450,6 +450,15 @@ body {
     display: none;
 }
 
+/* Краткая анимация «ссылка скопирована» (Ctrl/Cmd + клик) */
+.ios-card.copied-blink {
+    animation: linkCopiedFlash 0.5s ease-out;
+}
+@keyframes linkCopiedFlash {
+    0% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(0, 122, 255, 0); }
+    100% { box-shadow: none; }
+}
 
 /* ==== Модалки (универсальные) - Liquid Glass стиль ==== */
 .modal {
@@ -812,6 +821,53 @@ input[type="text"] {
     }
 }
 
+/* ==== Подсказка с информацией о ссылке (Liquid Glass / iOS 26) ==== */
+.link-info-tooltip {
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    display: none;
+    max-width: min(420px, 90vw);
+    padding: 10px 12px 12px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.88);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--glass-text);
+    word-break: break-all;
+}
+.link-info-tooltip.show {
+    display: block;
+}
+.link-info-tooltip__full {
+    color: var(--glass-text-secondary);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--glass-white-border-light);
+}
+.link-info-tooltip__label {
+    color: var(--glass-blue);
+    font-weight: 600;
+    margin-top: 6px;
+    margin-bottom: 2px;
+}
+.link-info-tooltip__label:first-child {
+    margin-top: 0;
+}
+.link-info-tooltip__params {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    font-size: 11px;
+}
+
 /* ==== Прогресс-бар ==== */
 .progress-bar {
     background: linear-gradient(90deg, var(--glass-blue) 0%, var(--glass-purple) 100%);
@@ -928,6 +984,9 @@ input[type="text"] {
 
 <!-- ===== Прогресс-бар для проверки статуса ===== -->
 <div id="progress-bar" class="progress-bar"></div>
+
+<!-- Подсказка с полным URL и разбором ссылки (домен, путь, параметры) -->
+<div id="link-info-tooltip" class="link-info-tooltip" aria-hidden="true"></div>
 
 <!-- ======= Модальное окно Permission ======= -->
 <div id="permission-modal" class="modal" role="dialog" aria-labelledby="permission-modal-title" aria-modal="true">
@@ -1468,7 +1527,10 @@ function createCardElement(card) {
     if (card.id) {
         link.id = card.id;
     }
-    
+    if (card.isModal) {
+        link.setAttribute('data-is-modal', 'true');
+    }
+
     const title = document.createElement('span');
     title.className = 'ios-card-title';
     title.textContent = card.title;
@@ -1653,7 +1715,7 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "СберЧат",
-          "url": "https://sberchat.sberbank.ru/#/",
+          "url": "https://sberchat.sberbank.ru",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -1661,7 +1723,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "SberJazz",
-          "url": "https://jazz.sberbank.ru/",
+          "url": "https://jazz.sberbank.ru",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -1708,7 +1770,7 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "Герои продаж",
-          "url": "https://efs-our-business-prom.omega.sbrf.ru/salesheroes/community",
+          "url": "https://efs-our-business-prom.omega.sbrf.ru/salesheroes",
           "id": null,
           "copyCode": null,
           "type": "PROM",
@@ -1716,7 +1778,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Герои продаж",
-          "url": "https://salesheroes.sberbank.ru/salesheroes",
+          "url": "https://salesheroes.sberbank.ru",
           "id": null,
           "copyCode": null,
           "type": "PROM",
@@ -1724,7 +1786,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Герои продаж",
-          "url": "https://iam-enigma-psi.omega.sbrf.ru/",
+          "url": "https://iam-enigma-psi.omega.sbrf.ru",
           "id": "psi-alpha-btn",
           "copyCode": "92863949",
           "type": "PSI",
@@ -1764,11 +1826,19 @@ function loadAndRenderConfig() {
         },
         {
           "title": "КАП",
-          "url": "https://tvlos-sys000001.cloud.omega.sbrf.ru/",
+          "url": "https://tvlos-sys000001.cloud.omega.sbrf.ru",
           "id": "psi2-alpha-btn-new",
           "copyCode": "92863949",
           "type": "PSI",
           "segment": "ALPHA"
+        },
+        {
+          "title": "КАП",
+          "url": "https://tvldw-sys000008.cloud.delta.sbrf.ru:3001/SberDataCorr/PCAP_KKSB_PG_GAME/data-load",
+          "id": null,
+          "copyCode": "92863949",
+          "type": "IFT",
+          "segment": "SIGMA"
         },
         {
           "title": "Загрузка данных CTL",
@@ -1787,7 +1857,7 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "Адресная книга",
-          "url": "https://addressbook/",
+          "url": "https://addressbook",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -1803,7 +1873,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Service Manager",
-          "url": "https://servicemanager.omega.sbrf.ru/",
+          "url": "https://servicemanager.omega.sbrf.ru",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -1811,7 +1881,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Service Manager",
-          "url": "https://adv-gate.sigma.sbrf.ru/Citrix/ADVWeb/",
+          "url": "https://adv-gate.sigma.sbrf.ru/Citrix/ADVWeb",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -1819,7 +1889,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Пульс",
-          "url": "https://hr.ca.sbrf.ru/platform/",
+          "url": "https://hr.ca.sbrf.ru/platform",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -1842,6 +1912,14 @@ function loadAndRenderConfig() {
           "segment": "UNIVERSAL"
         },
         {
+          "title": "Друг (New)",
+          "url": "https://sberfriend.sberbank.ru/sberfriend/#/dashboard",
+          "id": null,
+          "copyCode": null,
+          "type": "OTHER",
+          "segment": "UNIVERSAL"
+        },
+        {
           "title": "Мои доступы",
           "url": "https://smd.omega.sbrf.ru/SberAccess/#/pa?tab=0",
           "id": null,
@@ -1851,7 +1929,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Тенгри",
-          "url": "https://ci02587203-psi-iam-proxy-client-geo.omega.sbrf.ru/",
+          "url": "https://ci02587203-psi-iam-proxy-client-geo.omega.sbrf.ru",
           "id": null,
           "copyCode": null,
           "type": "PSI",
@@ -1874,7 +1952,7 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "Редактирование СУП (SK)",
-          "url": "https://iamproxy-prom-gfsk.ingress.apps.arqgec5q.k8s.ca.sbrf.ru/",
+          "url": "https://iamproxy-prom-gfsk.ingress.apps.arqgec5q.k8s.ca.sbrf.ru",
           "id": null,
           "copyCode": null,
           "type": "PROM",
@@ -1882,7 +1960,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Редактирование СУП (MG)",
-          "url": "https://iamproxy-prom-gfmg.ingress.apps.arq6r3xx.k8s.ca.sbrf.ru/",
+          "url": "https://iamproxy-prom-gfmg.ingress.apps.arq6r3xx.k8s.ca.sbrf.ru",
           "id": null,
           "copyCode": null,
           "type": "PROM",
@@ -1890,7 +1968,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Редактирование СУП [SK]",
-          "url": "https://iamproxy-psi-gfsk.ingress.apps.a6y9tlz1.k8s.omega.sbrf.ru/",
+          "url": "https://iamproxy-psi-gfsk.ingress.apps.a6y9tlz1.k8s.omega.sbrf.ru",
           "id": null,
           "copyCode": null,
           "type": "PSI",
@@ -1898,7 +1976,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Редактирование СУП [MG]",
-          "url": "https://iamproxy-psi-gfmg.ingress.apps.a6y5k6kq.k8s.omega.sbrf.ru/",
+          "url": "https://iamproxy-psi-gfmg.ingress.apps.a6y5k6kq.k8s.omega.sbrf.ru",
           "id": null,
           "copyCode": null,
           "type": "PSI",
@@ -1937,7 +2015,7 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "QS",
-          "url": "https://vpokib.ca.sbrf.ru/main/hub/",
+          "url": "https://vpokib.ca.sbrf.ru/main/hub",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -1969,7 +2047,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "HUE",
-          "url": "http://pklis-mvp003253.labiac.df.sbrf.ru:8888/",
+          "url": "http://pklis-mvp003253.labiac.df.sbrf.ru:8888",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -1977,7 +2055,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "JupyterHub",
-          "url": "https://pklis-mvp003259.labiac.df.sbrf.ru:8000/",
+          "url": "https://pklis-mvp003259.labiac.df.sbrf.ru:8000",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -1985,7 +2063,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "AMBARI",
-          "url": "http://pklis-mvp003251.labiac.df.sbrf.ru:8080/",
+          "url": "http://pklis-mvp003251.labiac.df.sbrf.ru:8080",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -2111,7 +2189,7 @@ function loadAndRenderConfig() {
       "cards": [
         {
           "title": "Терминальный xls",
-          "url": "https://cab-snp-cx00001.omega.sbrf.ru/",
+          "url": "https://cab-snp-cx00001.omega.sbrf.ru",
           "id": "citrix-alpha-btn",
           "copyCode": "omega\\\\01803187",
           "type": "OTHER",
@@ -2119,7 +2197,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "ЕСР",
-          "url": "https://esr.sigma.sbrf.ru/",
+          "url": "https://esr.sigma.sbrf.ru",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -2143,7 +2221,7 @@ function loadAndRenderConfig() {
         },
         {
           "title": "Clickstream",
-          "url": "https://clickstream-prom.ca.sbrf.ru/frontend/",
+          "url": "https://clickstream-prom.ca.sbrf.ru/frontend",
           "id": null,
           "copyCode": null,
           "type": "OTHER",
@@ -2476,7 +2554,120 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // === 2. Загрузка конфигурации и рендеринг групп ===
     loadAndRenderConfig();
-    
+
+    // === Подсказка по ссылке при наведении (полный URL + домен, путь, параметры) ===
+    (function initLinkInfoTooltip() {
+        const tooltip = document.getElementById('link-info-tooltip');
+        const container = document.getElementById('groups-container');
+        if (!tooltip || !container) return;
+
+        const OFFSET_X = 14;
+        const OFFSET_Y = 14;
+        const PADDING = 8;
+
+        function parseUrlForTooltip(href) {
+            if (!href || href === '#') return null;
+            try {
+                const url = new URL(href, window.location.origin);
+                const params = [];
+                url.searchParams.forEach((value, key) => params.push({ key, value }));
+                return {
+                    full: url.href,
+                    domain: url.origin || url.hostname,
+                    path: url.pathname || '/',
+                    params
+                };
+            } catch (e) {
+                return { full: href, domain: '', path: '', params: [] };
+            }
+        }
+
+        function setTooltipContent(data) {
+            if (!data) {
+                tooltip.innerHTML = '<span class="link-info-tooltip__full">Модальное окно или ссылка не задана</span>';
+                return;
+            }
+            let html = '<div class="link-info-tooltip__full">' + escapeHtml(data.full) + '</div>';
+            html += '<div class="link-info-tooltip__label">Домен</div><div>' + escapeHtml(data.domain || '—') + '</div>';
+            if (data.path && data.path !== '/' && data.path !== '') {
+                html += '<div class="link-info-tooltip__label">Путь</div><div>' + escapeHtml(data.path) + '</div>';
+            }
+            if (data.params && data.params.length > 0) {
+                html += '<div class="link-info-tooltip__label">Параметры</div><ul class="link-info-tooltip__params">';
+                data.params.forEach(function (p) {
+                    html += '<li>' + escapeHtml(p.key) + ' = ' + escapeHtml(p.value) + '</li>';
+                });
+                html += '</ul>';
+            }
+            tooltip.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            if (str == null) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function showAt(x, y) {
+            tooltip.classList.add('show');
+            tooltip.setAttribute('aria-hidden', 'false');
+            const rect = tooltip.getBoundingClientRect();
+            let left = x + OFFSET_X;
+            let top = y + OFFSET_Y;
+            if (left + rect.width + PADDING > window.innerWidth) left = window.innerWidth - rect.width - PADDING;
+            if (left < PADDING) left = PADDING;
+            if (top + rect.height + PADDING > window.innerHeight) top = window.innerHeight - rect.height - PADDING;
+            if (top < PADDING) top = PADDING;
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+        }
+
+        function hide() {
+            tooltip.classList.remove('show');
+            tooltip.setAttribute('aria-hidden', 'true');
+        }
+
+        container.addEventListener('mouseenter', function (e) {
+            const card = e.target.closest('a.ios-card');
+            if (!card) return;
+            const isModal = card.getAttribute('data-is-modal') === 'true';
+            const hrefAttr = card.getAttribute('href');
+            const isOnlyHash = hrefAttr === '#' || !hrefAttr;
+            let data;
+            if (isModal || isOnlyHash) {
+                data = null;
+            } else {
+                data = parseUrlForTooltip(card.href);
+            }
+            setTooltipContent(data);
+            showAt(e.clientX, e.clientY);
+        }, true);
+
+        container.addEventListener('mousemove', function (e) {
+            const card = e.target.closest('a.ios-card');
+            if (!card) return;
+            if (tooltip.classList.contains('show')) showAt(e.clientX, e.clientY);
+        }, true);
+
+        container.addEventListener('mouseleave', function (e) {
+            if (!e.relatedTarget || !container.contains(e.relatedTarget)) hide();
+        }, true);
+
+        // Ctrl+клик / Cmd+клик — копировать ссылку в буфер вместо перехода
+        container.addEventListener('click', function (e) {
+            const card = e.target.closest('a.ios-card');
+            if (!card) return;
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                copyToClipboard(card.href, null);
+                card.classList.add('copied-blink');
+                setTimeout(function () { card.classList.remove('copied-blink'); }, 500);
+            }
+        }, true);
+    })();
+
     // Адаптация кнопок после загрузки конфигурации
     setTimeout(() => {
         adjustTopActions();
