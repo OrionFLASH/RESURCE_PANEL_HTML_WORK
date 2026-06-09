@@ -3,15 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Пример дизайна кнопок с типами</title>
+    <title>Пример дизайна кнопок с типами и сегментами</title>
     <style>
         :root {
             --glass-bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 50%, #d4e0ed 100%);
             --glass-white: rgba(255, 255, 255, 0.7);
             --glass-white-light: rgba(255, 255, 255, 0.6);
             --glass-white-border: rgba(255, 255, 255, 0.5);
+            --glass-white-border-light: rgba(255, 255, 255, 0.4);
             --glass-text: #1d1d1f;
             --glass-blue: #007AFF;
+            --glass-blue-light: rgba(0, 122, 255, 0.15);
+            --glass-blue-border: rgba(0, 122, 255, 0.3);
+            --glass-purple: #5856D6;
+            --glass-header-bg: linear-gradient(135deg, rgba(0, 122, 255, 0.15) 0%, rgba(88, 86, 214, 0.15) 100%);
             --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9);
             --glass-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
             --glass-card-shadow-hover: 0 4px 16px rgba(0, 122, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -22,47 +27,71 @@
             color: var(--glass-text);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             margin: 0;
-            padding: 40px 20px;
+            padding: 20px;
             min-height: 100vh;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
         h1 {
             text-align: center;
             font-size: 32px;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .section {
+        .groups-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: 1fr;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .ios-group {
+            display: flex;
+            flex-direction: column;
             background: var(--glass-white);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
             border-radius: 24px;
             border: 1px solid var(--glass-white-border);
             box-shadow: var(--glass-shadow);
-            padding: 30px;
-            margin-bottom: 30px;
+            overflow: hidden;
+            min-width: 0;
+            min-height: 0;
+            height: 100%;
         }
 
-        .section-title {
-            font-size: 24px;
+        .ios-group-header {
             font-weight: 600;
-            margin-bottom: 20px;
+            font-size: 20px;
             color: var(--glass-text);
+            padding: 16px 20px;
+            background: var(--glass-header-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            text-align: center;
+            user-select: none;
+            flex-shrink: 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            letter-spacing: -0.3px;
         }
 
-        .buttons-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+        .ios-group-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
         }
 
         /* Базовые стили кнопки */
@@ -75,7 +104,7 @@
             background: var(--glass-white-light);
             backdrop-filter: blur(10px) saturate(150%);
             -webkit-backdrop-filter: blur(10px) saturate(150%);
-            border: 1px solid var(--glass-white-border);
+            border: 1px solid var(--glass-white-border-light);
             border-radius: 16px;
             margin: 0;
             font-size: 15px;
@@ -90,15 +119,17 @@
             cursor: pointer;
             position: relative;
             outline: none;
+            flex-shrink: 0;
             text-align: center;
             word-wrap: break-word;
             overflow-wrap: break-word;
             line-height: 1.5;
+            overflow: hidden;
         }
 
         .ios-card:hover {
-            background: rgba(0, 122, 255, 0.15);
-            border-color: rgba(0, 122, 255, 0.3);
+            background: var(--glass-blue-light);
+            border-color: var(--glass-blue-border);
             transform: scale(1.02);
             box-shadow: var(--glass-card-shadow-hover);
         }
@@ -121,262 +152,407 @@
             width: 100%;
         }
 
-        /* Градиентная полоска слева */
+        .ios-card-title.unavailable {
+            color: #6e6e73;
+            opacity: 0.6;
+        }
+
+        /* Градиентная полоска слева для типов кнопок */
         .ios-card::before {
             content: '';
             position: absolute;
             left: 0;
             top: 0;
             bottom: 0;
-            width: 8px;
+            width: 20px;
             border-radius: 16px 0 0 16px;
             z-index: 1;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            clip-path: ellipse(20px 100% at 10px 50%);
+        }
+
+        /* Текст на полоске слева (типы) */
+        .ios-card.type-prom::before,
+        .ios-card.type-psi::before,
+        .ios-card.type-ift::before {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ios-card.type-prom::before {
+            content: 'PROM';
+        }
+
+        .ios-card.type-psi::before {
+            content: 'PSI';
+        }
+
+        .ios-card.type-ift::before {
+            content: 'IFT';
         }
 
         /* PROM - Зелено-салатовые оттенки */
         .ios-card.type-prom.available::before {
-            background: linear-gradient(90deg, #34C759 0%, #30D158 30%, rgba(52, 199, 89, 0.3) 100%);
+            background: linear-gradient(90deg, rgba(52, 199, 89, 0.05) 0%, rgba(52, 199, 89, 0.2) 25%, rgba(52, 199, 89, 0.5) 50%, #34C759 75%, #34C759 100%);
             box-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
+            color: rgba(15, 130, 35, 0.9);
+            font-size: 8px;
+            font-weight: 700;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1.5px;
+            transform: rotate(180deg);
         }
 
         .ios-card.type-prom.unavailable::before {
-            background: linear-gradient(90deg, #8FD99F 0%, #A8E6B8 30%, rgba(142, 217, 159, 0.2) 100%);
+            background: linear-gradient(90deg, rgba(142, 217, 159, 0.03) 0%, rgba(142, 217, 159, 0.15) 25%, rgba(142, 217, 159, 0.4) 50%, #8FD99F 75%, #8FD99F 100%);
             opacity: 0.6;
+            color: rgba(50, 160, 70, 0.65);
+            font-size: 8px;
+            font-weight: 700;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1.5px;
+            transform: rotate(180deg);
         }
 
         /* PSI - Желто-сиреневые */
         .ios-card.type-psi.available::before {
-            background: linear-gradient(90deg, #FFD60A 0%, #FFCC00 30%, rgba(255, 214, 10, 0.3) 100%);
+            background: linear-gradient(90deg, rgba(255, 214, 10, 0.05) 0%, rgba(255, 214, 10, 0.2) 25%, rgba(255, 214, 10, 0.5) 50%, #FFD60A 75%, #FFD60A 100%);
             box-shadow: 0 0 8px rgba(255, 214, 10, 0.4);
+            color: rgba(200, 150, 0, 0.9);
+            font-size: 8px;
+            font-weight: 700;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1.5px;
+            transform: rotate(180deg);
         }
 
         .ios-card.type-psi.unavailable::before {
-            background: linear-gradient(90deg, #FFE680 0%, #FFEC99 30%, rgba(255, 230, 128, 0.2) 100%);
+            background: linear-gradient(90deg, rgba(255, 230, 128, 0.03) 0%, rgba(255, 230, 128, 0.15) 25%, rgba(255, 230, 128, 0.4) 50%, #FFE680 75%, #FFE680 100%);
             opacity: 0.6;
+            color: rgba(220, 180, 40, 0.65);
+            font-size: 8px;
+            font-weight: 700;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1.5px;
+            transform: rotate(180deg);
         }
 
         /* IFT - Бледно-голубые */
         .ios-card.type-ift.available::before {
-            background: linear-gradient(90deg, #5AC8FA 0%, #64D2FF 30%, rgba(90, 200, 250, 0.3) 100%);
+            background: linear-gradient(90deg, rgba(90, 200, 250, 0.05) 0%, rgba(90, 200, 250, 0.2) 25%, rgba(90, 200, 250, 0.5) 50%, #5AC8FA 75%, #5AC8FA 100%);
             box-shadow: 0 0 8px rgba(90, 200, 250, 0.4);
+            color: rgba(0, 120, 200, 0.9);
+            font-size: 8px;
+            font-weight: 700;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1.5px;
+            transform: rotate(180deg);
         }
 
         .ios-card.type-ift.unavailable::before {
-            background: linear-gradient(90deg, #A8E0FF 0%, #B8E8FF 30%, rgba(168, 224, 255, 0.2) 100%);
+            background: linear-gradient(90deg, rgba(168, 224, 255, 0.03) 0%, rgba(168, 224, 255, 0.15) 25%, rgba(168, 224, 255, 0.4) 50%, #A8E0FF 75%, #A8E0FF 100%);
             opacity: 0.6;
+            color: rgba(60, 140, 210, 0.65);
+            font-size: 8px;
+            font-weight: 700;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1.5px;
+            transform: rotate(180deg);
         }
 
-        /* OTHER - без раскраски (текущее отражение) */
+        /* OTHER - без раскраски */
         .ios-card.type-other::before {
             display: none;
         }
 
-        .label {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 10px;
+        /* Градиентная полоска справа для сегментов сети */
+        .ios-card::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 20px;
+            border-radius: 0 16px 16px 0;
+            z-index: 1;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            clip-path: ellipse(20px 100% at 100% 50%);
         }
 
-        .label-available {
-            background: rgba(52, 199, 89, 0.2);
-            color: #28CD41;
+        /* Текст на полоске справа (сегменты) */
+        .ios-card.segment-alpha::after,
+        .ios-card.segment-sigma::after {
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .label-unavailable {
-            background: rgba(255, 59, 48, 0.2);
-            color: #FF3B30;
+        .ios-card.segment-alpha::after {
+            content: 'ALPHA';
         }
 
-        .description {
-            font-size: 14px;
-            color: #6e6e73;
-            margin-top: 10px;
-            line-height: 1.5;
+        .ios-card.segment-sigma::after {
+            content: 'SIGMA';
+        }
+
+        /* SIGMA - Пурпурно-розовый градиент (справа, от яркого к тусклому) */
+        .ios-card.segment-sigma.available::after {
+            background: linear-gradient(90deg, rgba(255, 45, 85, 0.05) 0%, rgba(255, 45, 85, 0.2) 25%, rgba(255, 45, 85, 0.5) 50%, #FF2D55 75%, #FF2D55 100%);
+            box-shadow: 0 0 8px rgba(255, 45, 85, 0.4);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 8px;
+            font-weight: 700;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1.5px;
+        }
+
+        .ios-card.segment-sigma.unavailable::after {
+            background: linear-gradient(90deg, rgba(255, 182, 193, 0.03) 0%, rgba(255, 182, 193, 0.15) 25%, rgba(255, 182, 193, 0.4) 50%, rgba(255, 182, 193, 0.6) 75%, rgba(255, 182, 193, 0.6) 100%);
+            opacity: 0.6;
+            color: rgba(200, 80, 100, 0.8);
+            font-size: 8px;
+            font-weight: 700;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1.5px;
+        }
+
+        /* ALPHA - Фиолетово-индиго градиент (справа, от яркого к тусклому) */
+        .ios-card.segment-alpha.available::after {
+            background: linear-gradient(90deg, rgba(88, 86, 214, 0.05) 0%, rgba(88, 86, 214, 0.2) 25%, rgba(88, 86, 214, 0.5) 50%, #5856D6 75%, #5856D6 100%);
+            box-shadow: 0 0 8px rgba(88, 86, 214, 0.4);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 8px;
+            font-weight: 700;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1.5px;
+        }
+
+        .ios-card.segment-alpha.unavailable::after {
+            background: linear-gradient(90deg, rgba(175, 170, 255, 0.03) 0%, rgba(175, 170, 255, 0.15) 25%, rgba(175, 170, 255, 0.4) 50%, rgba(175, 170, 255, 0.6) 75%, rgba(175, 170, 255, 0.6) 100%);
+            opacity: 0.6;
+            color: rgba(120, 110, 200, 0.8);
+            font-size: 8px;
+            font-weight: 700;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1.5px;
+        }
+
+        /* UNIVERSAL - без раскраски */
+        .ios-card.segment-universal::after {
+            display: none;
+        }
+
+        @media (max-width: 1200px) {
+            .groups-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .groups-container {
+                grid-template-columns: repeat(1, 1fr);
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Примеры кнопок с типами</h1>
+        <h1>Примеры кнопок с типами и сегментами</h1>
 
-        <!-- PROM - Зелено-салатовые -->
-        <div class="section">
-            <div class="section-title">PROM - Зелено-салатовые оттенки</div>
-            <div class="buttons-grid">
-                <div>
-                    <span class="label label-available">Доступна</span>
-                    <div class="ios-card type-prom available">
-                        <span class="ios-card-title">Пример кнопки PROM (доступна) - яркий зеленый градиент</span>
+        <div class="groups-container">
+            <!-- Группа 1: PROM с разными сегментами -->
+            <div class="ios-group">
+                <div class="ios-group-header">PROM - Все сегменты</div>
+                <div class="ios-group-cards">
+                    <div class="ios-card type-prom segment-universal available">
+                        <span class="ios-card-title">PROM + UNIVERSAL (доступна)</span>
                     </div>
-                    <div class="description">Яркий зеленый градиент слева с эффектом свечения</div>
-                </div>
-                <div>
-                    <span class="label label-unavailable">Недоступна</span>
-                    <div class="ios-card type-prom unavailable">
-                        <span class="ios-card-title">Пример кнопки PROM (недоступна) - тусклый зеленый</span>
+                    <div class="ios-card type-prom segment-universal unavailable">
+                        <span class="ios-card-title unavailable">PROM + UNIVERSAL (недоступна)</span>
                     </div>
-                    <div class="description">Тусклый светло-зеленый градиент с пониженной непрозрачностью</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- PSI - Желто-сиреневые -->
-        <div class="section">
-            <div class="section-title">PSI - Желто-сиреневые оттенки</div>
-            <div class="buttons-grid">
-                <div>
-                    <span class="label label-available">Доступна</span>
-                    <div class="ios-card type-psi available">
-                        <span class="ios-card-title">Пример кнопки PSI (доступна) - яркий желтый градиент</span>
+                    <div class="ios-card type-prom segment-alpha available">
+                        <span class="ios-card-title">PROM + ALPHA (доступна)</span>
                     </div>
-                    <div class="description">Яркий желтый градиент слева с эффектом свечения</div>
-                </div>
-                <div>
-                    <span class="label label-unavailable">Недоступна</span>
-                    <div class="ios-card type-psi unavailable">
-                        <span class="ios-card-title">Пример кнопки PSI (недоступна) - тусклый желтый</span>
+                    <div class="ios-card type-prom segment-alpha unavailable">
+                        <span class="ios-card-title unavailable">PROM + ALPHA (недоступна)</span>
                     </div>
-                    <div class="description">Тусклый светло-желтый градиент с пониженной непрозрачностью</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- IFT - Бледно-голубые -->
-        <div class="section">
-            <div class="section-title">IFT - Бледно-голубые оттенки</div>
-            <div class="buttons-grid">
-                <div>
-                    <span class="label label-available">Доступна</span>
-                    <div class="ios-card type-ift available">
-                        <span class="ios-card-title">Пример кнопки IFT (доступна) - яркий голубой градиент</span>
+                    <div class="ios-card type-prom segment-sigma available">
+                        <span class="ios-card-title">PROM + SIGMA (доступна)</span>
                     </div>
-                    <div class="description">Яркий голубой градиент слева с эффектом свечения</div>
-                </div>
-                <div>
-                    <span class="label label-unavailable">Недоступна</span>
-                    <div class="ios-card type-ift unavailable">
-                        <span class="ios-card-title">Пример кнопки IFT (недоступна) - тусклый голубой</span>
-                    </div>
-                    <div class="description">Тусклый светло-голубой градиент с пониженной непрозрачностью</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- OTHER - Без раскраски -->
-        <div class="section">
-            <div class="section-title">OTHER - Без дополнительной раскраски</div>
-            <div class="buttons-grid">
-                <div>
-                    <span class="label label-available">Доступна</span>
-                    <div class="ios-card type-other available">
-                        <span class="ios-card-title">Пример кнопки OTHER (доступна) - стандартное отображение</span>
-                    </div>
-                    <div class="description">Стандартное отображение без цветовой индикации слева</div>
-                </div>
-                <div>
-                    <span class="label label-unavailable">Недоступна</span>
-                    <div class="ios-card type-other unavailable">
-                        <span class="ios-card-title">Пример кнопки OTHER (недоступна) - стандартное отображение</span>
-                    </div>
-                    <div class="description">Стандартное отображение без цветовой индикации слева</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Сравнение всех типов -->
-        <div class="section">
-            <div class="section-title">Сравнение всех типов (доступные)</div>
-            <div class="buttons-grid">
-                <div>
-                    <div class="ios-card type-prom available">
-                        <span class="ios-card-title">PROM - Зеленый</span>
-                    </div>
-                </div>
-                <div>
-                    <div class="ios-card type-psi available">
-                        <span class="ios-card-title">PSI - Желтый</span>
-                    </div>
-                </div>
-                <div>
-                    <div class="ios-card type-ift available">
-                        <span class="ios-card-title">IFT - Голубой</span>
-                    </div>
-                </div>
-                <div>
-                    <div class="ios-card type-other available">
-                        <span class="ios-card-title">OTHER - Без индикации</span>
+                    <div class="ios-card type-prom segment-sigma unavailable">
+                        <span class="ios-card-title unavailable">PROM + SIGMA (недоступна)</span>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Сравнение всех типов (недоступные) -->
-        <div class="section">
-            <div class="section-title">Сравнение всех типов (недоступные)</div>
-            <div class="buttons-grid">
-                <div>
-                    <div class="ios-card type-prom unavailable">
-                        <span class="ios-card-title">PROM - Зеленый (тусклый)</span>
+            <!-- Группа 2: PSI с разными сегментами -->
+            <div class="ios-group">
+                <div class="ios-group-header">PSI - Все сегменты</div>
+                <div class="ios-group-cards">
+                    <div class="ios-card type-psi segment-universal available">
+                        <span class="ios-card-title">PSI + UNIVERSAL (доступна)</span>
                     </div>
-                </div>
-                <div>
-                    <div class="ios-card type-psi unavailable">
-                        <span class="ios-card-title">PSI - Желтый (тусклый)</span>
+                    <div class="ios-card type-psi segment-universal unavailable">
+                        <span class="ios-card-title unavailable">PSI + UNIVERSAL (недоступна)</span>
                     </div>
-                </div>
-                <div>
-                    <div class="ios-card type-ift unavailable">
-                        <span class="ios-card-title">IFT - Голубой (тусклый)</span>
+                    <div class="ios-card type-psi segment-alpha available">
+                        <span class="ios-card-title">PSI + ALPHA (доступна)</span>
                     </div>
-                </div>
-                <div>
-                    <div class="ios-card type-other unavailable">
-                        <span class="ios-card-title">OTHER - Без индикации</span>
+                    <div class="ios-card type-psi segment-alpha unavailable">
+                        <span class="ios-card-title unavailable">PSI + ALPHA (недоступна)</span>
+                    </div>
+                    <div class="ios-card type-psi segment-sigma available">
+                        <span class="ios-card-title">PSI + SIGMA (доступна)</span>
+                    </div>
+                    <div class="ios-card type-psi segment-sigma unavailable">
+                        <span class="ios-card-title unavailable">PSI + SIGMA (недоступна)</span>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Пример JSON структуры -->
-        <div class="section">
-            <div class="section-title">Пример JSON структуры</div>
-            <pre style="background: rgba(0, 0, 0, 0.05); padding: 20px; border-radius: 12px; overflow-x: auto; font-size: 14px; line-height: 1.6;">
-{
-  "groups": [
-    {
-      "name": "Пример группы",
-      "cards": [
-        {
-          "title": "Кнопка PROM",
-          "url": "https://example.com",
-          "type": "PROM"
-        },
-        {
-          "title": "Кнопка PSI",
-          "url": "https://example.com",
-          "type": "PSI"
-        },
-        {
-          "title": "Кнопка IFT",
-          "url": "https://example.com",
-          "type": "IFT"
-        },
-        {
-          "title": "Кнопка OTHER",
-          "url": "https://example.com",
-          "type": "OTHER"
-        }
-      ]
-    }
-  ]
-}
-            </pre>
+            <!-- Группа 3: IFT с разными сегментами -->
+            <div class="ios-group">
+                <div class="ios-group-header">IFT - Все сегменты</div>
+                <div class="ios-group-cards">
+                    <div class="ios-card type-ift segment-universal available">
+                        <span class="ios-card-title">IFT + UNIVERSAL (доступна)</span>
+                    </div>
+                    <div class="ios-card type-ift segment-universal unavailable">
+                        <span class="ios-card-title unavailable">IFT + UNIVERSAL (недоступна)</span>
+                    </div>
+                    <div class="ios-card type-ift segment-alpha available">
+                        <span class="ios-card-title">IFT + ALPHA (доступна)</span>
+                    </div>
+                    <div class="ios-card type-ift segment-alpha unavailable">
+                        <span class="ios-card-title unavailable">IFT + ALPHA (недоступна)</span>
+                    </div>
+                    <div class="ios-card type-ift segment-sigma available">
+                        <span class="ios-card-title">IFT + SIGMA (доступна)</span>
+                    </div>
+                    <div class="ios-card type-ift segment-sigma unavailable">
+                        <span class="ios-card-title unavailable">IFT + SIGMA (недоступна)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Группа 4: OTHER с разными сегментами -->
+            <div class="ios-group">
+                <div class="ios-group-header">OTHER - Все сегменты</div>
+                <div class="ios-group-cards">
+                    <div class="ios-card type-other segment-universal available">
+                        <span class="ios-card-title">OTHER + UNIVERSAL (доступна)</span>
+                    </div>
+                    <div class="ios-card type-other segment-universal unavailable">
+                        <span class="ios-card-title unavailable">OTHER + UNIVERSAL (недоступна)</span>
+                    </div>
+                    <div class="ios-card type-other segment-alpha available">
+                        <span class="ios-card-title">OTHER + ALPHA (доступна)</span>
+                    </div>
+                    <div class="ios-card type-other segment-alpha unavailable">
+                        <span class="ios-card-title unavailable">OTHER + ALPHA (недоступна)</span>
+                    </div>
+                    <div class="ios-card type-other segment-sigma available">
+                        <span class="ios-card-title">OTHER + SIGMA (доступна)</span>
+                    </div>
+                    <div class="ios-card type-other segment-sigma unavailable">
+                        <span class="ios-card-title unavailable">OTHER + SIGMA (недоступна)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Группа 5: Все типы с ALPHA -->
+            <div class="ios-group">
+                <div class="ios-group-header">Все типы + ALPHA</div>
+                <div class="ios-group-cards">
+                    <div class="ios-card type-prom segment-alpha available">
+                        <span class="ios-card-title">PROM + ALPHA</span>
+                    </div>
+                    <div class="ios-card type-psi segment-alpha available">
+                        <span class="ios-card-title">PSI + ALPHA</span>
+                    </div>
+                    <div class="ios-card type-ift segment-alpha available">
+                        <span class="ios-card-title">IFT + ALPHA</span>
+                    </div>
+                    <div class="ios-card type-other segment-alpha available">
+                        <span class="ios-card-title">OTHER + ALPHA</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Группа 6: Все типы с SIGMA -->
+            <div class="ios-group">
+                <div class="ios-group-header">Все типы + SIGMA</div>
+                <div class="ios-group-cards">
+                    <div class="ios-card type-prom segment-sigma available">
+                        <span class="ios-card-title">PROM + SIGMA</span>
+                    </div>
+                    <div class="ios-card type-psi segment-sigma available">
+                        <span class="ios-card-title">PSI + SIGMA</span>
+                    </div>
+                    <div class="ios-card type-ift segment-sigma available">
+                        <span class="ios-card-title">IFT + SIGMA</span>
+                    </div>
+                    <div class="ios-card type-other segment-sigma available">
+                        <span class="ios-card-title">OTHER + SIGMA</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Группа 7: Все типы с UNIVERSAL -->
+            <div class="ios-group">
+                <div class="ios-group-header">Все типы + UNIVERSAL</div>
+                <div class="ios-group-cards">
+                    <div class="ios-card type-prom segment-universal available">
+                        <span class="ios-card-title">PROM + UNIVERSAL</span>
+                    </div>
+                    <div class="ios-card type-psi segment-universal available">
+                        <span class="ios-card-title">PSI + UNIVERSAL</span>
+                    </div>
+                    <div class="ios-card type-ift segment-universal available">
+                        <span class="ios-card-title">IFT + UNIVERSAL</span>
+                    </div>
+                    <div class="ios-card type-other segment-universal available">
+                        <span class="ios-card-title">OTHER + UNIVERSAL</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Группа 8: Комбинации (доступные) -->
+            <div class="ios-group">
+                <div class="ios-group-header">Комбинации (доступные)</div>
+                <div class="ios-group-cards">
+                    <div class="ios-card type-prom segment-alpha available">
+                        <span class="ios-card-title">PROM + ALPHA</span>
+                    </div>
+                    <div class="ios-card type-psi segment-sigma available">
+                        <span class="ios-card-title">PSI + SIGMA</span>
+                    </div>
+                    <div class="ios-card type-ift segment-alpha available">
+                        <span class="ios-card-title">IFT + ALPHA</span>
+                    </div>
+                    <div class="ios-card type-prom segment-sigma available">
+                        <span class="ios-card-title">PROM + SIGMA</span>
+                    </div>
+                    <div class="ios-card type-other segment-alpha available">
+                        <span class="ios-card-title">OTHER + ALPHA</span>
+                    </div>
+                    <div class="ios-card type-other segment-sigma available">
+                        <span class="ios-card-title">OTHER + SIGMA</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </body>
 </html>
-

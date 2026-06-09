@@ -25,6 +25,5 @@ log/
 .env
 .env.local
 
-# Кэш браузера
-.cache/
+node_modules/
 

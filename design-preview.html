@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Предварительный просмотр дизайна - Liquid Glass iOS 26</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 50%, #d4e0ed 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #1d1d1f;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 32px;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin-bottom: 30px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .groups-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        /* Liquid Glass группа */
+        .glass-group {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.08),
+                0 2px 8px rgba(0, 0, 0, 0.04),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-group:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 12px 40px rgba(0, 0, 0, 0.12),
+                0 4px 12px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+
+        /* Заголовок группы */
+        .glass-group-header {
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.15) 0%, rgba(88, 86, 214, 0.15) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 16px 20px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1d1d1f;
+            text-align: center;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            letter-spacing: -0.3px;
+        }
+
+        /* Контейнер карточек */
+        .glass-group-cards {
+            flex: 1;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* Liquid Glass кнопка-карточка */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px) saturate(150%);
+            -webkit-backdrop-filter: blur(10px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 16px;
+            padding: 12px 16px;
+            text-decoration: none;
+            color: #1d1d1f;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.4;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                0 2px 8px rgba(0, 0, 0, 0.04),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+        }
+
+        .glass-card:hover {
+            background: rgba(0, 122, 255, 0.15);
+            border-color: rgba(0, 122, 255, 0.3);
+            transform: scale(1.02);
+            box-shadow: 
+                0 4px 16px rgba(0, 122, 255, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+
+        .glass-card:active {
+            transform: scale(0.98);
+        }
+
+        .glass-card-title {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.4;
+        }
+
+        /* Скроллбар в стиле iOS */
+        .glass-group-cards::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .glass-group-cards::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 10px;
+        }
+
+        .glass-group-cards::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .glass-group-cards::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Адаптивность */
+        @media (max-width: 1200px) {
+            .groups-container {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .groups-container {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .groups-container {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+
+        /* Демонстрационные данные */
+        .demo-info {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+
+        .demo-info h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #1d1d1f;
+        }
+
+        .demo-info p {
+            color: #6e6e73;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Ресурсная панель</h1>
+        
+        <div class="demo-info">
+            <h2>🎨 Предварительный просмотр дизайна</h2>
+            <p>Современный дизайн в стиле Liquid Glass из iOS 26. Светлая тема с эффектом стекла, мягкими тенями и градиентами. Кнопки поддерживают многострочный текст (до 3 строк).</p>
+        </div>
+
+        <div class="groups-container">
+            <!-- Группа 1 -->
+            <div class="glass-group">
+                <div class="glass-group-header">Встречи (Jazz)</div>
+                <div class="glass-group-cards">
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">Jazz Meeting Room Alpha</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">Jazz Meeting Room Beta с длинным названием</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">Jazz Conference Hall</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">Jazz Video Conference очень длинное название которое может быть в несколько строк</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">Jazz Team Meeting</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Группа 2 -->
+            <div class="glass-group">
+                <div class="glass-group-header">Герои продаж (PROM / PSI / IFT)</div>
+                <div class="glass-group-cards">
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PROM) ГП - Alpha</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PROM) ГП - Sigma с очень длинным названием которое точно не поместится в одну строку</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PSI) ГП - Alpha</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PSI) ГП - Sigma</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PSI) КАП (New)</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PSI) Тенгри</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">ИФТ СБ</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">ИФТ ГФ</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Группа 3 -->
+            <div class="glass-group">
+                <div class="glass-group-header">Рабочие программы</div>
+                <div class="glass-group-cards">
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">СберЧат</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">Адресная книга</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">Service Manager (Alpha) с длинным описанием</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">Citrix Workspace</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">VARM LabZone Office Alpha i57z очень длинное название которое точно будет в несколько строк</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PROM) КАП</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PSI) КАП</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Группа 4 -->
+            <div class="glass-group">
+                <div class="glass-group-header">СУП</div>
+                <div class="glass-group-cards">
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PROM GF_SK) Редактирование СУП</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PROM GF_MG) Редактирование СУП</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PSI) Редактирование СУП [EFSEMP-IAM-GF-SK]</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PSI) Редактирование СУП [EFSEMP-IAM-GF-MG]</span>
+                    </a>
+                    <a href="#" class="glass-card">
+                        <span class="glass-card-title">(PSI) Редактирование СУП [EFSEMP-IAM-SB-SK]</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
