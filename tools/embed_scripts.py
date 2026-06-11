@@ -19,10 +19,37 @@ SCRIPT_FILES = [
     "News_Community_Export.js",
     "Parameters_Actual_Export.js",
     "Profile_GP_LOAD_file.js",
+    "SUP_Config_Update.js",
     "Tournament_LeadersForAdmin.js",
     "UI_AutoTest.js",
     "UI_AutoTest_LinksCrawler.js",
 ]
+
+SCRIPT_FILE_PATTERN = re.compile(r'"scriptFile"\s*:\s*"([^"]+\.js)"')
+
+
+def discover_script_files_from_index(html: str) -> list[str]:
+    """Имена scriptFile из JSON в index.html (порядок как в конфиге)."""
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for name in SCRIPT_FILE_PATTERN.findall(html):
+        if name not in seen:
+            seen.add(name)
+            ordered.append(name)
+    return ordered
+
+
+def resolve_script_files(html: str) -> list[str]:
+    discovered = discover_script_files_from_index(html)
+    if not discovered:
+        return list(SCRIPT_FILES)
+    seen = set(discovered)
+    merged = list(discovered)
+    for name in SCRIPT_FILES:
+        if name not in seen:
+            merged.append(name)
+            seen.add(name)
+    return merged
 
 MARKER_START = "<!-- EMBEDDED_SCRIPTS_START -->"
 MARKER_END = "<!-- EMBEDDED_SCRIPTS_END -->"
@@ -44,9 +71,9 @@ def escape_script_body(text: str) -> str:
     return re.sub(r"</script>", r"<\\/script>", text, flags=re.IGNORECASE)
 
 
-def build_embed_block(scripts: dict[str, str]) -> str:
+def build_embed_block(scripts: dict[str, str], file_order: list[str]) -> str:
     parts = [MARKER_START]
-    for name in SCRIPT_FILES:
+    for name in file_order:
         if name not in scripts:
             continue
         body = escape_script_body(scripts[name])
@@ -58,9 +85,9 @@ def build_embed_block(scripts: dict[str, str]) -> str:
     return "\n".join(parts)
 
 
-def load_scripts() -> dict[str, str]:
+def load_scripts(file_order: list[str]) -> dict[str, str]:
     data: dict[str, str] = {}
-    for name in SCRIPT_FILES:
+    for name in file_order:
         path = JS_DIR / name
         if not path.is_file():
             print(f"⚠️  Пропуск (нет файла): {path}", file=sys.stderr)
@@ -90,11 +117,11 @@ def ensure_markers(html: str) -> str:
     return html
 
 
-def embed_into_html(payload: dict[str, str]) -> None:
+def embed_into_html(payload: dict[str, str], file_order: list[str]) -> None:
     html = INDEX.read_text(encoding="utf-8")
     html = ensure_markers(html)
     html = LEGACY_JSON_PATTERN.sub("", html)
-    block = build_embed_block(payload)
+    block = build_embed_block(payload, file_order)
     match = BLOCK_PATTERN.search(html)
     if not match:
         raise SystemExit("Не найден блок EMBEDDED_SCRIPTS в index.html")
@@ -107,10 +134,12 @@ def embed_into_html(payload: dict[str, str]) -> None:
 def main() -> None:
     if not INDEX.is_file():
         raise SystemExit(f"Нет файла: {INDEX}")
-    payload = load_scripts()
+    html = INDEX.read_text(encoding="utf-8")
+    file_order = resolve_script_files(html)
+    payload = load_scripts(file_order)
     if not payload:
         raise SystemExit("Нет скриптов для встраивания")
-    embed_into_html(payload)
+    embed_into_html(payload, file_order)
 
 
 if __name__ == "__main__":
