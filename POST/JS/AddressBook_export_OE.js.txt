@@ -8,6 +8,273 @@
 (function () {
   "use strict";
 
+
+/**
+ * DevToolsTrace — трассировка UI, HTTP и журнала для DevTools-скриптов (один файл → вставка в консоль).
+ * Использование: createDevToolsTrace({ scriptId: "MyScript" }) → mountToggleRow, attachPanel, wrapFetch, log.
+ */
+/* DevToolsTrace v1 */
+function createDevToolsTrace(opts) {
+  "use strict";
+  var scriptId = (opts && opts.scriptId) || "devtools_script";
+  var maxBodyLen = (opts && opts.maxBodyLen) || 16384;
+  var maxLines = (opts && opts.maxLines) || 8000;
+  var enabled = false;
+  /** @type {string[]} */
+  var buffer = [];
+
+  /**
+   * @returns {string}
+   */
+  function isoNow() {
+    return new Date().toISOString();
+  }
+
+  /**
+   * @param {string} ts
+   * @returns {string}
+   */
+  function fileTsFromIso(ts) {
+    return ts.replace(/[-:]/g, "").replace("T", "_").slice(0, 15);
+  }
+
+  /**
+   * @param {unknown} v
+   * @returns {string}
+   */
+  function truncBody(v) {
+    if (v == null) return "";
+    var s = typeof v === "string" ? v : String(v);
+    if (s.length <= maxBodyLen) return s;
+    return s.slice(0, maxBodyLen) + "\n… [truncated " + (s.length - maxBodyLen) + " chars]";
+  }
+
+  /**
+   * @param {string} kind
+   * @param {string} message
+   * @param {Record<string, unknown>|null} [detail]
+   */
+  function push(kind, message, detail) {
+    if (!enabled) return;
+    var line = isoNow() + " [" + kind + "] " + message;
+    if (detail && typeof detail === "object") {
+      try {
+        line += " " + JSON.stringify(detail);
+      } catch (_e) {
+        line += " [detail unserializable]";
+      }
+    }
+    buffer.push(line);
+    if (buffer.length > maxLines) buffer = buffer.slice(buffer.length - maxLines);
+  }
+
+  /**
+   * @param {boolean} on
+   */
+  function setEnabled(on) {
+    var next = !!on;
+    if (next === enabled) return;
+    if (next) {
+      enabled = true;
+      push("SYS", "Trace ON script=" + scriptId);
+      return;
+    }
+    push("SYS", "Trace OFF script=" + scriptId);
+    enabled = false;
+    if (buffer.length > 0) downloadLog();
+    buffer = [];
+  }
+
+  function isEnabled() {
+    return enabled;
+  }
+
+  /**
+   * @param {string} msg
+   */
+  function log(msg) {
+    push("LOG", String(msg));
+  }
+
+  /**
+   * @param {string} action
+   * @param {Record<string, unknown>|null} [detail]
+   */
+  function ui(action, detail) {
+    push("UI", action, detail);
+  }
+
+  /**
+   * @param {typeof fetch} nativeFetch
+   * @returns {typeof fetch}
+   */
+  function wrapFetch(nativeFetch) {
+    return async function tracedFetch(input, init) {
+      if (!enabled) return nativeFetch(input, init);
+      var url =
+        typeof input === "string"
+          ? input
+          : input && typeof input === "object" && "url" in input
+            ? String(input.url)
+            : String(input);
+      var method = (init && init.method) || "GET";
+      var reqBody = init && init.body != null ? truncBody(init.body) : "";
+      push("HTTP", "→ " + method + " " + url, reqBody ? { requestBody: reqBody } : null);
+      var t0 = Date.now();
+      var res = await nativeFetch(input, init);
+      var ms = Date.now() - t0;
+      var status = res.status;
+      var respText = "";
+      try {
+        respText = truncBody(await res.clone().text());
+      } catch (_e) {
+        respText = "[body read error]";
+      }
+      push("HTTP", "← " + status + " " + method + " " + url + " " + ms + "ms", {
+        responseBody: respText
+      });
+      return res;
+    };
+  }
+
+  /**
+   * @param {HTMLElement} panelRoot
+   */
+  function attachPanel(panelRoot) {
+    if (!panelRoot || panelRoot.__devToolsTraceAttached) return;
+    panelRoot.__devToolsTraceAttached = true;
+    panelRoot.addEventListener(
+      "click",
+      function (ev) {
+        if (!enabled) return;
+        var t = ev.target;
+        if (!(t instanceof Element)) return;
+        var btn = t.closest("button");
+        if (btn) {
+          ui("click button", { text: (btn.textContent || "").trim().slice(0, 120) });
+          return;
+        }
+        var cb = t.closest('input[type="checkbox"]');
+        if (cb) {
+          ui("click checkbox", { checked: cb.checked, label: (cb.parentElement && cb.parentElement.textContent || "").trim().slice(0, 80) });
+          return;
+        }
+        var sel = t.closest("select");
+        if (sel) {
+          ui("change select", { value: sel.value });
+        }
+      },
+      true
+    );
+    panelRoot.addEventListener(
+      "change",
+      function (ev) {
+        if (!enabled) return;
+        var t = ev.target;
+        if (!(t instanceof HTMLInputElement && t.type === "file")) return;
+        var names = [];
+        if (t.files) {
+          for (var i = 0; i < t.files.length; i++) names.push(t.files[i].name);
+        }
+        ui("file input", { files: names });
+      },
+      true
+    );
+  }
+
+  /**
+   * @param {HTMLElement} container
+   * @param {HTMLElement|null} [beforeNode]
+   * @returns {{ row: HTMLElement, checkbox: HTMLInputElement, saveBtn: HTMLButtonElement }}
+   */
+  function mountToggleRow(container, beforeNode) {
+    var row = document.createElement("div");
+    row.className = "devtools-trace-row";
+    row.style.cssText =
+      "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0;padding:6px 10px;" +
+      "background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;color:#334155;flex-shrink:0;";
+
+    var label = document.createElement("label");
+    label.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;";
+    var checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.title = "Запись всех HTTP-запросов, кликов по панели и строк журнала в файл при выключении";
+    var span = document.createElement("span");
+    span.textContent = "Trace (диагностика → файл .log)";
+    label.appendChild(checkbox);
+    label.appendChild(span);
+
+    var saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.textContent = "Сохранить trace";
+    saveBtn.style.cssText =
+      "padding:3px 8px;border:1px solid #cbd5e1;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;";
+    saveBtn.disabled = true;
+
+    checkbox.addEventListener("change", function () {
+      setEnabled(checkbox.checked);
+      saveBtn.disabled = !checkbox.checked;
+    });
+
+    saveBtn.addEventListener("click", function () {
+      if (buffer.length === 0) {
+        push("SYS", "manual save (empty buffer)");
+      }
+      downloadLog();
+    });
+
+    row.appendChild(label);
+    row.appendChild(saveBtn);
+
+    if (beforeNode && beforeNode.parentNode) {
+      beforeNode.parentNode.insertBefore(row, beforeNode);
+    } else if (container) {
+      container.appendChild(row);
+    }
+    return { row: row, checkbox: checkbox, saveBtn: saveBtn };
+  }
+
+  function downloadLog() {
+    if (buffer.length === 0) return;
+    var header =
+      "# DevToolsTrace script=" +
+      scriptId +
+      " exported=" +
+      isoNow() +
+      " lines=" +
+      buffer.length +
+      "\n";
+    var body = header + buffer.join("\n") + "\n";
+    var fname = "trace_" + scriptId + "_" + fileTsFromIso(isoNow()) + ".log";
+    var blob = new Blob(["\uFEFF" + body], { type: "text/plain;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () {
+      URL.revokeObjectURL(a.href);
+    }, 500);
+  }
+
+  return {
+    scriptId: scriptId,
+    isEnabled: isEnabled,
+    setEnabled: setEnabled,
+    log: log,
+    ui: ui,
+    wrapFetch: wrapFetch,
+    attachPanel: attachPanel,
+    mountToggleRow: mountToggleRow,
+    downloadLog: downloadLog
+  };
+}
+  var __nativeFetch = fetch.bind(window);
+  var devTrace = createDevToolsTrace({ scriptId: "AddressBook_export_OE" });
+  var httpFetch = devTrace.wrapFetch(__nativeFetch);
+
+
 const ADDRESSBOOK_STAND_KEY = "ALPHA";
 
 // Отдельный URL стенда адресной книги.
@@ -310,7 +577,7 @@ async function fetchEmpInfoFull(empId) {
     ADDRESSBOOK_API_HOME +
     "/empInfoFull?empId=" +
     encodeURIComponent(empId);
-  const res = await fetch(url, {
+  const res = await httpFetch(url, {
     method: "GET",
     mode: "cors",
     credentials: "include",
@@ -330,6 +597,74 @@ async function fetchEmpInfoFull(empId) {
 }
 
 /**
+ * 32 hex-символа без дефисов → UUID.
+ * @param {string} raw32
+ * @returns {string}
+ */
+function formatUuidFrom32Hex(raw32) {
+  if (!raw32 || raw32.length !== 32) return "";
+  var s = raw32.toLowerCase();
+  return (
+    s.slice(0, 8) +
+    "-" +
+    s.slice(8, 12) +
+    "-" +
+    s.slice(12, 16) +
+    "-" +
+    s.slice(16, 20) +
+    "-" +
+    s.slice(20)
+  );
+}
+
+/**
+ * UUID employeeId из ответа empInfoFull (profileLink, photo или поле employeeId).
+ * @param {{ data?: object|null }} fullWrap
+ * @param {string} requestedId — значение, переданное в GET
+ * @returns {string}
+ */
+function resolveEmployeeIdFromEmpInfoFull(fullWrap, requestedId) {
+  var data = fullWrap && fullWrap.data;
+  if (data && typeof data.employeeId === "string") {
+    var fromField = data.employeeId.trim();
+    if (fromField) return fromField;
+  }
+  var link = data && data.profileLink;
+  if (typeof link === "string") {
+    var mLink = link.match(/profile\/([0-9a-f]{32})(?:\/|$|\?|#)/i);
+    if (mLink) return formatUuidFrom32Hex(mLink[1]);
+  }
+  var photo = data && data.photo;
+  if (typeof photo === "string") {
+    var mPhoto = photo.match(
+      /photos\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+    );
+    if (mPhoto) return mPhoto[1].toLowerCase();
+  }
+  var req = requestedId != null ? String(requestedId).trim() : "";
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req)) return req;
+  return req;
+}
+
+/**
+ * Строка журнала и resolved UUID после GET empInfoFull.
+ * @param {string} requestedId
+ * @param {{ ok?: boolean, status?: number, data?: object|null }} fullWrap
+ * @returns {{ resolvedId: string, logLine: string }}
+ */
+function describeEmpInfoFullResponse(requestedId, fullWrap) {
+  var resolvedId = resolveEmployeeIdFromEmpInfoFull(fullWrap, requestedId);
+  var statusPart = "HTTP " + (fullWrap && fullWrap.status != null ? fullWrap.status : "?");
+  statusPart += fullWrap && fullWrap.ok ? " OK" : " ошибка";
+  var logLine = "    → " + statusPart;
+  var reqStr = requestedId != null ? String(requestedId).trim() : "";
+  if (fullWrap && fullWrap.ok && resolvedId && resolvedId !== reqStr) {
+    logLine += " (запрос «" + requestedId + "» → UUID " + resolvedId + ")";
+  }
+  return { resolvedId: resolvedId, logLine: logLine };
+}
+
+/**
  * POST …/api/home/employees/search
  * @param {string|number} searchText — число ТН или строка ФИО
  * @param {boolean} asNumber — true: в теле число без кавычек в JSON
@@ -341,7 +676,7 @@ async function fetchEmployeesSearch(searchText, asNumber, pageToken) {
   const body = asNumber
     ? { searchText: Number(searchText), pageToken: safeToken }
     : { searchText: String(searchText), pageToken: safeToken };
-  const res = await fetch(o.origin + ADDRESSBOOK_API_HOME + "/employees/search", {
+  const res = await httpFetch(o.origin + ADDRESSBOOK_API_HOME + "/employees/search", {
     method: "POST",
     mode: "cors",
     credentials: "include",
@@ -473,7 +808,7 @@ async function fetchDepartmentById(deptId) {
   var o = getAddressBookStandAndOrigin();
   const url =
     o.origin + ADDRESSBOOK_API_HOME + "/departments/" + encodeURIComponent(deptId);
-  const res = await fetch(url, {
+  const res = await httpFetch(url, {
     method: "GET",
     mode: "cors",
     credentials: "include",
@@ -548,20 +883,60 @@ function pickSearchHitFormatted(hit) {
       ? { id: cp.id != null ? cp.id : null, phoneNumber: cp.phoneNumber != null ? cp.phoneNumber : null }
       : null;
   var ai = hit.absenceInfo;
+  var absenceInfo = null;
+  if (ai && typeof ai === "object") {
+    absenceInfo = {
+      isAbsent: ai.isAbsent != null ? ai.isAbsent : null,
+      isLong: ai.isLong != null ? ai.isLong : null,
+      startDate: ai.startDate != null ? ai.startDate : null,
+      endDate: ai.endDate != null ? ai.endDate : null,
+      typeId: ai.typeId != null ? ai.typeId : null,
+      typeName: ai.typeName != null ? ai.typeName : null,
+      daysRemains: ai.daysRemains != null ? ai.daysRemains : null
+    };
+  }
+  var roleName = hit.roleName != null ? hit.roleName : null;
+  if (roleName == null && Array.isArray(hit.roles) && hit.roles[0] && hit.roles[0].name != null) {
+    roleName = hit.roles[0].name;
+  }
   return {
     employeeId: hit.employeeId != null ? String(hit.employeeId) : "",
     fullName: hit.fullName != null ? hit.fullName : null,
     departmentName: hit.departmentName != null ? hit.departmentName : null,
     positionName: hit.positionName != null ? hit.positionName : null,
+    organizationName: hit.organizationName != null ? hit.organizationName : null,
+    regionalBankName: hit.regionalBankName != null ? hit.regionalBankName : null,
+    isAgile: hit.isAgile != null ? hit.isAgile : null,
+    isFos: hit.isFos != null ? hit.isFos : null,
     phoneNumber: hit.phoneNumber != null ? hit.phoneNumber : null,
     contactPhone: contactPhone,
     email: hit.email != null ? hit.email : null,
     photo: hit.photo != null ? hit.photo : null,
     isAbsent: hit.isAbsent != null ? hit.isAbsent : null,
-    absenceInfo: ai && typeof ai === "object" ? { typeName: ai.typeName != null ? ai.typeName : null } : null,
+    absenceInfo: absenceInfo,
     birthDate: hit.birthDate != null ? hit.birthDate : null,
-    roleName: hit.roleName != null ? hit.roleName : null
+    roleName: roleName
   };
+}
+
+/**
+ * Основной email из empInfoFull: contactEmail или isMain / первый address.
+ * @param {*} body
+ * @returns {string|null}
+ */
+function pickContactEmailFromEmpBody(body) {
+  if (!body || typeof body !== "object") return null;
+  if (body.contactEmail != null && String(body.contactEmail).trim()) return String(body.contactEmail).trim();
+  if (!Array.isArray(body.emails)) return null;
+  for (var i = 0; i < body.emails.length; i++) {
+    var em = body.emails[i];
+    if (em && em.isMain && em.address) return String(em.address);
+  }
+  for (var j = 0; j < body.emails.length; j++) {
+    var em2 = body.emails[j];
+    if (em2 && em2.address) return String(em2.address);
+  }
+  return null;
 }
 
 /**
@@ -586,7 +961,11 @@ function pickEmpInfoFormatted(body) {
     for (var e = 0; e < body.emails.length; e++) {
       var em = body.emails[e];
       if (!em) continue;
-      emails.push({ address: em.address != null ? em.address : null, domain: em.domain != null ? em.domain : null });
+      emails.push({
+        address: em.address != null ? em.address : null,
+        domain: em.domain != null ? em.domain : null,
+        isMain: em.isMain != null ? em.isMain : null
+      });
     }
   }
   var phones = [];
@@ -594,7 +973,11 @@ function pickEmpInfoFormatted(body) {
     for (var p = 0; p < body.phones.length; p++) {
       var ph = body.phones[p];
       if (!ph) continue;
-      phones.push({ type: ph.type != null ? ph.type : null, phoneNumber: ph.phoneNumber != null ? ph.phoneNumber : null });
+      phones.push({
+        type: ph.type != null ? ph.type : null,
+        phoneNumber: ph.phoneNumber != null ? ph.phoneNumber : null,
+        main: ph.main != null ? ph.main : null
+      });
     }
   }
   var logins = [];
@@ -611,16 +994,32 @@ function pickEmpInfoFormatted(body) {
   var abs = body.absences;
   var absences = null;
   if (abs && typeof abs === "object") {
-    absences = { isLong: abs.isLong != null ? abs.isLong : null, info: null };
-    if (abs.info && typeof abs.info === "object") {
+    absences = {
+      isLong: abs.isLong != null ? abs.isLong : null,
+      isAbsent: abs.isAbsent != null ? abs.isAbsent : null,
+      info: null
+    };
+    var inf = abs.info;
+    if (inf && typeof inf === "object") {
       absences.info = {
-        isAbsent: abs.info.isAbsent != null ? abs.info.isAbsent : null,
-        isLong: abs.info.isLong != null ? abs.info.isLong : null,
-        startDate: abs.info.startDate != null ? abs.info.startDate : null,
-        endDate: abs.info.endDate != null ? abs.info.endDate : null,
-        typeId: abs.info.typeId != null ? abs.info.typeId : null,
-        typeName: abs.info.typeName != null ? abs.info.typeName : null,
-        daysRemains: abs.info.daysRemains != null ? abs.info.daysRemains : null
+        isAbsent: inf.isAbsent != null ? inf.isAbsent : null,
+        isLong: inf.isLong != null ? inf.isLong : null,
+        startDate: inf.startDate != null ? inf.startDate : null,
+        endDate: inf.endDate != null ? inf.endDate : null,
+        typeId: inf.typeId != null ? inf.typeId : null,
+        typeName: inf.typeName != null ? inf.typeName : null,
+        daysRemains: inf.daysRemains != null ? inf.daysRemains : null
+      };
+    } else if (abs.commonAbsence && typeof abs.commonAbsence === "object") {
+      var ca = abs.commonAbsence;
+      absences.info = {
+        isAbsent: abs.isAbsent != null ? abs.isAbsent : null,
+        isLong: abs.isLong != null ? abs.isLong : null,
+        startDate: ca.startDate != null ? ca.startDate : null,
+        endDate: ca.endDate != null ? ca.endDate : null,
+        typeId: ca.outStatusType != null ? ca.outStatusType : null,
+        typeName: ca.text != null ? ca.text : null,
+        daysRemains: null
       };
     }
   }
@@ -628,6 +1027,11 @@ function pickEmpInfoFormatted(body) {
     birthday: body.birthday != null ? body.birthday : null,
     deptTree: deptTree,
     dir: body.dir != null ? body.dir : null,
+    contactEmail: pickContactEmailFromEmpBody(body),
+    empAddress: body.empAddress != null ? body.empAddress : null,
+    empPlace: body.empPlace != null ? body.empPlace : null,
+    empRoom: body.empRoom != null ? body.empRoom : null,
+    profileLink: body.profileLink != null ? body.profileLink : null,
     emails: emails,
     empName: body.empName != null ? body.empName : null,
     empFamilyName: body.empFamilyName != null ? body.empFamilyName : null,
@@ -638,6 +1042,10 @@ function pickEmpInfoFormatted(body) {
     logins: logins,
     tabNum: body.tabNum != null ? body.tabNum : null,
     empTBname: body.empTBname != null ? body.empTBname : null,
+    isAgile: body.isAgile != null ? body.isAgile : null,
+    isFos: body.isFos != null ? body.isFos : null,
+    isRemote: body.isRemote != null ? body.isRemote : null,
+    innerPhoneState: body.innerPhoneState != null ? body.innerPhoneState : null,
     absences: absences
   };
 }
@@ -885,6 +1293,12 @@ function startAddressBookPanel() {
     oeSaveChk[def.key] = chk;
   }
   rowOeToggle.appendChild(rowOeToggleGrid);
+  const rowOeProfileHint = document.createElement("div");
+  rowOeProfileHint.style.cssText =
+    "font-size:10px;color:#c2410c;margin:8px 0 0 0;line-height:1.45;font-weight:600;";
+  rowOeProfileHint.textContent =
+    "AB_profile.json / AB_profile.csv — только кнопка «Search → empInfoFull → OE» (синяя «Search → empInfoFull» их не создаёт).";
+  rowOeToggle.appendChild(rowOeProfileHint);
   box.appendChild(rowOeToggle);
 
   /**
@@ -1042,6 +1456,7 @@ function startAddressBookPanel() {
    * @param {string} line
    */
   function appendLog(line) {
+    devTrace.log(typeof line === "string" ? line : String(line));
     const s = typeof line === "string" ? line : String(line);
     if (logEl.textContent === "—") logEl.textContent = s;
     else logEl.textContent = logEl.textContent + "\n" + s;
@@ -1344,7 +1759,8 @@ function startAddressBookPanel() {
       try {
         var full = await fetchEmpInfoFull(empUuid);
         empInfoById.set(empUuid, full);
-        appendLog("    → HTTP " + full.status + (full.ok ? " OK" : " ошибка"));
+        var empDescOe = describeEmpInfoFullResponse(empUuid, full);
+        appendLog(empDescOe.logLine.replace("    → ", "    → empInfoFull "));
       } catch (e) {
         empInfoById.set(empUuid, { empId: empUuid, ok: false, status: 0, data: null, error: String(e) });
         appendLog("    → исключение: " + e);
@@ -1611,7 +2027,8 @@ function startAddressBookPanel() {
 
         var emFlat = flattenArrayColumnsForCsv("emails", pe.empInfoFull ? pe.empInfoFull.emails : [], [
           "address",
-          "domain"
+          "domain",
+          "isMain"
         ]);
         Object.assign(row, emFlat);
 
@@ -1626,7 +2043,8 @@ function startAddressBookPanel() {
 
         var phFlat = flattenArrayColumnsForCsv("phones", pe.empInfoFull ? pe.empInfoFull.phones : [], [
           "type",
-          "phoneNumber"
+          "phoneNumber",
+          "main"
         ]);
         Object.assign(row, phFlat);
 
@@ -1639,6 +2057,12 @@ function startAddressBookPanel() {
         if (pe.search) {
           row.departmentName = pe.search.departmentName != null ? String(pe.search.departmentName) : "";
           row.positionName = pe.search.positionName != null ? String(pe.search.positionName) : "";
+          row.organizationName =
+            pe.search.organizationName != null ? String(pe.search.organizationName) : "";
+          row.regionalBankName =
+            pe.search.regionalBankName != null ? String(pe.search.regionalBankName) : "";
+          row.searchIsAgile = pe.search.isAgile != null ? String(pe.search.isAgile) : "";
+          row.searchIsFos = pe.search.isFos != null ? String(pe.search.isFos) : "";
           row.phoneNumber = pe.search.phoneNumber != null ? String(pe.search.phoneNumber) : "";
           row.email = pe.search.email != null ? String(pe.search.email) : "";
           row.photo = pe.search.photo != null ? String(pe.search.photo) : "";
@@ -1656,20 +2080,38 @@ function startAddressBookPanel() {
             row["contactPhone - phoneNumber"] =
               pe.search.contactPhone.phoneNumber != null ? String(pe.search.contactPhone.phoneNumber) : "";
           }
-          if (pe.search.absenceInfo && pe.search.absenceInfo.typeName != null) {
-            row["absenceInfo - typeName"] = String(pe.search.absenceInfo.typeName);
+          if (pe.search.absenceInfo && typeof pe.search.absenceInfo === "object") {
+            var sai = pe.search.absenceInfo;
+            row["search absenceInfo - startDate"] = sai.startDate != null ? String(sai.startDate) : "";
+            row["search absenceInfo - endDate"] = sai.endDate != null ? String(sai.endDate) : "";
+            row["search absenceInfo - typeId"] = sai.typeId != null ? String(sai.typeId) : "";
+            row["search absenceInfo - typeName"] = sai.typeName != null ? String(sai.typeName) : "";
           }
         }
         if (pe.empInfoFull) {
           row.dir = pe.empInfoFull.dir != null ? String(pe.empInfoFull.dir) : "";
+          row.contactEmail =
+            pe.empInfoFull.contactEmail != null ? String(pe.empInfoFull.contactEmail) : "";
+          row.empAddress = pe.empInfoFull.empAddress != null ? String(pe.empInfoFull.empAddress) : "";
+          row.empPlace = pe.empInfoFull.empPlace != null ? String(pe.empInfoFull.empPlace) : "";
+          row.empRoom = pe.empInfoFull.empRoom != null ? String(pe.empInfoFull.empRoom) : "";
+          row.profileLink = pe.empInfoFull.profileLink != null ? String(pe.empInfoFull.profileLink) : "";
+          row.isAgile = pe.empInfoFull.isAgile != null ? String(pe.empInfoFull.isAgile) : "";
+          row.isFos = pe.empInfoFull.isFos != null ? String(pe.empInfoFull.isFos) : "";
+          row.isRemote = pe.empInfoFull.isRemote != null ? String(pe.empInfoFull.isRemote) : "";
+          row.innerPhoneState =
+            pe.empInfoFull.innerPhoneState != null ? String(pe.empInfoFull.innerPhoneState) : "";
           row.oldFamilyName =
             pe.empInfoFull.oldFamilyName != null ? String(pe.empInfoFull.oldFamilyName) : "";
           if (pe.empInfoFull.absences && pe.empInfoFull.absences.info) {
             var inf = pe.empInfoFull.absences.info;
+            row["absences - isAbsent"] =
+              pe.empInfoFull.absences.isAbsent != null ? String(pe.empInfoFull.absences.isAbsent) : "";
             row["absences - isLong"] =
               pe.empInfoFull.absences.isLong != null ? String(pe.empInfoFull.absences.isLong) : "";
             row["absences - startDate"] = inf.startDate != null ? String(inf.startDate) : "";
             row["absences - endDate"] = inf.endDate != null ? String(inf.endDate) : "";
+            row["absences - typeId"] = inf.typeId != null ? String(inf.typeId) : "";
             row["absences - typeName"] = inf.typeName != null ? String(inf.typeName) : "";
           }
         }
@@ -1679,9 +2121,9 @@ function startAddressBookPanel() {
       }
 
       var orderedCols = fixedFirst.slice();
-      var emailCols = orderIndexedColumns(allColKeys, "emails", ["address", "domain"]);
+      var emailCols = orderIndexedColumns(allColKeys, "emails", ["address", "domain", "isMain"]);
       var deptCols = orderIndexedColumns(allColKeys, "deptTree", ["id", "name", "id - orgUnit"]);
-      var phoneCols = orderIndexedColumns(allColKeys, "phones", ["type", "phoneNumber"]);
+      var phoneCols = orderIndexedColumns(allColKeys, "phones", ["type", "phoneNumber", "main"]);
       var loginCols = orderIndexedColumns(allColKeys, "logins", ["domain", "accountName"]);
       var restCols = allColKeys
         .filter(function (k) {
@@ -1765,12 +2207,15 @@ function startAddressBookPanel() {
       try {
         const searchBundle = await fetchAllSearchPages(item);
         const idsPerHit = collectEmployeeIdsFromSearchPagesInHitOrder(searchBundle.pages);
+        const hitsBasic = collectSearchHitsFromPages(searchBundle.pages);
         perItemHitOrderedIds.push(idsPerHit);
         searchPhasePayload.push({
           input: item.input,
           searchText: item.searchText,
           asNumber: item.asNumber,
           searchPages: searchBundle.pages,
+          hits: hitsBasic,
+          notFound: hitsBasic.length === 0,
           searchStats: {
             totalPages: searchBundle.totalPages,
             totalHits: searchBundle.totalHits,
@@ -1858,8 +2303,13 @@ function startAddressBookPanel() {
       try {
         const full = await fetchEmpInfoFull(empUuid);
         totalEmpInfoFullCalls++;
-        empResults.push({ employeeId: empUuid, empInfoFull: full });
-        appendLog("    → empInfoFull HTTP " + full.status + (full.ok ? " OK" : " ошибка"));
+        var empDescBasic = describeEmpInfoFullResponse(empUuid, full);
+        var rowBasic = { employeeId: empDescBasic.resolvedId, empInfoFull: full };
+        if (empDescBasic.resolvedId !== String(empUuid).trim()) {
+          rowBasic.requestedEmpId = empUuid;
+        }
+        empResults.push(rowBasic);
+        appendLog(empDescBasic.logLine.replace("    → ", "    → empInfoFull "));
       } catch (e) {
         empResults.push({ employeeId: empUuid, error: String(e) });
         appendLog("    → исключение: " + e);
@@ -1918,12 +2368,15 @@ function startAddressBookPanel() {
       try {
         const bundle = await fetchAllSearchPages(item);
         const r = bundle.pages.length > 0 ? bundle.pages[0] : null;
+        const hitsOnly = collectSearchHitsFromPages(bundle.pages);
         results.push({
           input: item.input,
           searchText: item.searchText,
           asNumber: item.asNumber,
           search: r,
           searchPages: bundle.pages,
+          hits: hitsOnly,
+          notFound: hitsOnly.length === 0,
           searchStats: {
             totalPages: bundle.totalPages,
             totalHits: bundle.totalHits,
@@ -1951,7 +2404,12 @@ function startAddressBookPanel() {
       if (i < items.length - 1 && pauseBetweenMs > 0) await delay(pauseBetweenMs);
     }
     const fname = "addressbook_search_only_" + getAddressBookEnvKey() + "_" + Date.now() + ".json";
-    downloadJson(fname, results);
+    downloadJson(fname, {
+      exportedAt: new Date().toISOString(),
+      scenario: "search_only",
+      stand: getAddressBookEnvKey(),
+      items: results
+    });
     appendLog("Готово. Файл: " + fname);
     console.log("[Адресная книга] Только search завершён. Файл: " + fname + " | значений: " + items.length);
   }
@@ -1983,8 +2441,13 @@ function startAddressBookPanel() {
       );
       try {
         const full = await fetchEmpInfoFull(empId);
-        results.push({ employeeId: empId, empInfoFull: full });
-        appendLog("    → HTTP " + full.status + (full.ok ? " OK" : " — ошибка"));
+        var empDescOnly = describeEmpInfoFullResponse(empId, full);
+        var rowOnly = { employeeId: empDescOnly.resolvedId, empInfoFull: full };
+        if (empDescOnly.resolvedId !== String(empId).trim()) {
+          rowOnly.requestedEmpId = empId;
+        }
+        results.push(rowOnly);
+        appendLog(empDescOnly.logLine);
       } catch (e) {
         results.push({ employeeId: empId, error: String(e) });
         appendLog("    → исключение: " + e);
@@ -1992,7 +2455,12 @@ function startAddressBookPanel() {
       if (i < empIds.length - 1 && pauseBetweenMs > 0) await delay(pauseBetweenMs);
     }
     const fname = "addressbook_empInfoFull_only_" + getAddressBookEnvKey() + "_" + Date.now() + ".json";
-    downloadJson(fname, results);
+    downloadJson(fname, {
+      exportedAt: new Date().toISOString(),
+      scenario: "empInfoFull_only",
+      stand: getAddressBookEnvKey(),
+      results: results
+    });
     appendLog("Готово. Файл: " + fname);
     console.log("[Адресная книга] Только empInfoFull завершён. Файл: " + fname + " | employeeId: " + empIds.length);
   }
@@ -2180,6 +2648,13 @@ function startAddressBookPanel() {
   logLab.style.cssText =
     "font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#64748b;margin:16px 0 8px 0;";
   logLab.textContent = "Журнал работы";
+  devTrace.mountToggleRow(box, logLab);
+  const traceHint = document.createElement("div");
+  traceHint.style.cssText =
+    "font-size:10px;color:#64748b;margin:0 0 8px 0;line-height:1.35;font-style:italic;";
+  traceHint.textContent =
+    "Trace: включите в начале сессии и сохраните один .log в конце (повторное сохранение — новый файл с теми же событиями).";
+  box.insertBefore(traceHint, logLab);
   box.appendChild(logLab);
   box.appendChild(logEl);
 
@@ -2199,6 +2674,7 @@ function startAddressBookPanel() {
   box.appendChild(bClose);
 
   document.body.appendChild(box);
+  devTrace.attachPanel(box);
 }
 
 startAddressBookPanel();
