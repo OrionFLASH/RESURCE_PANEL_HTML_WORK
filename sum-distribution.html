@@ -4,6 +4,47 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Распределение сумм (ТН)</title>
+  <!--
+    Настройки страницы — правьте JSON ниже (#app-config).
+    Отдельный config.json не нужен: страница самодостаточный HTML.
+  -->
+  <script type="application/json" id="app-config">
+{
+  "_comment": "Все изменяемые параметры sum-distribution. После правки обновите страницу.",
+  "pageTitle": "Распределение сумм (ТН)",
+  "defaultBinCount": 10,
+  "defaultBinMode": "custom",
+  "defaultSliceMode": "all",
+  "defaultGroupLayout": "bin",
+  "defaultMovableEdges": 2,
+  "movableEdgesMax": 40,
+  "tnPadLength": 20,
+  "exportTnLength": 8,
+  "amountFractionDigits": 2,
+  "freqTableMaxSeries": 12,
+  "tipOffsetPx": 14,
+  "maxBinEdges": 2000,
+  "csvDelimiters": [";", ",", "\t"],
+  "amountColumnAliases": ["сумма", "прирост", "прирос", "рост", "итог", "sum", "amount", "сумм"],
+  "tnColumnAliases": ["тн", "tn", "табельный", "таб.ном", "табельный номер", "emp_id"],
+  "tbColumnAliases": ["тб", "tb", "тербанк", "тер.банк"],
+  "gosbColumnAliases": ["госб", "gosb", "гос"],
+  "clusterColumnAliases": ["кластер", "cluster", "cluster_code"],
+  "chart": {
+    "barGapRatio": 0.12,
+    "seriesGapRatio": 0.04,
+    "maxLegendItems": 24
+  },
+  "seriesColors": [
+    "#007AFF", "#34C759", "#FF9500", "#5856D6", "#FF3B30",
+    "#5AC8FA", "#AF52DE", "#FF2D55", "#64D2FF", "#30D158",
+    "#0b6bcb", "#0f8a6a", "#c27a00", "#8e3b8f", "#2c7a7b"
+  ],
+  "demoEnabled": false,
+  "demoSamplePath": "samples/sum-distribution-demo-20000.csv",
+  "_demoNote": "Файлы samples/ не в git. Генерация: python3 tools/build_sum_demo_csv_20k.py"
+}
+  </script>
   <style>
     :root {
       --glass-bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 50%, #d4e0ed 100%);
@@ -218,7 +259,7 @@
     .edge-rail {
       position: relative;
       height: 44px;
-      margin: 18px 8px 8px;
+      margin: 28px 8px 8px;
       user-select: none;
       touch-action: none;
     }
@@ -271,6 +312,37 @@
       height: 14px;
       margin: -7px 0 0 -7px;
       z-index: 1;
+    }
+    /* Номер группы над бегунком (верхняя граница группы N) */
+    .edge-rail__badge {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 5px);
+      transform: translateX(-50%);
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      color: #fff;
+      background: linear-gradient(145deg, #0a84ff, #5e5ce6);
+      box-shadow: 0 2px 6px rgba(10, 132, 255, 0.35);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .edge-rail__thumb.is-fixed .edge-rail__badge {
+      background: linear-gradient(145deg, #8e8e93, #636366);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+      min-width: 14px;
+      height: 14px;
+      font-size: 9px;
+      bottom: calc(100% + 4px);
     }
     .edge-values {
       display: grid;
@@ -370,12 +442,33 @@
     .stat .v { font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
     .table-wrap {
-      margin-top: 12px;
-      max-height: 280px;
+      margin-top: 0;
+      max-height: 320px;
       overflow: auto;
       border-radius: 12px;
       border: 1px solid var(--glass-white-border-light);
       background: rgba(255,255,255,0.5);
+    }
+    .freq-detail {
+      display: grid;
+      gap: 14px;
+      margin-top: 12px;
+    }
+    .freq-block__title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin: 0 0 6px;
+      color: var(--glass-text);
+    }
+    .freq-block__meta {
+      font-size: 0.78rem;
+      color: var(--glass-text-secondary);
+      margin: 0 0 8px;
+      line-height: 1.35;
+    }
+    .freq-block table th:not(:first-child),
+    .freq-block table td:not(:first-child) {
+      font-variant-numeric: tabular-nums;
     }
     table {
       width: 100%;
@@ -528,7 +621,7 @@
             <select id="binMode">
               <option value="count">Равная ширина (по числу интервалов)</option>
               <option value="width">Заданная ширина интервала</option>
-              <option value="custom">Ручные границы (ползунки)</option>
+              <option value="custom" selected>Ручные границы (ползунки)</option>
             </select>
           </label>
         </div>
@@ -539,23 +632,23 @@
             <input id="binCount" type="number" min="1" max="200" step="1" value="10">
           </label>
           <label class="field">
-            <span>Мин. (пусто = авто)</span>
-            <input id="binMin" type="number" step="any" placeholder="авто">
+            <span>Мин. (пусто = авто, floor)</span>
+            <input id="binMin" type="number" step="1" placeholder="авто">
           </label>
           <label class="field">
-            <span>Макс. (пусто = авто)</span>
-            <input id="binMax" type="number" step="any" placeholder="авто">
+            <span>Макс. (пусто = авто, ceil)</span>
+            <input id="binMax" type="number" step="1" placeholder="авто">
           </label>
         </div>
 
         <div class="row bin-editor" id="binWidthRow">
           <label class="field">
             <span>Ширина интервала</span>
-            <input id="binWidth" type="number" min="0" step="any" placeholder="например 50000">
+            <input id="binWidth" type="number" min="1" step="1" placeholder="например 50000">
           </label>
           <label class="field">
             <span>Начало (origin)</span>
-            <input id="binOrigin" type="number" step="any" placeholder="авто = минимум">
+            <input id="binOrigin" type="number" step="1" placeholder="авто = минимум">
           </label>
         </div>
         <p class="hint" id="binCustomHint" style="display:none">
@@ -575,7 +668,7 @@
           <div class="bin-editor" id="binCustomRow">
             <label class="field" data-tip="Число подвижных границ между минимумом и максимумом">
               <span>Число границ (ползунков)</span>
-              <input id="movableEdgeCount" type="number" min="1" max="40" step="1" value="3">
+              <input id="movableEdgeCount" type="number" min="1" max="40" step="1" value="2">
             </label>
             <p class="hint">Края шкалы — минимум и максимум выборки (фиксированы). Двигайте ползунки или введите значение в поле — граница и ползунок синхронизируются.</p>
             <div class="edge-rail-wrap">
@@ -590,12 +683,7 @@
             <button class="btn secondary" type="button" id="btnExportGroups" data-tip="Текстовый файл: группы → список ТН (8 знаков)">TXT группы JSON-like</button>
           </div>
           <div id="stats" class="stats"></div>
-          <div class="table-wrap">
-            <table>
-              <thead id="freqHead"></thead>
-              <tbody id="freqBody"></tbody>
-            </table>
-          </div>
+          <div id="freqDetail" class="freq-detail" aria-label="Статистика по интервалам"></div>
           <div id="chartStatus" class="status"></div>
         </div>
       </section>
@@ -605,27 +693,16 @@
   <div id="glassTip" class="glass-tip" aria-hidden="true"></div>
 
   <script>
-    const APP_CONFIG = {
-      pageTitle: "Распределение сумм (ТН)",
-      defaultBinCount: 10,
-      defaultBinMode: "count",
-      defaultSliceMode: "all",
-      defaultGroupLayout: "bin",
-      defaultMovableEdges: 3,
-      tnPadLength: 20,
-      csvDelimiters: [";", ",", "\t"],
-      amountColumnAliases: ["сумма", "прирост", "прирос", "рост", "итог", "sum", "amount", "сумм"],
-      tnColumnAliases: ["тн", "tn", "табельный", "таб.ном", "табельный номер", "emp_id"],
-      tbColumnAliases: ["тб", "tb", "тербанк", "тер.банк"],
-      gosbColumnAliases: ["госб", "gosb", "гос"],
-      clusterColumnAliases: ["кластер", "cluster", "cluster_code"],
-      chart: {
-        barGapRatio: 0.12,
-        seriesGapRatio: 0.04,
-        maxLegendItems: 24
-      },
-      demoEnabled: false
-    };
+    /** Конфиг из #app-config в начале HTML (JSON). */
+    const APP_CONFIG = (function loadAppConfig() {
+      const node = document.getElementById("app-config");
+      if (!node) throw new Error("Не найден #app-config — блок настроек в начале HTML.");
+      try {
+        return JSON.parse(node.textContent);
+      } catch (err) {
+        throw new Error("Ошибка JSON в #app-config: " + ((err && err.message) || err));
+      }
+    })();
 
     /** @typedef {{ tn: string, amount: number, tb: string, gosb: string, cluster: string }} DataRow */
 
@@ -681,8 +758,7 @@
       chart: document.getElementById("chart"),
       legend: document.getElementById("legend"),
       stats: document.getElementById("stats"),
-      freqHead: document.getElementById("freqHead"),
-      freqBody: document.getElementById("freqBody"),
+      freqDetail: document.getElementById("freqDetail"),
       chartStatus: document.getElementById("chartStatus"),
       glassTip: document.getElementById("glassTip"),
       btnExportRaw: document.getElementById("btnExportRaw"),
@@ -694,11 +770,12 @@
     /** @type {{ tb: string[], gosb: string[], cluster: string[] }} */
     let filterUniverse = { tb: [], gosb: [], cluster: [] };
 
-    const SERIES_COLORS = [
-      "#007AFF", "#34C759", "#FF9500", "#5856D6", "#FF3B30",
-      "#5AC8FA", "#AF52DE", "#FF2D55", "#64D2FF", "#30D158",
-      "#0b6bcb", "#0f8a6a", "#c27a00", "#8e3b8f", "#2c7a7b"
-    ];
+    const SERIES_COLORS = (APP_CONFIG.seriesColors && APP_CONFIG.seriesColors.length)
+      ? APP_CONFIG.seriesColors
+      : [
+        "#007AFF", "#34C759", "#FF9500", "#5856D6", "#FF3B30",
+        "#5AC8FA", "#AF52DE", "#FF2D55", "#64D2FF", "#30D158"
+      ];
 
     function normalizeAmount(raw) {
       if (typeof raw === "number" && Number.isFinite(raw)) return raw;
@@ -880,54 +957,83 @@
       };
     }
 
+    /** Целая шкала границ: низ вниз, верх вверх. */
+    function integerBounds(min, max) {
+      let lo = Math.floor(Number(min));
+      let hi = Math.ceil(Number(max));
+      if (!Number.isFinite(lo)) lo = 0;
+      if (!Number.isFinite(hi)) hi = lo + 1;
+      if (hi <= lo) hi = lo + 1;
+      return { min: lo, max: hi };
+    }
+
+    function toIntegerEdge(v) {
+      const n = Math.round(Number(v));
+      return Number.isFinite(n) ? n : 0;
+    }
+
     function buildBins(amounts, opts) {
       if (!amounts.length) throw new Error("Нет сумм для построения интервалов.");
       const dataMin = Math.min(...amounts);
       const dataMax = Math.max(...amounts);
+      const scale = integerBounds(dataMin, dataMax);
 
       if (opts.mode === "custom") {
-        const edges = [...opts.customEdges].filter((n) => Number.isFinite(n));
+        const edges = [...opts.customEdges]
+          .filter((n) => Number.isFinite(n))
+          .map(toIntegerEdge);
         if (edges.length < 2) throw new Error("Задайте хотя бы одну подвижную границу (итого ≥ 3 точек с min/max).");
         return edges;
       }
 
-      let min = opts.min == null || !Number.isFinite(opts.min) ? dataMin : opts.min;
-      let max = opts.max == null || !Number.isFinite(opts.max) ? dataMax : opts.max;
+      let min = opts.min == null || !Number.isFinite(opts.min) ? scale.min : Math.floor(opts.min);
+      let max = opts.max == null || !Number.isFinite(opts.max) ? scale.max : Math.ceil(opts.max);
       if (max < min) {
         const t = min; min = max; max = t;
       }
-      if (max === min) max = min + (Math.abs(min) || 1);
+      ({ min, max } = integerBounds(min, max));
 
       if (opts.mode === "width") {
-        const width = opts.width;
+        const width = Math.max(1, Math.round(Number(opts.width) || 0));
         if (!(width > 0)) throw new Error("Ширина интервала должна быть больше 0.");
-        const origin = opts.origin == null || !Number.isFinite(opts.origin) ? min : opts.origin;
+        const originRaw = opts.origin == null || !Number.isFinite(opts.origin) ? min : opts.origin;
+        const origin = Math.floor(originRaw);
         const edges = [origin];
         let cur = origin;
-        while (cur < max && edges.length < 2000) {
-          cur = Number((cur + width).toPrecision(12));
+        const edgeCap = Math.max(10, Number(APP_CONFIG.maxBinEdges) || 2000);
+        while (cur < max && edges.length < edgeCap) {
+          cur += width;
           edges.push(cur);
         }
         if (edges[edges.length - 1] < max) edges.push(max);
         if (edges.length < 2) edges.push(origin + width);
+        edges[edges.length - 1] = Math.max(edges[edges.length - 1], max);
         return edges;
       }
 
       const count = Math.max(1, Math.floor(opts.count || 1));
-      const width = (max - min) / count;
-      const edges = [];
-      for (let i = 0; i <= count; i += 1) {
-        edges.push(Number((min + width * i).toPrecision(12)));
+      const edges = [min];
+      for (let i = 1; i < count; i += 1) {
+        edges.push(toIntegerEdge(min + ((max - min) * i) / count));
+      }
+      edges.push(max);
+      for (let i = 1; i < edges.length; i += 1) {
+        if (edges[i] < edges[i - 1]) edges[i] = edges[i - 1];
       }
       edges[edges.length - 1] = max;
       return edges;
     }
 
-    function formatTn8(tn) {
+    function formatTnExport(tn) {
+      const pad = Math.max(1, Number(APP_CONFIG.exportTnLength) || 8);
       const digits = String(tn == null ? "" : tn).replace(/\D/g, "");
-      if (!digits) return "00000000";
-      if (digits.length >= 8) return digits.slice(-8);
-      return digits.padStart(8, "0");
+      if (!digits) return "".padStart(pad, "0");
+      if (digits.length >= pad) return digits.slice(-pad);
+      return digits.padStart(pad, "0");
+    }
+
+    function formatTn8(tn) {
+      return formatTnExport(tn);
     }
 
     /**
@@ -1066,12 +1172,32 @@
       }
     }
 
+    /** Суммы для UI: разделитель разрядов, не более N знаков после запятой. */
+    function formatAmount(n) {
+      if (!Number.isFinite(n)) return "—";
+      const digits = Math.max(0, Number(APP_CONFIG.amountFractionDigits));
+      const maxDigits = Number.isFinite(digits) ? digits : 2;
+      return new Intl.NumberFormat("ru-RU", {
+        useGrouping: true,
+        maximumFractionDigits: maxDigits
+      }).format(n);
+    }
+
+    /** Мин/макс из данных без округления шкалы (точные значения). */
+    function formatAmountExact(n) {
+      if (!Number.isFinite(n)) return "—";
+      return new Intl.NumberFormat("ru-RU", {
+        useGrouping: true,
+        maximumFractionDigits: 20
+      }).format(n);
+    }
+
     function formatNumber(n) {
-      return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(n);
+      return formatAmount(n);
     }
 
     function formatBinLabel(a, b, last) {
-      return last ? `[${formatNumber(a)} … ${formatNumber(b)}]` : `[${formatNumber(a)} … ${formatNumber(b)})`;
+      return last ? `[${formatAmount(a)} … ${formatAmount(b)}]` : `[${formatAmount(a)} … ${formatAmount(b)})`;
     }
 
     function computeHistogram(rows, edges, sliceMode) {
@@ -1367,17 +1493,23 @@
       return rows;
     }
 
+    /** Точные мин/макс по суммам ТН (без floor/ceil). */
     function dataMinMax(rows) {
       const amounts = rows.map((r) => r.amount);
       if (!amounts.length) return { min: 0, max: 1 };
-      let min = Math.min(...amounts);
-      let max = Math.max(...amounts);
-      if (min === max) max = min + (Math.abs(min) || 1);
+      const min = Math.min(...amounts);
+      const max = Math.max(...amounts);
       return { min, max };
     }
 
+    /** Мин/макс шкалы границ — целые (низ вниз, верх вверх). */
+    function edgeScaleMinMax(rows) {
+      const raw = dataMinMax(rows);
+      return integerBounds(raw.min, raw.max);
+    }
+
     function cascadeEdges(edges, changedIndex) {
-      const out = edges.slice();
+      const out = edges.map(toIntegerEdge);
       for (let i = changedIndex + 1; i < out.length; i += 1) {
         if (out[i] < out[i - 1]) out[i] = out[i - 1];
       }
@@ -1392,21 +1524,26 @@
     function evenlySpacedEdges(min, max, movableCount) {
       const n = Math.max(1, Math.floor(movableCount));
       const totalIntervals = n + 1;
-      const step = (max - min) / totalIntervals;
       const edges = [min];
       for (let i = 1; i <= n; i += 1) {
-        edges.push(Number((min + step * i).toPrecision(12)));
+        edges.push(toIntegerEdge(min + ((max - min) * i) / totalIntervals));
       }
       edges.push(max);
+      for (let i = 1; i < edges.length; i += 1) {
+        if (edges[i] < edges[i - 1]) edges[i] = edges[i - 1];
+      }
+      edges[edges.length - 1] = max;
       return edges;
     }
 
     function initEdgeStateFromData(forceReset) {
       const rows = filteredRows();
-      const { min, max } = dataMinMax(rows);
-      const n = Math.max(1, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges);
+      const { min, max } = edgeScaleMinMax(rows);
+      const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
+      const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
-      const sameRange = Math.abs(edgeState.min - min) < 1e-9 && Math.abs(edgeState.max - max) < 1e-9;
+      el.movableEdgeCount.max = String(maxEdges);
+      const sameRange = edgeState.min === min && edgeState.max === max;
       if (forceReset || !edgeState.edges.length || !sameRange || edgeState.edges.length !== n + 2) {
         edgeState.min = min;
         edgeState.max = max;
@@ -1462,7 +1599,19 @@
         thumb.className = "edge-rail__thumb" + (isFixed ? " is-fixed" : "");
         thumb.style.left = valueToPct(val) + "%";
         thumb.dataset.index = String(idx);
-        thumb.title = formatNumber(val);
+        // Бегунок idx — верхняя граница «Группа idx» (мин без номера; макс = последняя группа)
+        const groupNum = idx === 0 ? 0 : idx;
+        if (groupNum > 0) {
+          const badge = document.createElement("span");
+          badge.className = "edge-rail__badge";
+          badge.textContent = String(groupNum);
+          badge.setAttribute("aria-hidden", "true");
+          thumb.appendChild(badge);
+        }
+        thumb.title = (groupNum > 0 ? ("Группа " + groupNum + ": ") : "") + formatAmount(val);
+        thumb.setAttribute("aria-label", groupNum > 0
+          ? ("Граница группы " + groupNum + ", " + formatAmount(val))
+          : ("Минимум " + formatAmount(val)));
         if (!isFixed) {
           thumb.addEventListener("pointerdown", onThumbPointerDown);
         }
@@ -1472,14 +1621,16 @@
       el.edgeValues.innerHTML = "";
       edges.forEach((v, i) => {
         const isFixed = i === 0 || i === edges.length - 1;
-        const tag = i === 0 ? "мин" : (i === edges.length - 1 ? "макс" : "граница " + i);
+        const tag = i === 0
+          ? "мин"
+          : (i === edges.length - 1 ? ("макс · группа " + i) : ("группа " + i));
         const lab = document.createElement("label");
         const span = document.createElement("span");
         span.textContent = tag;
         const input = document.createElement("input");
         input.type = "number";
-        input.step = "any";
-        input.value = String(v);
+        input.step = "1";
+        input.value = String(toIntegerEdge(v));
         input.dataset.edgeIndex = String(i);
         input.disabled = isFixed;
         input.setAttribute("aria-label", tag);
@@ -1516,23 +1667,25 @@
         const idx = Number(thumb.dataset.index);
         if (!Number.isFinite(idx) || !edgeState.edges[idx] && edgeState.edges[idx] !== 0) return;
         thumb.style.left = valueToPct(edgeState.edges[idx]) + "%";
-        thumb.title = formatNumber(edgeState.edges[idx]);
+        const groupNum = idx === 0 ? 0 : idx;
+        thumb.title = (groupNum > 0 ? ("Группа " + groupNum + ": ") : "") + formatAmount(edgeState.edges[idx]);
       });
       el.edgeValues.querySelectorAll("input[data-edge-index]").forEach((input) => {
         const idx = Number(input.dataset.edgeIndex);
         if (!Number.isFinite(idx)) return;
         if (document.activeElement === input) return;
-        input.value = String(edgeState.edges[idx]);
+        input.value = String(toIntegerEdge(edgeState.edges[idx]));
       });
     }
 
     function applyEdgeValue(idx, rawVal) {
       if (idx <= 0 || idx >= edgeState.edges.length - 1) return;
-      let val = typeof rawVal === "number" ? rawVal : Number(rawVal);
+      let val = typeof rawVal === "number" ? rawVal : Number(String(rawVal).replace(/\s/g, "").replace(",", "."));
       if (!Number.isFinite(val)) {
         renderEdgeRail();
         return;
       }
+      val = toIntegerEdge(val);
       const left = edgeState.edges[idx - 1];
       const right = edgeState.edges[idx + 1];
       if (val < left) val = left;
@@ -1557,7 +1710,7 @@
         const rect = el.edgeRail.getBoundingClientRect();
         let pct = ((e.clientX - rect.left) / rect.width) * 100;
         pct = Math.max(0, Math.min(100, pct));
-        let val = pctToValue(pct);
+        let val = toIntegerEdge(pctToValue(pct));
         const left = edgeState.edges[idx - 1];
         const right = edgeState.edges[idx + 1];
         if (val < left) val = left;
@@ -1624,8 +1777,9 @@
           return;
         }
         if (el.binMode.value === "custom") {
-          edgeState.min = dataMinMax(rows).min;
-          edgeState.max = dataMinMax(rows).max;
+          const scale = edgeScaleMinMax(rows);
+          edgeState.min = scale.min;
+          edgeState.max = scale.max;
           if (edgeState.edges.length) {
             edgeState.edges[0] = edgeState.min;
             edgeState.edges[edgeState.edges.length - 1] = edgeState.max;
@@ -1644,7 +1798,7 @@
         drawHistogram(hist, layout);
         renderLegend(hist, layout);
         renderStats(rows, hist);
-        renderFrequencyTable(hist);
+        renderFrequencyTable(hist, rows, slice);
         setChartStatus(
           `Интервалов: ${hist.labels.length}; ТН на графике: ${hist.total}` +
             (hist.below || hist.above ? ` (вне границ: ниже ${hist.below}, выше ${hist.above})` : "") + ".",
@@ -1797,37 +1951,187 @@
         ["Сырых строк", String(rawRows.length)],
         ["Уник. ТН", String(allRows.length)],
         ["ТН на графике", String(hist.total)],
-        ["Мин. сумма", formatNumber(min)],
-        ["Макс. сумма", formatNumber(max)],
-        ["Среднее", formatNumber(avg)],
-        ["Сумма всех", formatNumber(sum)]
+        ["Мин. сумма", formatAmountExact(min)],
+        ["Макс. сумма", formatAmountExact(max)],
+        ["Среднее", formatAmount(avg)],
+        ["Сумма всех", formatAmount(sum)]
       ];
       el.stats.innerHTML = items.map(([k, v]) =>
         `<div class="stat"><div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v)}</div></div>`
       ).join("");
     }
 
-    function renderFrequencyTable(hist) {
-      const series = hist.series;
-      const showN = Math.min(12, series.length);
-      let head = "<tr><th>Интервал</th>";
-      for (let si = 0; si < showN; si += 1) head += `<th>${escapeHtml(series[si].name)}</th>`;
-      if (series.length > showN) head += "<th>…</th>";
-      head += "<th>Итого</th></tr>";
-      el.freqHead.innerHTML = head;
-
-      let body = "";
-      for (let i = 0; i < hist.labels.length; i += 1) {
-        let rowSum = 0;
-        for (const s of series) rowSum += s.counts[i] || 0;
-        body += `<tr><td>${escapeHtml(hist.labels[i])}</td>`;
-        for (let si = 0; si < showN; si += 1) {
-          body += `<td>${series[si].counts[i] || 0}</td>`;
+    function binIndexForAmount(amount, edges) {
+      if (!edges || edges.length < 2 || !Number.isFinite(amount)) return -1;
+      if (amount < edges[0] || amount > edges[edges.length - 1]) return -1;
+      const binCount = edges.length - 1;
+      for (let i = 0; i < binCount; i += 1) {
+        const left = edges[i];
+        const right = edges[i + 1];
+        const isLast = i === binCount - 1;
+        if ((amount >= left && amount < right) || (isLast && amount >= left && amount <= right)) {
+          return i;
         }
-        if (series.length > showN) body += "<td>…</td>";
-        body += `<td>${rowSum}</td></tr>`;
       }
-      el.freqBody.innerHTML = body;
+      return -1;
+    }
+
+    function uniqueFieldValues(rows, field) {
+      const set = new Set();
+      for (const row of rows) {
+        const v = row[field];
+        if (v) set.add(v);
+      }
+      return set;
+    }
+
+    /**
+     * Уникальные ТН/ТБ/ГОСБ/кластер по каждому интервалу.
+     * @returns {{ tn: Set, tb: Set, gosb: Set, cluster: Set }[]}
+     */
+    function collectBinUniques(rows, edges) {
+      const binCount = Math.max(0, edges.length - 1);
+      const bins = Array.from({ length: binCount }, () => ({
+        tn: new Set(),
+        tb: new Set(),
+        gosb: new Set(),
+        cluster: new Set()
+      }));
+      for (const row of rows) {
+        const bi = binIndexForAmount(row.amount, edges);
+        if (bi < 0) continue;
+        bins[bi].tn.add(row.tn);
+        if (row.tb) bins[bi].tb.add(row.tb);
+        if (row.gosb) bins[bi].gosb.add(row.gosb);
+        if (row.cluster) bins[bi].cluster.add(row.cluster);
+      }
+      return bins;
+    }
+
+    function sliceSeriesKey(row, sliceMode) {
+      if (sliceMode === "tb") return row.tb || "(без ТБ)";
+      if (sliceMode === "gosb") return row.gosb || "(без ГОСБ)";
+      if (sliceMode === "tb_gosb") return `${row.tb || "—"} / ${row.gosb || "—"}`;
+      if (sliceMode === "cluster") return row.cluster || "(без кластера)";
+      return "Вся выборка";
+    }
+
+    /** Колонки детализации: исключаем измерение текущего разреза. */
+    function intervalStatColumns(sliceMode) {
+      /** @type {{ key: string, label: string, tip: string }[]} */
+      const cols = [];
+      const add = (key, label, tip) => {
+        if (key === "tb" && !columnPresence.hasTb) return;
+        if (key === "gosb" && !columnPresence.hasGosb) return;
+        if (key === "cluster" && !columnPresence.hasCluster) return;
+        cols.push({ key, label, tip });
+      };
+      if (sliceMode === "tb") {
+        add("gosb", "ГОСБ", "Уник. ГОСБ в интервале / уник. ГОСБ в этом ТБ");
+        add("cluster", "Кластер", "Уник. кластеры в интервале / в этом ТБ");
+      } else if (sliceMode === "gosb") {
+        add("tb", "ТБ", "Уник. ТБ в интервале / уник. ТБ в этом ГОСБ");
+        add("cluster", "Кластер", "Уник. кластеры в интервале / в этом ГОСБ");
+      } else if (sliceMode === "cluster") {
+        add("tb", "ТБ", "Уник. ТБ в интервале / уник. ТБ в этом кластере");
+        add("gosb", "ГОСБ", "Уник. ГОСБ в интервале / уник. ГОСБ в этом кластере");
+      } else if (sliceMode === "tb_gosb") {
+        add("cluster", "Кластер", "Уник. кластеры в интервале / в паре ТБ+ГОСБ");
+      } else {
+        add("tb", "ТБ", "Уник. ТБ в интервале / уник. ТБ на графике");
+        add("gosb", "ГОСБ", "Уник. ГОСБ в интервале / уник. ГОСБ на графике");
+        add("cluster", "Кластер", "Уник. кластеры в интервале / на графике");
+      }
+      cols.push({
+        key: "tn",
+        label: "ТН",
+        tip: "Уник. ТН в интервале / уник. ТН в блоке"
+      });
+      return cols;
+    }
+
+    function formatStatRatio(part, whole) {
+      return String(part) + " / " + String(whole);
+    }
+
+    function buildIntervalStatsBlock(title, subsetRows, edges, labels, cols) {
+      const bins = collectBinUniques(subsetRows, edges);
+      const uni = {
+        tn: subsetRows.length,
+        tb: uniqueFieldValues(subsetRows, "tb").size,
+        gosb: uniqueFieldValues(subsetRows, "gosb").size,
+        cluster: uniqueFieldValues(subsetRows, "cluster").size
+      };
+      const metaParts = [`ТН: ${uni.tn}`];
+      if (columnPresence.hasTb) metaParts.push(`ТБ: ${uni.tb}`);
+      if (columnPresence.hasGosb) metaParts.push(`ГОСБ: ${uni.gosb}`);
+      if (columnPresence.hasCluster) metaParts.push(`кластеров: ${uni.cluster}`);
+
+      let html = '<section class="freq-block">';
+      if (title) html += `<h3 class="freq-block__title">${escapeHtml(title)}</h3>`;
+      html += `<p class="freq-block__meta">В блоке — ${escapeHtml(metaParts.join(" · "))}. В ячейках: попало в интервал / всего в блоке.</p>`;
+      html += '<div class="table-wrap"><table><thead><tr><th>Интервал</th>';
+      for (const c of cols) {
+        html += `<th title="${escapeHtml(c.tip)}">${escapeHtml(c.label)}</th>`;
+      }
+      html += "</tr></thead><tbody>";
+
+      for (let i = 0; i < labels.length; i += 1) {
+        html += `<tr><td>${escapeHtml(labels[i])}</td>`;
+        for (const c of cols) {
+          const n = bins[i] ? bins[i][c.key].size : 0;
+          const den = uni[c.key] || 0;
+          const text = formatStatRatio(n, den);
+          html += `<td title="${escapeHtml(c.tip + ": " + text)}">${text}</td>`;
+        }
+        html += "</tr>";
+      }
+      html += "</tbody></table></div></section>";
+      return html;
+    }
+
+    function blockTitleForSlice(sliceMode, seriesName) {
+      if (sliceMode === "tb") return "ТБ: " + seriesName;
+      if (sliceMode === "gosb") return "ГОСБ: " + seriesName;
+      if (sliceMode === "cluster") return "Кластер: " + seriesName;
+      if (sliceMode === "tb_gosb") return "ТБ / ГОСБ: " + seriesName;
+      return "По интервалам (вся выборка на графике)";
+    }
+
+    function renderFrequencyTable(hist, rows, sliceMode) {
+      if (!el.freqDetail) return;
+      if (!rows || !rows.length || !hist || !hist.edges) {
+        el.freqDetail.innerHTML = "";
+        return;
+      }
+      const cols = intervalStatColumns(sliceMode);
+      const edges = hist.edges;
+      const labels = hist.labels;
+      let html = "";
+
+      if (sliceMode === "all") {
+        html = buildIntervalStatsBlock(
+          blockTitleForSlice(sliceMode, ""),
+          rows,
+          edges,
+          labels,
+          cols
+        );
+      } else {
+        const order = hist.series.map((s) => s.name);
+        for (const name of order) {
+          const subset = rows.filter((r) => sliceSeriesKey(r, sliceMode) === name);
+          if (!subset.length) continue;
+          html += buildIntervalStatsBlock(
+            blockTitleForSlice(sliceMode, name),
+            subset,
+            edges,
+            labels,
+            cols
+          );
+        }
+      }
+      el.freqDetail.innerHTML = html || '<p class="hint">Нет данных для таблицы интервалов.</p>';
     }
 
     function escapeHtml(str) {
@@ -1839,7 +2143,7 @@
     /* Tooltip */
     (function initTips() {
       const tip = el.glassTip;
-      const OFFSET = 14;
+      const OFFSET = Number(APP_CONFIG.tipOffsetPx) || 14;
       function show(text, x, y) {
         tip.textContent = text;
         tip.classList.add("show");
@@ -1913,8 +2217,7 @@
       el.clusterChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
       el.legend.innerHTML = "";
       el.stats.innerHTML = "";
-      el.freqHead.innerHTML = "";
-      el.freqBody.innerHTML = "";
+      if (el.freqDetail) el.freqDetail.innerHTML = "";
       edgeState.edges = [];
       renderEdgeRail();
       setLoadStatus("Данные очищены.", "");
@@ -1969,8 +2272,10 @@
     document.title = APP_CONFIG.pageTitle;
     el.binCount.value = String(APP_CONFIG.defaultBinCount);
     el.binMode.value = APP_CONFIG.defaultBinMode;
+    el.sliceMode.value = APP_CONFIG.defaultSliceMode || "all";
     el.groupLayout.value = APP_CONFIG.defaultGroupLayout || "bin";
     el.movableEdgeCount.value = String(APP_CONFIG.defaultMovableEdges);
+    el.movableEdgeCount.max = String(APP_CONFIG.movableEdgesMax || 40);
     syncBinModeUi();
     syncGroupLayoutUi();
 
@@ -1983,7 +2288,13 @@
       cascadeEdges,
       evenlySpacedEdges,
       buildBins,
+      integerBounds,
+      toIntegerEdge,
+      formatAmount,
+      formatAmountExact,
       computeHistogram,
+      binIndexForAmount,
+      collectBinUniques,
       parseTableText,
       computeAllowedValues,
       computeAllAllowed,

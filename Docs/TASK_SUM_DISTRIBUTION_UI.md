@@ -9,31 +9,23 @@
 
 ## Контекст
 
-Страница: `sum-distribution.html` — гистограмма сумм по ТН с фильтрами ТБ/ГОСБ/кластер.
+Страница: `sum-distribution.html` — единый HTML (гистограмма сумм по ТН). Настройки — JSON `#app-config` в начале файла (отдельный `config.json` не используется).
 
-## Статус (уже сделано в этом репо, 2026-08-10)
+## Статус (2.4.4, 2026-08-10)
 
-Проверь наличие и при необходимости доработай / закоммить:
+Сделано:
 
-1. **Sticky-график** + ползунки ручных границ **под** графиком (`chart-sticky`, `#binCustomRow` в `.chart-below`).
-2. **Каскадные фильтры** ТБ ↔ ГОСБ ↔ кластер: совместимые сверху и активны; остальные серые/`disabled`; пустой выбор = без фильтра; автоснятие конфликтов.
-3. **Переключатель «Группы на графике»:**  
-   - `bin` — группы = интервалы сумм (внутри разрез);  
-   - `slice` — группы = значения разреза (внутри распределение).  
-   При разрезе «Вся выборка» режим `slice` недоступен.
-4. **Демо 20k:** `tools/build_sum_demo_csv_20k.py` → `samples/sum-distribution-demo-20000.csv`  
-   (20 000 строк, 2 000 уник. ТН, повторы 1…50).  
-   Каталог `samples/` в `.gitignore` — демо **не коммитить**.
-5. Тесты: `node src/Tests/test_histogram_bins.js` (каскад + groupLayout).
-6. Доки: `README.md`, `ROADMAP.md`, `config.json` (`demoSamplePath`).
-
-## Статус (2.4.1)
-
-Готово: легенда под canvas; числовые поля границ; три экспорта (CSV+группа, CSV ТН×8+группа, TXT групп).
+1. Sticky-график + ползунки ручных границ под графиком; по умолчанию режим `custom`, 2 ползунка; бейдж «Группа N» на бегунке.
+2. Целые границы (`floor`/`ceil`), ввод/перетаскивание целыми; суммы с разрядами (≤2 знака); мин/макс в сводке — точные.
+3. Каскадные фильтры ТБ ↔ ГОСБ ↔ кластер; переключатель групп на графике `bin` / `slice`.
+4. Легенда под canvas; три экспорта (CSV+группа, CSV ТН×`exportTnLength`, TXT групп).
+5. Подробная статистика по интервалам: «попало / всего» для ТБ, ГОСБ, кластер, ТН; при разрезе — блоки по каждому значению.
+6. Демо: `tools/build_sum_demo_csv_20k.py` → `samples/` (в `.gitignore`).
+7. Тесты: `node src/Tests/test_histogram_bins.js`.
 
 ## Что сделать агенту сейчас
 
-1. Открыть именно **RESURCE_PANEL_HTML_WORK**, не SPOD_PROM.
+1. Открыть **RESURCE_PANEL_HTML_WORK**, не SPOD_PROM.
 2. Прогнать тесты: `node src/Tests/test_histogram_bins.js`.
 3. При необходимости пересобрать демо: `python3 tools/build_sum_demo_csv_20k.py`.
 4. **Внимание:** изменение `index.html` — не из задачи гистограммы; не коммитить вместе, пока пользователь не подтвердит.
@@ -41,11 +33,12 @@
 
 ## Файлы к коммиту (ожидаемый набор)
 
-- `sum-distribution.html`
+- `sum-distribution.html` (в т.ч. `#app-config`)
 - `src/Tests/test_histogram_bins.js`
-- `tools/build_sum_demo_csv.py`, `tools/build_sum_demo_csv_20k.py`
+- `tools/build_sum_demo_csv.py`, `tools/build_sum_demo_csv_20k.py` (если менялись)
 - `.gitignore` (`samples/`, `IN/`, `JS/IN/`)
-- `README.md`, `ROADMAP.md`, `config.json`, `Docs/TASK_SUM_DISTRIBUTION_UI.md`
+- `README.md`, `ROADMAP.md`, `Docs/TASK_SUM_DISTRIBUTION_UI.md`
+- удаление `config.json` (если ещё в дереве)
 
 ## Не делать
 

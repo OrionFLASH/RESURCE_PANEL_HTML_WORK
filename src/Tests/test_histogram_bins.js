@@ -92,8 +92,22 @@ function aggregateByTn(rows) {
   return [...map.values()];
 }
 
+function integerBounds(min, max) {
+  let lo = Math.floor(Number(min));
+  let hi = Math.ceil(Number(max));
+  if (!Number.isFinite(lo)) lo = 0;
+  if (!Number.isFinite(hi)) hi = lo + 1;
+  if (hi <= lo) hi = lo + 1;
+  return { min: lo, max: hi };
+}
+
+function toIntegerEdge(v) {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? n : 0;
+}
+
 function cascadeEdges(edges, changedIndex, min, max) {
-  const out = edges.slice();
+  const out = edges.map(toIntegerEdge);
   for (let i = changedIndex + 1; i < out.length; i += 1) {
     if (out[i] < out[i - 1]) out[i] = out[i - 1];
   }
@@ -108,12 +122,15 @@ function cascadeEdges(edges, changedIndex, min, max) {
 function evenlySpacedEdges(min, max, movableCount) {
   const n = Math.max(1, Math.floor(movableCount));
   const totalIntervals = n + 1;
-  const step = (max - min) / totalIntervals;
   const edges = [min];
   for (let i = 1; i <= n; i += 1) {
-    edges.push(Number((min + step * i).toPrecision(12)));
+    edges.push(toIntegerEdge(min + ((max - min) * i) / totalIntervals));
   }
   edges.push(max);
+  for (let i = 1; i < edges.length; i += 1) {
+    if (edges[i] < edges[i - 1]) edges[i] = edges[i - 1];
+  }
+  edges[edges.length - 1] = max;
   return edges;
 }
 
@@ -121,42 +138,50 @@ function buildBins(amounts, opts) {
   if (!amounts.length) throw new Error("Нет сумм для построения интервалов.");
   const dataMin = Math.min(...amounts);
   const dataMax = Math.max(...amounts);
+  const scale = integerBounds(dataMin, dataMax);
 
   if (opts.mode === "custom") {
-    const edges = [...opts.customEdges].filter((n) => Number.isFinite(n));
+    const edges = [...opts.customEdges]
+      .filter((n) => Number.isFinite(n))
+      .map(toIntegerEdge);
     if (edges.length < 2) throw new Error("custom: мало границ");
     return edges;
   }
 
-  let min = opts.min == null || !Number.isFinite(opts.min) ? dataMin : opts.min;
-  let max = opts.max == null || !Number.isFinite(opts.max) ? dataMax : opts.max;
+  let min = opts.min == null || !Number.isFinite(opts.min) ? scale.min : Math.floor(opts.min);
+  let max = opts.max == null || !Number.isFinite(opts.max) ? scale.max : Math.ceil(opts.max);
   if (max < min) {
     const t = min;
     min = max;
     max = t;
   }
-  if (max === min) max = min + (Math.abs(min) || 1);
+  ({ min, max } = integerBounds(min, max));
 
   if (opts.mode === "width") {
-    const width = opts.width;
+    const width = Math.max(1, Math.round(Number(opts.width) || 0));
     if (!(width > 0)) throw new Error("Ширина интервала должна быть больше 0.");
-    const origin = opts.origin == null || !Number.isFinite(opts.origin) ? min : opts.origin;
+    const originRaw = opts.origin == null || !Number.isFinite(opts.origin) ? min : opts.origin;
+    const origin = Math.floor(originRaw);
     const edges = [origin];
     let cur = origin;
     while (cur < max && edges.length < 2000) {
-      cur = Number((cur + width).toPrecision(12));
+      cur += width;
       edges.push(cur);
     }
     if (edges[edges.length - 1] < max) edges.push(max);
     if (edges.length < 2) edges.push(origin + width);
+    edges[edges.length - 1] = Math.max(edges[edges.length - 1], max);
     return edges;
   }
 
   const count = Math.max(1, Math.floor(opts.count || 1));
-  const width = (max - min) / count;
-  const edges = [];
-  for (let i = 0; i <= count; i += 1) {
-    edges.push(Number((min + width * i).toPrecision(12)));
+  const edges = [min];
+  for (let i = 1; i < count; i += 1) {
+    edges.push(toIntegerEdge(min + ((max - min) * i) / count));
+  }
+  edges.push(max);
+  for (let i = 1; i < edges.length; i += 1) {
+    if (edges[i] < edges[i - 1]) edges[i] = edges[i - 1];
   }
   edges[edges.length - 1] = max;
   return edges;
@@ -243,6 +268,29 @@ console.log("aggregateByTn");
   assert("tb first", a.tb === "A");
   assert("gosb filled", a.gosb === "G");
   assert("cluster first", a.cluster === "1");
+}
+
+console.log("integerBounds / целые границы");
+{
+  const b = integerBounds(10.2, 99.1);
+  assert("floor мин", b.min === 10);
+  assert("ceil макс", b.max === 100);
+  const b2 = integerBounds(5.0, 5.0);
+  assert("равные → span ≥ 1", b2.min === 5 && b2.max === 6);
+  const edges = evenlySpacedEdges(0, 100, 2);
+  assert("промежуточные целые", edges.every((e) => Number.isInteger(e)), JSON.stringify(edges));
+  const frac = buildBins([10.3, 89.7], {
+    mode: "count",
+    count: 4,
+    width: null,
+    origin: null,
+    min: null,
+    max: null,
+    customEdges: []
+  });
+  assert("count по дробным: мин 10", frac[0] === 10);
+  assert("count по дробным: макс 90", frac[frac.length - 1] === 90);
+  assert("все границы целые", frac.every((e) => Number.isInteger(e)), JSON.stringify(frac));
 }
 
 console.log("evenlySpacedEdges / cascade");
@@ -395,6 +443,40 @@ function groupAxisLabels(hist, groupLayout) {
   return hist.labels.slice();
 }
 
+function binIndexForAmount(amount, edges) {
+  if (!edges || edges.length < 2 || !Number.isFinite(amount)) return -1;
+  if (amount < edges[0] || amount > edges[edges.length - 1]) return -1;
+  const binCount = edges.length - 1;
+  for (let i = 0; i < binCount; i += 1) {
+    const left = edges[i];
+    const right = edges[i + 1];
+    const isLast = i === binCount - 1;
+    if ((amount >= left && amount < right) || (isLast && amount >= left && amount <= right)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function collectBinUniques(rows, edges) {
+  const binCount = Math.max(0, edges.length - 1);
+  const bins = Array.from({ length: binCount }, () => ({
+    tn: new Set(),
+    tb: new Set(),
+    gosb: new Set(),
+    cluster: new Set()
+  }));
+  for (const row of rows) {
+    const bi = binIndexForAmount(row.amount, edges);
+    if (bi < 0) continue;
+    bins[bi].tn.add(row.tn);
+    if (row.tb) bins[bi].tb.add(row.tb);
+    if (row.gosb) bins[bi].gosb.add(row.gosb);
+    if (row.cluster) bins[bi].cluster.add(row.cluster);
+  }
+  return bins;
+}
+
 console.log("cascade filters");
 {
   const rows = [
@@ -446,6 +528,24 @@ console.log("groupLayout axis");
     "slice: ось = ТБ",
     JSON.stringify(groupAxisLabels(hist, "slice")) === JSON.stringify(["TB1", "TB2"])
   );
+}
+
+console.log("interval uniques");
+{
+  const edges = [0, 20, 40];
+  assert("bin 0", binIndexForAmount(10, edges) === 0);
+  assert("bin 1 last", binIndexForAmount(40, edges) === 1);
+  assert("вне", binIndexForAmount(-1, edges) === -1);
+  const rows = [
+    { tn: "a", amount: 5, tb: "TB1", gosb: "G1", cluster: "C1" },
+    { tn: "b", amount: 8, tb: "TB1", gosb: "G2", cluster: "C1" },
+    { tn: "c", amount: 25, tb: "TB2", gosb: "G1", cluster: "C2" }
+  ];
+  const bins = collectBinUniques(rows, edges);
+  assert("интервал0: 2 ТН", bins[0].tn.size === 2);
+  assert("интервал0: 1 ТБ", bins[0].tb.size === 1 && bins[0].tb.has("TB1"));
+  assert("интервал0: 2 ГОСБ", bins[0].gosb.size === 2);
+  assert("интервал1: 1 ТБ TB2", bins[1].tb.has("TB2") && bins[1].tb.size === 1);
 }
 
 console.log("");

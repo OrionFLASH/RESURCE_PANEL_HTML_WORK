@@ -15,27 +15,33 @@
 - [v] Гистограмма (Canvas) и таблица частот
 - [v] Демо-CSV в `samples/` (в `.gitignore`); генераторы `tools/build_sum_demo_csv.py` / `build_sum_demo_csv_20k.py`
 - [v] `IN/` и `JS/IN/` в `.gitignore`
-- [v] config.json, README, тесты
+- [v] Параметры страницы в `#app-config` (JSON в начале HTML); README, тесты
+- [x] Отдельный `config.json` для sum-distribution (отменён — единый HTML)
 - [v] Sticky-график; ползунки ручных границ **под** гистограммой
 - [v] Каскадные фильтры ТБ ↔ ГОСБ ↔ кластер (совместимые сверху, остальные серые/disabled; автоснятие конфликтов)
 - [v] Переключатель группировки: по интервалам / по значениям разреза
 - [v] Легенда сразу под canvas
 - [v] Ручной ввод границ в полях (синхрон с ползунками)
 - [v] Экспорт: CSV+Группа, CSV ТН×8+Группа, TXT групп JSON-like
+- [v] Целые границы (floor/ceil шкалы, ползунок/ввод целыми); красивый формат сумм; мин/макс в статистике без округления шкалы
+- [v] Подробная статистика по интервалам: уник. ТБ/ГОСБ/ТН; блоки по разрезу ТБ/ГОСБ/кластер
 
 ## Модули (внутри sum-distribution.html)
 
+- `#app-config` (JSON в `<head>`) — все изменяемые параметры страницы
 - `parseTableText` / `findColumnIndex` — разбор и алиасы
 - `normalizeEmpId` / `aggregateByTn` — нормализация ТН и SUM
 - `computeAllowedValues` / `pruneIncompatibleSelections` / `rebuildFilterOptions` / `filteredRows` — каскад фильтров
-- `buildBins` / multi-thumb `edgeRail` / поля ввода границ — границы (UI под графиком)
-- `computeHistogram` / `drawHistogram(hist, groupLayout)` / `renderFrequencyTable`
+- `integerBounds` / `buildBins` / multi-thumb `edgeRail` / поля ввода границ — целые границы (UI под графиком)
+- `formatAmount` / `formatAmountExact` — суммы с разрядами; точные мин/макс в статистике
+- `computeHistogram` / `drawHistogram(hist, groupLayout)` / `collectBinUniques` / `renderFrequencyTable` — график и детальная таблица интервалов
 - `groupNameForAmount` / `exportRawCsvWithGroup` / `exportUniqueTnCsv` / `exportGroupsText` — выгрузки
 
 ## Как проверить
 
 1. Открыть `sum-distribution.html` в браузере (`file://`).
 2. Сгенерировать и загрузить демо: `python3 tools/build_sum_demo_csv_20k.py` → `samples/…`.
-3. Переключить разрез / фильтры; режим «Ручные границы» — ползунки и поля ввода.
-4. Проверить легенду под графиком; три кнопки сохранения.
-5. `node src/Tests/test_histogram_bins.js`
+3. По умолчанию — ползунки (2 границы) с бейджами групп; поля ввода целых.
+4. Проверить таблицу интервалов (ТБ/ГОСБ/ТН) и блоки при разрезе ТБ / ГОСБ / кластер.
+5. Три кнопки сохранения; легенда под графиком.
+6. `node src/Tests/test_histogram_bins.js`
