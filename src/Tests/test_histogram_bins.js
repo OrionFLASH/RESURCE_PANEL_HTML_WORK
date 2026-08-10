@@ -493,21 +493,7 @@ function expandSelectionOnCheck(dim, value, sel, orgIndex) {
 }
 
 function orderFilterValues(allValues, allowed, checked) {
-  const a = [];
-  const b = [];
-  const c = [];
-  for (const v of allValues) {
-    const ok = allowed.has(v);
-    const ch = checked.has(v);
-    if (ok && ch) a.push(v);
-    else if (ok) b.push(v);
-    else c.push(v);
-  }
-  const cmp = (x, y) => x.localeCompare(y, "ru");
-  a.sort(cmp);
-  b.sort(cmp);
-  c.sort(cmp);
-  return [...a, ...b, ...c].map((value) => ({
+  return allValues.map((value) => ({
     value,
     enabled: allowed.has(value),
     checked: checked.has(value)
@@ -590,9 +576,10 @@ console.log("cascade filters");
     new Set(["G1", "G2"]),
     new Set(["G2"])
   );
-  assert("сначала отмеченные совместимые", ordered[0].value === "G2" && ordered[0].enabled);
-  assert("потом совместимые", ordered[1].value === "G1" && ordered[1].enabled);
-  assert("потом muted", ordered[2].value === "G3" && !ordered[2].enabled);
+  assert("порядок списка не меняется", ordered.map((x) => x.value).join(",") === "G3,G1,G2");
+  assert("G3 muted по allowed", !ordered[0].enabled && !ordered[0].checked);
+  assert("G1 enabled unchecked", ordered[1].enabled && !ordered[1].checked);
+  assert("G2 enabled checked", ordered[2].enabled && ordered[2].checked);
 }
 
 console.log("groupLayout axis");

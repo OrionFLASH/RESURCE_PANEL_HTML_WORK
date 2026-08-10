@@ -14,6 +14,8 @@
   "pageTitle": "Распределение сумм (ТН)",
   "defaultSliceMode": "all",
   "defaultGroupLayout": "slice",
+  "defaultChartType": "bars",
+  "defaultCompareLayout": "overlay",
   "defaultMovableEdges": 2,
   "movableEdgesMax": 40,
   "tnPadLength": 20,
@@ -31,8 +33,13 @@
   "chart": {
     "barGapRatio": 0.12,
     "seriesGapRatio": 0.04,
-    "maxLegendItems": 24
+    "maxLegendItems": 24,
+    "lineWidth": 2.5,
+    "pointRadius": 3.5,
+    "barOverlapRatio": 0.42,
+    "barOverlapAlpha": 0.7
   },
+  "compareColors": ["#007AFF", "#FF9500"],
   "seriesColors": [
     "#007AFF", "#34C759", "#FF9500", "#5856D6", "#FF3B30",
     "#5AC8FA", "#AF52DE", "#FF2D55", "#64D2FF", "#30D158",
@@ -40,7 +47,8 @@
   ],
   "demoEnabled": false,
   "demoSamplePath": "samples/sum-distribution-demo-20000.csv",
-  "_demoNote": "Файлы samples/ не в git. Генерация: python3 tools/build_sum_demo_csv_20k.py"
+  "demoSamplePathB": "samples/sum-distribution-demo-21000.csv",
+  "_demoNote": "samples/ не в git. Генерация: python3 tools/build_sum_demo_csv_20k.py и tools/build_sum_demo_csv_21k.py"
 }
   </script>
   <style>
@@ -61,6 +69,8 @@
       --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
       --radius: 16px;
       --font: "Segoe UI", "PT Sans", "Helvetica Neue", sans-serif;
+      /* Общая высота области графика и списка ТБ/ГОСБ */
+      --panel-chart-h: min(560px, 62vh);
     }
 
     * { box-sizing: border-box; }
@@ -74,7 +84,7 @@
     }
 
     .wrap {
-      max-width: 1440px;
+      max-width: min(1680px, 98vw);
       margin: 0 auto;
       padding: 28px 20px 48px;
     }
@@ -96,14 +106,57 @@
       line-height: 1.45;
     }
 
+    /* Всегда: данные сверху → график на всю ширину → бегунки снизу */
     .grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: stretch;
+    }
+    .panel-chart-col {
+      display: contents;
+    }
+    .panel.stack {
+      order: 1;
+      width: 100%;
       display: grid;
-      grid-template-columns: minmax(300px, 0.85fr) minmax(420px, 1.45fr);
-      gap: 16px;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 14px;
       align-items: start;
     }
-    @media (max-width: 980px) {
-      .grid { grid-template-columns: 1fr; }
+    .panel.stack > .mode-tabs,
+    .panel.stack > h2,
+    .panel.stack > .row,
+    .panel.stack > .status,
+    .panel.stack > details.help,
+    .panel.stack > .filter-hint,
+    .panel.stack > #orgTreeFilterBlock,
+    .panel.stack > #clusterFilterBlock {
+      grid-column: 1 / -1;
+    }
+    /* Один период — блок файла на всю ширину; сравнение — два столбца */
+    #periodBlockA { grid-column: 1 / -1; }
+    body.is-compare #periodBlockA { grid-column: 1; }
+    body.is-compare #periodBlockB { grid-column: 2; display: grid !important; }
+    .chart-sticky {
+      order: 2;
+      position: static;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .chart-below {
+      order: 3;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      background: var(--glass-white);
+      border: 1px solid var(--glass-white-border);
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      display: grid;
+      gap: 10px;
     }
 
     .panel {
@@ -126,7 +179,7 @@
     .panel h2 + .stack-gap,
     .section-gap { margin-top: 18px; }
 
-    .stack { display: grid; gap: 12px; }
+    .stack:not(.panel) { display: flex; flex-direction: column; gap: 12px; }
     .row {
       display: flex;
       flex-wrap: wrap;
@@ -188,12 +241,198 @@
       color: var(--glass-blue);
     }
     .btn.small { padding: 6px 10px; font-size: 0.82rem; }
+    .btn.is-active {
+      background: var(--glass-blue);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 0 0 14px;
+      padding: 4px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid var(--glass-white-border-light);
+    }
+    .mode-tabs .btn {
+      flex: 1 1 140px;
+      background: transparent;
+      color: var(--glass-text);
+      border: 0;
+      box-shadow: none;
+    }
+    .mode-tabs .btn.is-active {
+      background: rgba(0, 122, 255, 0.14);
+      color: var(--glass-blue);
+    }
+
+    .period-block {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 8px;
+      padding: 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.5);
+      border: 1px solid var(--glass-white-border-light);
+    }
+    .period-block__title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--glass-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .compare-only { display: none !important; }
+    body.is-compare .compare-only { display: block !important; }
+    body.is-compare .compare-only.field { display: grid !important; }
+    body.is-compare .single-only { display: none !important; }
+
+    .file-overview {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    .file-overview:empty { display: none; }
+    .ov-card {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 2px 6px;
+      align-items: start;
+      padding: 5px 7px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--glass-white-border-light);
+    }
+    .ov-card.is-wide { grid-column: 1 / -1; }
+    .ov-card__icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      background: rgba(0, 122, 255, 0.12);
+      color: var(--glass-blue);
+      flex-shrink: 0;
+    }
+    .ov-card__icon svg { width: 12px; height: 12px; display: block; }
+    .ov-card__icon.is-green { background: rgba(52, 199, 89, 0.14); color: #1a9f4a; }
+    .ov-card__icon.is-orange { background: rgba(255, 149, 0, 0.16); color: #c26a00; }
+    .ov-card__icon.is-purple { background: rgba(88, 86, 214, 0.14); color: #5856D6; }
+    .ov-card__icon.is-teal { background: rgba(90, 200, 250, 0.18); color: #0a7ea4; }
+    .ov-card__label {
+      font-size: 0.6rem;
+      color: var(--glass-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+    }
+    .ov-card__value {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--glass-text);
+      line-height: 1.15;
+      word-break: break-word;
+    }
+    .ov-card__sub {
+      grid-column: 2;
+      font-size: 0.66rem;
+      color: var(--glass-text-secondary);
+      line-height: 1.25;
+    }
+    .ov-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      margin-top: 2px;
+    }
+    .ov-chip {
+      font-size: 0.6rem;
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--glass-text-secondary);
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chart-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      align-items: end;
+      margin: 0 0 10px;
+    }
+    .chart-toolbar .field { min-width: 140px; flex: 1 1 140px; }
+    .charts-dual {
+      display: none;
+      gap: 12px;
+      width: 100%;
+      min-width: 0;
+    }
+    /* Два графика всегда друг под другом на всю ширину */
+    .charts-dual.is-side,
+    .charts-dual.is-stack {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+    .charts-dual > .chart-pane {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+    }
+    .chart-pane__title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin: 0 0 6px;
+      color: var(--glass-text-secondary);
+    }
+    body.is-compare-split .chart-wrap-primary { display: none; }
+    body.is-compare-split .charts-dual { display: grid; }
+    body:not(.is-compare-split) .charts-dual { display: none !important; }
+
+    /* Один общий график — на всю ширину окна */
+    body:not(.is-compare-split) .chart-wrap-primary {
+      width: 100%;
+    }
+    body:not(.is-compare-split) .chart-wrap-primary .chart-wrap,
+    body:not(.is-compare-split) .chart-wrap {
+      height: var(--panel-chart-h);
+    }
+    body.is-compare-split .charts-dual .chart-wrap {
+      height: min(400px, 42vh);
+      width: 100%;
+    }
 
     .file-row {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       align-items: center;
+    }
+    .file-row input[type="file"] {
+      flex: 1 1 12rem;
+      min-width: 0;
+    }
+    .file-row .btn {
+      flex: 0 0 7.5rem;
+      width: 7.5rem;
+      min-width: 7.5rem;
+      padding: 9px 12px;
+      font-size: 0.9rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+    #loadStatus:not(.err) {
+      display: none;
+    }
+    #loadStatus.err {
+      display: block;
     }
 
     .status {
@@ -215,14 +454,107 @@
       align-items: center;
       margin-bottom: 8px;
     }
+    .filter-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .filter-toolbar__title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .filter-toolbar__title strong {
+      font-size: 0.95rem;
+      color: var(--glass-text);
+    }
+    .filter-toolbar__sub {
+      font-size: 0.72rem;
+      color: var(--glass-text-secondary);
+      font-weight: 500;
+    }
+    .filter-toolbar__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .btn-with-icon {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 34px;
+      padding: 6px 12px;
+    }
+    .btn-with-icon .btn-ico {
+      display: inline-flex;
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
+    }
+    .btn-with-icon .btn-ico svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .btn-with-icon.is-select-all {
+      color: #0b7a3a;
+      border-color: rgba(52, 199, 89, 0.35);
+      background: rgba(52, 199, 89, 0.12);
+    }
+    .btn-with-icon.is-clear-all {
+      color: #8e8e93;
+      border-color: rgba(142, 142, 147, 0.35);
+      background: rgba(142, 142, 147, 0.10);
+    }
+    .toolbar--plain {
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+    .toolbar--plain strong {
+      font-size: 0.95rem;
+    }
+
+    .filter-block {
+      border-radius: 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--glass-white-border-light);
+      background: rgba(255, 255, 255, 0.35);
+      transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .filter-block.hidden { display: none; }
+    /* Все выбраны — зелёный */
+    .filter-block.is-sel-all {
+      background: rgba(52, 199, 89, 0.12);
+      border-color: rgba(52, 199, 89, 0.38);
+      box-shadow: inset 0 0 0 1px rgba(52, 199, 89, 0.08);
+    }
+    /* Частично — синий */
+    .filter-block.is-sel-partial {
+      background: rgba(0, 122, 255, 0.10);
+      border-color: rgba(0, 122, 255, 0.34);
+      box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.06);
+    }
+    /* Ничего не выбрано — нейтрально-серый */
+    .filter-block.is-sel-none {
+      background: rgba(142, 142, 147, 0.10);
+      border-color: rgba(142, 142, 147, 0.30);
+      box-shadow: none;
+    }
 
     .checks {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 6px;
-      max-height: 220px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-content: flex-start;
+      gap: 6px 10px;
+      max-height: 160px;
       overflow: auto;
-      padding: 8px;
+      padding: 10px 12px;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.45);
       border: 1px solid var(--glass-white-border-light);
@@ -234,6 +566,9 @@
       font-size: 0.82rem;
       color: var(--glass-text);
       cursor: pointer;
+      min-width: 132px;
+      max-width: 220px;
+      flex: 0 1 auto;
     }
     .checks label.is-muted,
     .filter-tree label.is-muted {
@@ -241,35 +576,85 @@
       color: #8e8e93;
     }
     .checks label.is-muted { cursor: pointer; }
-    .checks .empty { color: var(--glass-text-secondary); font-size: 0.84rem; }
-    .filter-block.hidden { display: none; }
+    .checks .empty {
+      color: var(--glass-text-secondary);
+      font-size: 0.84rem;
+      width: 100%;
+      text-align: center;
+    }
     .filter-hint {
       font-size: 0.8rem;
       color: #6e6e73;
       min-height: 1.2em;
     }
 
-    /* Дерево ТБ → ГОСБ */
+    /* ТБ/ГОСБ — два столбца под блоками периодов */
     .filter-tree {
-      max-height: 280px;
+      height: min(280px, 32vh);
+      max-height: min(280px, 32vh);
+      min-height: 180px;
       overflow: auto;
-      padding: 8px 10px;
+      padding: 10px 12px;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.45);
       border: 1px solid var(--glass-white-border-light);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 16px;
+      align-content: start;
+    }
+    .filter-tree > .empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--glass-text-secondary);
+      font-size: 0.84rem;
+    }
+    #orgTreeFilterBlock {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      min-height: 0;
+    }
+    #orgTreeFilterBlock .filter-tree {
+      flex: 1 1 auto;
+    }
+    #clusterFilterBlock .toolbar {
+      justify-content: center;
+    }
+    @media (max-width: 980px) {
+      :root { --panel-chart-h: min(420px, 50vh); }
+      .filter-tree {
+        grid-template-columns: 1fr;
+        min-height: 160px;
+        height: min(240px, 30vh);
+        max-height: min(240px, 30vh);
+      }
+      .panel.stack {
+        grid-template-columns: 1fr;
+      }
+      #periodBlockA,
+      body.is-compare #periodBlockA,
+      body.is-compare #periodBlockB {
+        grid-column: 1;
+      }
     }
     .filter-tree__tb {
       border-radius: 10px;
       padding: 4px 6px 6px;
+      min-width: 0;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      border: 1px solid transparent;
     }
-    .filter-tree__tb.is-active {
-      background: rgba(0, 122, 255, 0.06);
+    .filter-tree__tb.is-sel-all {
+      background: rgba(52, 199, 89, 0.10);
+      border-color: rgba(52, 199, 89, 0.22);
     }
-    .filter-tree__tb.is-muted {
-      background: transparent;
+    .filter-tree__tb.is-sel-partial {
+      background: rgba(255, 149, 0, 0.12);
+      border-color: rgba(255, 149, 0, 0.28);
+    }
+    .filter-tree__tb.is-sel-none {
+      background: rgba(142, 142, 147, 0.06);
+      border-color: transparent;
     }
     .filter-tree__row {
       display: flex;
@@ -314,9 +699,13 @@
     .edge-rail {
       position: relative;
       height: 44px;
-      margin: 28px 8px 8px;
+      margin: 40px 8px 8px;
       user-select: none;
       touch-action: none;
+    }
+    .edge-rail.is-compare {
+      height: 56px;
+      margin: 44px 8px 36px;
     }
     .edge-rail__track {
       position: absolute;
@@ -335,6 +724,52 @@
       background: linear-gradient(90deg, var(--glass-blue), var(--glass-purple));
       opacity: 0.55;
     }
+    .edge-rail__seg {
+      position: absolute;
+      left: 0;
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 1;
+      text-align: center;
+      line-height: 1.15;
+      max-width: 7.5rem;
+      padding: 2px 4px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .edge-rail__seg--top {
+      bottom: calc(50% + 14px);
+    }
+    .edge-rail__seg--bottom {
+      top: calc(50% + 14px);
+    }
+    .edge-rail__seg-count {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--glass-text);
+    }
+    .edge-rail__seg-pct {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--glass-text-secondary);
+    }
+    .edge-rail__seg.is-a .edge-rail__seg-count { color: #007AFF; }
+    .edge-rail__seg.is-b .edge-rail__seg-count { color: #FF9500; }
+    .edge-rail__seg.is-narrow {
+      max-width: 4.2rem;
+      padding: 1px 3px;
+    }
+    .edge-rail__seg.is-narrow .edge-rail__seg-count { font-size: 10px; }
+    .edge-rail__seg.is-narrow .edge-rail__seg-pct { font-size: 9px; }
     .edge-rail__mark {
       position: absolute;
       top: 50%;
@@ -431,14 +866,10 @@
     .export-row .hint { flex: 1 1 100%; margin: 0; }
 
     .panel-chart-col {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      /* порядок задаётся через display:contents у родителя .grid */
       min-width: 0;
     }
     .chart-sticky {
-      position: sticky;
-      top: 12px;
       z-index: 5;
       padding: 12px 12px 10px;
       border-radius: 14px;
@@ -449,17 +880,27 @@
       -webkit-backdrop-filter: blur(16px) saturate(160%);
     }
     .chart-sticky h2 { margin: 0 0 10px; font-size: 1.05rem; }
-    .chart-below { display: grid; gap: 10px; }
     .chart-wrap {
       width: 100%;
-      height: min(560px, 62vh);
+      max-width: 100%;
+      height: var(--panel-chart-h);
       position: relative;
       border-radius: 14px;
       background: rgba(255,255,255,0.4);
       border: 1px solid var(--glass-white-border-light);
-      overflow: visible;
+      overflow: hidden;
+      box-sizing: border-box;
     }
-    canvas#chart { width: 100%; height: 100%; display: block; border-radius: 14px; }
+    canvas#chart,
+    canvas#chartA,
+    canvas#chartB {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100%;
+      display: block;
+      border-radius: 14px;
+      box-sizing: border-box;
+    }
     @media (max-width: 980px) {
       .chart-sticky { position: static; top: auto; }
     }
@@ -592,25 +1033,42 @@
 
     <div class="grid">
       <section class="panel stack">
-        <h2>1. Данные</h2>
-
-        <div class="file-row">
-          <input id="fileInput" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt"
-            data-tip="Выберите CSV/TSV. Обязательны колонки ТН и сумма (алиасы допускаются).">
-          <button class="btn secondary" type="button" id="btnClear" data-tip="Очистить загруженные данные и график">Очистить</button>
+        <div class="mode-tabs" role="tablist" aria-label="Режим работы">
+          <button class="btn is-active" type="button" id="tabSingle" role="tab" aria-selected="true"
+            data-tip="Один файл — распределение и фильтры">Один период</button>
+          <button class="btn secondary" type="button" id="tabCompare" role="tab" aria-selected="false"
+            data-tip="Текущий и прошлый периоды на общих интервалах">Сравнение периодов</button>
         </div>
 
-        <label class="field" data-tip="Можно вставить таблицу из Excel (разделители ; , или табуляция)">
-          <span>Вставка таблицы (CSV / TSV / из Excel)</span>
-          <textarea id="pasteArea" placeholder="ТН;ТБ;ГОСБ;кластер;сумма&#10;00000000000001875872;...;125000&#10;..."></textarea>
-        </label>
+        <h2>1. Данные</h2>
+
+        <div class="period-block" id="periodBlockA">
+          <div class="period-block__title" id="periodTitleA">Текущий период</div>
+          <div class="file-row">
+            <input id="fileInput" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt"
+              data-tip="CSV/TSV текущего периода. Обязательны колонки ТН и сумма.">
+            <button class="btn secondary" type="button" id="btnClear"
+              data-tip="Очистить данные этого периода">Очистить</button>
+          </div>
+          <div id="fileOverviewA" class="file-overview" aria-live="polite"></div>
+        </div>
+
+        <div class="period-block compare-only" id="periodBlockB">
+          <div class="period-block__title" id="periodTitleB">Прошлый период</div>
+          <div class="file-row">
+            <input id="fileInputB" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt"
+              data-tip="CSV прошлого периода для сравнения.">
+            <button class="btn secondary" type="button" id="btnClearB"
+              data-tip="Очистить данные этого периода">Очистить</button>
+          </div>
+          <div id="fileOverviewB" class="file-overview" aria-live="polite"></div>
+        </div>
 
         <div class="row">
-          <button class="btn" type="button" id="btnParse" data-tip="Разобрать текст из окна вставки">Загрузить из окна</button>
           <button class="btn ghost" type="button" id="btnRebuild" data-tip="Пересчитать фильтры, интервалы и график">Обновить график</button>
         </div>
 
-        <div id="loadStatus" class="status">Данные ещё не загружены.</div>
+        <div id="loadStatus" class="status" hidden></div>
 
         <details class="help">
           <summary data-tip="Подсказка по алиасам колонок">Формат и алиасы колонок</summary>
@@ -620,7 +1078,9 @@
             <strong>сумма:</strong> сумма, прирост, прирос, рост, итог, sum, amount<br>
             <strong>ТН:</strong> тн, tn, табельный, таб.ном, табельный номер<br>
             <strong>ТБ:</strong> тб, tb, тербанк · <strong>ГОСБ:</strong> госб, gosb ·
-            <strong>кластер:</strong> кластер, cluster
+            <strong>кластер:</strong> кластер, cluster<br>
+            Демо сравнения: <code>python3 tools/build_sum_demo_csv_20k.py</code> и
+            <code>python3 tools/build_sum_demo_csv_21k.py</code> → samples/
           </p>
         </details>
 
@@ -632,12 +1092,10 @@
             <select id="sliceMode">
               <option value="all">Вся выборка</option>
               <option value="tb">В разрезе ТБ</option>
-              <option value="gosb">В разрезе ГОСБ</option>
-              <option value="tb_gosb">В разрезе ТБ + ГОСБ</option>
               <option value="cluster">В разрезе кластера</option>
             </select>
           </label>
-          <label class="field" data-tip="Как группировать столбцы на оси X">
+          <label class="field" data-tip="Ось X: интервалы сумм или значения разреза (ТБ/кластер). Нужен разрез ≠ «Вся выборка».">
             <span>Группы на графике</span>
             <select id="groupLayout">
               <option value="bin">Интервалы сумм (внутри — разрез)</option>
@@ -648,20 +1106,31 @@
         <div id="filterHint" class="filter-hint" aria-live="polite"></div>
 
         <div class="filter-block" id="orgTreeFilterBlock">
-          <div class="toolbar">
-            <strong>ТБ / ГОСБ</strong>
-            <button class="btn secondary small" type="button" data-check-all="org">Все</button>
-            <button class="btn secondary small" type="button" data-check-none="org">Снять</button>
+          <div class="filter-toolbar">
+            <div class="filter-toolbar__title">
+              <strong>ТБ / ГОСБ</strong>
+              <span class="filter-toolbar__sub">кнопки действуют и на кластеры</span>
+            </div>
+            <div class="filter-toolbar__actions">
+              <button class="btn secondary small btn-with-icon is-select-all" type="button" id="btnFilterSelectAll"
+                data-tip="Отметить все ТБ, ГОСБ и кластеры">
+                <span class="btn-ico" aria-hidden="true"></span>
+                <span>Выбрать всё</span>
+              </button>
+              <button class="btn secondary small btn-with-icon is-clear-all" type="button" id="btnFilterClearAll"
+                data-tip="Снять все отметки в ТБ, ГОСБ и кластерах">
+                <span class="btn-ico" aria-hidden="true"></span>
+                <span>Снять всё</span>
+              </button>
+            </div>
           </div>
-          <p class="hint" style="margin:0 0 6px">Активные сверху. Серые тоже можно выбрать — подтянутся связанные ТБ/ГОСБ/кластеры.</p>
+          <p class="hint" style="margin:0 0 6px">Порядок фиксированный. Невыбранные — серые; их тоже можно выбрать — подтянутся связанные значения. В сравнении фильтр общий для обоих периодов.</p>
           <div id="orgTree" class="filter-tree"><div class="empty">Загрузите данные</div></div>
         </div>
 
         <div class="filter-block" id="clusterFilterBlock">
-          <div class="toolbar">
+          <div class="toolbar toolbar--plain">
             <strong>Кластер</strong>
-            <button class="btn secondary small" type="button" data-check-all="cluster">Все</button>
-            <button class="btn secondary small" type="button" data-check-none="cluster">Снять</button>
           </div>
           <div id="clusterChecks" class="checks"><div class="empty">Загрузите данные</div></div>
         </div>
@@ -669,11 +1138,43 @@
 
       <section class="panel panel-chart-col">
         <div class="chart-sticky">
-          <h2>Гистограмма</h2>
-          <div class="chart-wrap" data-tip="Ось X зависит от «Группы на графике»; ось Y — число ТН">
+          <h2 id="chartHeading">Гистограмма</h2>
+          <div class="chart-toolbar">
+            <label class="field" data-tip="Гистограмма — дискретные интервалы; линия — форма распределения по центрам интервалов">
+              <span>Вид графика</span>
+              <select id="chartType">
+                <option value="bars" selected>Гистограмма</option>
+                <option value="line">Линия</option>
+              </select>
+            </label>
+            <label class="field compare-only" data-tip="Наложение и наложение с перекрытием — один общий график на всю ширину; рядом и друг под другом — два графика один под другим на всю ширину">
+              <span>Компоновка сравнения</span>
+              <select id="compareLayout">
+                <option value="overlay" selected>Наложение</option>
+                <option value="overlap">Наложение с перекрытием</option>
+                <option value="side">Рядом</option>
+                <option value="stack">Друг под другом</option>
+              </select>
+            </label>
+          </div>
+          <div class="chart-wrap chart-wrap-primary" data-tip="Ось X зависит от режима; ось Y — число ТН">
             <canvas id="chart" aria-label="Гистограмма распределения сумм"></canvas>
           </div>
-          <div id="legend" class="legend" data-tip="Цвета серий: ТБ / ГОСБ / кластер или интервалы (в зависимости от режима)"></div>
+          <div class="charts-dual" id="chartsDual">
+            <div class="chart-pane">
+              <div class="chart-pane__title" id="chartTitleA">Текущий период</div>
+              <div class="chart-wrap">
+                <canvas id="chartA" aria-label="Текущий период"></canvas>
+              </div>
+            </div>
+            <div class="chart-pane">
+              <div class="chart-pane__title" id="chartTitleB">Прошлый период</div>
+              <div class="chart-wrap">
+                <canvas id="chartB" aria-label="Прошлый период"></canvas>
+              </div>
+            </div>
+          </div>
+          <div id="legend" class="legend" data-tip="Цвета серий / периодов"></div>
         </div>
         <div class="chart-below">
           <div id="binCustomRow">
@@ -683,19 +1184,19 @@
                 <input id="movableEdgeCount" type="number" min="1" max="40" step="1" value="2">
               </label>
               <button class="btn secondary" type="button" id="btnEqualCountEdges"
-                data-tip="Поставить границы так, чтобы в каждом интервале было примерно одинаковое число ТН (по всей текущей выборке после фильтров). Внутри ТБ/ГОСБ/кластера доли могут отличаться.">
+                data-tip="Примерно равное число ТН в интервалах — только по текущему периоду. Прошлый период в расчёт не входит.">
                 Равно по числу ТН
               </button>
               <button class="btn secondary" type="button" id="btnLadderCountEdges"
-                data-tip="Лесенка: в 1-м интервале больше всего ТН, во 2-м меньше, … в последнем меньше всех (веса K : K−1 : … : 1). По всей выборке после фильтров.">
+                data-tip="Лесенка K…1 по числу ТН — только по текущему периоду. Прошлый период в расчёт не входит.">
                 Лесенка по числу ТН
               </button>
               <button class="btn secondary" type="button" id="btnEvenWidthEdges"
-                data-tip="Равные интервалы по сумме: шкала от мин до макс делится на одинаковые по ширине отрезки (не по числу ТН).">
+                data-tip="Равная ширина по шкале сумм (в сравнении шкала охватывает оба периода).">
                 Равные интервалы
               </button>
             </div>
-            <p class="hint">Края шкалы — минимум и максимум выборки (фиксированы). Двигайте ползунки или кнопки выше. «Равные интервалы» — равная ширина по сумме; «Равно по числу ТН» / «Лесенка» — по числу участников.</p>
+            <p class="hint">Интервалы общие. «Равно» и «Лесенка» считают границы по текущему периоду; у прошлого — своё попадание в те же интервалы.</p>
             <div class="edge-rail-wrap">
               <div id="edgeRail" class="edge-rail" aria-label="Шкала границ интервалов"></div>
               <div id="edgeValues" class="edge-values"></div>
@@ -731,12 +1232,42 @@
 
     /** @typedef {{ tn: string, amount: number, tb: string, gosb: string, cluster: string }} DataRow */
 
-    /** @type {DataRow[]} сырые строки */
+    /**
+     * Подписи периодов сравнения.
+     * Внутри кода A = текущий, B = прошлый.
+     */
+    const PERIOD_CUR = {
+      code: "A",
+      label: "Текущий период",
+      short: "Тек",
+      prefix: "Текущий · "
+    };
+    const PERIOD_PREV = {
+      code: "B",
+      label: "Прошлый период",
+      short: "Прош",
+      prefix: "Прошлый · "
+    };
+
+    /** @type {DataRow[]} сырые строки текущего периода */
     let rawRows = [];
-    /** @type {DataRow[]} агрегаты по ТН */
+    /** @type {DataRow[]} агрегаты по ТН текущего периода */
     let allRows = [];
+    /** @type {{ hasTb: boolean, hasGosb: boolean, hasCluster: boolean }} флаги колонок текущего периода */
+    let presenceA = { hasTb: false, hasGosb: false, hasCluster: false };
     /** @type {{ hasTb: boolean, hasGosb: boolean, hasCluster: boolean }} */
     let columnPresence = { hasTb: false, hasGosb: false, hasCluster: false };
+
+    /** Прошлый период (режим сравнения) */
+    let rawRowsB = [];
+    let allRowsB = [];
+    let presenceB = { hasTb: false, hasGosb: false, hasCluster: false };
+    let columnPresenceB = { hasTb: false, hasGosb: false, hasCluster: false };
+    let fileNameA = "";
+    let fileNameB = "";
+
+    /** @type {"single"|"compare"} */
+    let viewMode = "single";
 
     /** Состояние ручных границ */
     const edgeState = {
@@ -751,23 +1282,41 @@
     let lastChartState = null;
 
     /** Области столбиков для hover-подсказки (координаты CSS-пикселей canvas). */
-    /** @type {{ x: number, y: number, w: number, h: number, tip: string }[]} */
+    /** @type {{ x: number, y: number, w: number, h: number, tip: string, canvas?: HTMLCanvasElement }[]} */
     let chartHitBars = [];
+    let chartHitBarsA = [];
+    let chartHitBarsB = [];
 
     const el = {
+      tabSingle: document.getElementById("tabSingle"),
+      tabCompare: document.getElementById("tabCompare"),
       fileInput: document.getElementById("fileInput"),
-      pasteArea: document.getElementById("pasteArea"),
-      btnParse: document.getElementById("btnParse"),
-      btnRebuild: document.getElementById("btnRebuild"),
+      fileInputB: document.getElementById("fileInputB"),
+      fileOverviewA: document.getElementById("fileOverviewA"),
+      fileOverviewB: document.getElementById("fileOverviewB"),
+      periodTitleA: document.getElementById("periodTitleA"),
+      periodTitleB: document.getElementById("periodTitleB"),
       btnClear: document.getElementById("btnClear"),
+      btnClearB: document.getElementById("btnClearB"),
+      btnRebuild: document.getElementById("btnRebuild"),
       loadStatus: document.getElementById("loadStatus"),
       sliceMode: document.getElementById("sliceMode"),
       groupLayout: document.getElementById("groupLayout"),
+      chartType: document.getElementById("chartType"),
+      compareLayout: document.getElementById("compareLayout"),
+      chartHeading: document.getElementById("chartHeading"),
+      chartsDual: document.getElementById("chartsDual"),
+      chartA: document.getElementById("chartA"),
+      chartB: document.getElementById("chartB"),
+      chartTitleA: document.getElementById("chartTitleA"),
+      chartTitleB: document.getElementById("chartTitleB"),
       filterHint: document.getElementById("filterHint"),
       orgTree: document.getElementById("orgTree"),
       orgTreeFilterBlock: document.getElementById("orgTreeFilterBlock"),
       clusterChecks: document.getElementById("clusterChecks"),
       clusterFilterBlock: document.getElementById("clusterFilterBlock"),
+      btnFilterSelectAll: document.getElementById("btnFilterSelectAll"),
+      btnFilterClearAll: document.getElementById("btnFilterClearAll"),
       movableEdgeCount: document.getElementById("movableEdgeCount"),
       btnEqualCountEdges: document.getElementById("btnEqualCountEdges"),
       btnLadderCountEdges: document.getElementById("btnLadderCountEdges"),
@@ -796,6 +1345,65 @@
         "#007AFF", "#34C759", "#FF9500", "#5856D6", "#FF3B30",
         "#5AC8FA", "#AF52DE", "#FF2D55", "#64D2FF", "#30D158"
       ];
+
+    const COMPARE_COLORS = (APP_CONFIG.compareColors && APP_CONFIG.compareColors.length)
+      ? APP_CONFIG.compareColors
+      : ["#007AFF", "#FF9500"];
+
+    function seriesPaletteColor(index) {
+      return SERIES_COLORS[index % SERIES_COLORS.length];
+    }
+
+    function comparePaletteColor(index) {
+      return COMPARE_COLORS[index % COMPARE_COLORS.length];
+    }
+
+    /** Код периода из имени серии: A = текущий, B = прошлый. */
+    function periodCodeFromSeriesName(name) {
+      const s = String(name || "");
+      if (/^(Текущий|A)\s*·/.test(s)) return "A";
+      if (/^(Прошлый|B)\s*·/.test(s)) return "B";
+      return null;
+    }
+
+    /** Серии вида «Текущий · …» / «Прошлый · …» в наложении сравнения. */
+    function isPeriodCompareHist(hist) {
+      const name = hist && hist.series && hist.series[0] && hist.series[0].name;
+      return periodCodeFromSeriesName(name) === "A" || periodCodeFromSeriesName(name) === "B";
+    }
+
+    function isPeriodSeriesName(name) {
+      return periodCodeFromSeriesName(name) != null;
+    }
+
+    /**
+     * Единый цвет для графика и легенды.
+     * bin: цвет серии (в сравнении — compareColors).
+     * slice + bars: цвет интервала (binIndex).
+     * slice + line: цвет серии (одна линия на значение разреза).
+     */
+    function chartColor(opts) {
+      const layout = opts.layout === "slice" ? "slice" : "bin";
+      const chartType = opts.chartType || "bars";
+      const si = opts.seriesIndex || 0;
+      const bi = opts.binIndex || 0;
+      if (opts.compareMode || (opts.hist && isPeriodCompareHist(opts.hist))) {
+        return comparePaletteColor(si);
+      }
+      if (layout === "bin") return seriesPaletteColor(si);
+      if (chartType === "line") return seriesPaletteColor(si);
+      return seriesPaletteColor(bi);
+    }
+
+    /** Нормализация вида графика (площадь снята). */
+    function resolveChartType() {
+      let t = (el.chartType && el.chartType.value) || "bars";
+      if (t === "area") {
+        t = "line";
+        if (el.chartType) el.chartType.value = "line";
+      }
+      return t === "line" ? "line" : "bars";
+    }
 
     function normalizeAmount(raw) {
       if (typeof raw === "number" && Number.isFinite(raw)) return raw;
@@ -1268,8 +1876,11 @@
     }
 
     function setLoadStatus(msg, kind) {
-      el.loadStatus.textContent = msg;
-      el.loadStatus.className = "status" + (kind ? " " + kind : "");
+      const text = msg == null ? "" : String(msg);
+      el.loadStatus.textContent = text;
+      el.loadStatus.className = "status" + (kind === "err" ? " err" : "");
+      if (kind === "err" && text) el.loadStatus.removeAttribute("hidden");
+      else el.loadStatus.setAttribute("hidden", "");
     }
     function setChartStatus(msg, kind) {
       el.chartStatus.textContent = msg;
@@ -1277,23 +1888,157 @@
     }
 
     function applyParsed(parsed, sourceLabel) {
-      rawRows = parsed.rows;
-      columnPresence = {
-        hasTb: !!parsed.meta.hasTb,
-        hasGosb: !!parsed.meta.hasGosb,
-        hasCluster: !!parsed.meta.hasCluster
-      };
-      allRows = aggregateByTn(rawRows);
-      rebuildFilterOptions(true);
-      syncSliceOptions();
+      applyParsedToPeriod("a", parsed, sourceLabel);
+    }
+
+    function applyParsedToPeriod(which, parsed, sourceLabel) {
       const skipped = parsed.meta.skipped || 0;
-      setLoadStatus(
-        `Сырых строк: ${rawRows.length}; уникальных ТН: ${allRows.length} («${sourceLabel}»)` +
-          (skipped ? `; пропущено ${skipped}` : "") + ".",
-        "ok"
-      );
+      if (which === "b") {
+        rawRowsB = parsed.rows;
+        presenceB = {
+          hasTb: !!parsed.meta.hasTb,
+          hasGosb: !!parsed.meta.hasGosb,
+          hasCluster: !!parsed.meta.hasCluster
+        };
+        columnPresenceB = presenceB;
+        allRowsB = aggregateByTn(rawRowsB);
+        fileNameB = sourceLabel || "";
+        renderFileOverview(el.fileOverviewB, {
+          fileName: fileNameB,
+          rawCount: rawRowsB.length,
+          tnCount: allRowsB.length,
+          rows: allRowsB,
+          presence: presenceB,
+          skipped
+        });
+      } else {
+        rawRows = parsed.rows;
+        presenceA = {
+          hasTb: !!parsed.meta.hasTb,
+          hasGosb: !!parsed.meta.hasGosb,
+          hasCluster: !!parsed.meta.hasCluster
+        };
+        allRows = aggregateByTn(rawRows);
+        fileNameA = sourceLabel || "";
+        renderFileOverview(el.fileOverviewA, {
+          fileName: fileNameA,
+          rawCount: rawRows.length,
+          tnCount: allRows.length,
+          rows: allRows,
+          presence: presenceA,
+          skipped
+        });
+      }
+      refreshPresenceAndFilters(true);
+      setLoadStatus("", "");
       initEdgeStateFromData(true);
       rebuild();
+    }
+
+    function refreshPresenceAndFilters(initial) {
+      columnPresence = mergedColumnPresence();
+      rebuildFilterOptions(initial);
+      syncSliceOptions();
+    }
+
+    function mergedColumnPresence() {
+      return {
+        hasTb: !!(presenceA.hasTb || presenceB.hasTb),
+        hasGosb: !!(presenceA.hasGosb || presenceB.hasGosb),
+        hasCluster: !!(presenceA.hasCluster || presenceB.hasCluster)
+      };
+    }
+
+    function activeRowsPool() {
+      if (viewMode === "compare" && allRowsB.length) return allRows.concat(allRowsB);
+      return allRows;
+    }
+
+    function svgIcon(name) {
+      const icons = {
+        file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+        users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+        rows: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+        bank: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>',
+        building: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01"/></svg>',
+        grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
+        sum: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16M4 20h16M6 8l6 4-6 4"/></svg>',
+        checkAll: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 12l3.2 3.2L17 8.5"/></svg>',
+        clearAll: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8l8 8M16 8l-8 8"/></svg>'
+      };
+      return icons[name] || icons.file;
+    }
+
+    function topCounts(rows, field, limit) {
+      const map = new Map();
+      for (const r of rows) {
+        const k = r[field];
+        if (!k) continue;
+        map.set(k, (map.get(k) || 0) + 1);
+      }
+      return [...map.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))
+        .slice(0, limit);
+    }
+
+    function renderFileOverview(target, info) {
+      if (!target) return;
+      if (!info || !info.tnCount) {
+        target.innerHTML = "";
+        return;
+      }
+      const rows = info.rows || [];
+      const amounts = rows.map((r) => r.amount);
+      const min = amounts.length ? Math.min(...amounts) : 0;
+      const max = amounts.length ? Math.max(...amounts) : 0;
+      const sum = amounts.reduce((a, b) => a + b, 0);
+      const avg = amounts.length ? sum / amounts.length : 0;
+      const tbTop = info.presence.hasTb ? topCounts(rows, "tb", 5) : [];
+      const gosbTop = info.presence.hasGosb ? topCounts(rows, "gosb", 6) : [];
+      const clTop = info.presence.hasCluster ? topCounts(rows, "cluster", 6) : [];
+      const chips = (items) => items.map(([k, n]) =>
+        `<span class="ov-chip" title="${k}">${k}: ${n}</span>`
+      ).join("");
+
+      target.innerHTML =
+        `<div class="ov-card"><div class="ov-card__icon">${svgIcon("file")}</div>` +
+          `<div><div class="ov-card__label">Файл</div><div class="ov-card__value">${escapeHtml(info.fileName || "—")}</div></div></div>` +
+        `<div class="ov-card"><div class="ov-card__icon is-green">${svgIcon("rows")}</div>` +
+          `<div><div class="ov-card__label">Строк</div><div class="ov-card__value">${formatInt(info.rawCount)}</div>` +
+          (info.skipped ? `<div class="ov-card__sub">проп. ${info.skipped}</div>` : "") +
+          `</div></div>` +
+        `<div class="ov-card"><div class="ov-card__icon is-teal">${svgIcon("users")}</div>` +
+          `<div><div class="ov-card__label">ТН</div><div class="ov-card__value">${formatInt(info.tnCount)}</div></div></div>` +
+        `<div class="ov-card"><div class="ov-card__icon is-orange">${svgIcon("sum")}</div>` +
+          `<div><div class="ov-card__label">Суммы</div><div class="ov-card__value">${formatAmount(avg)} ср.</div>` +
+          `<div class="ov-card__sub">${formatAmountExact(min)}…${formatAmountExact(max)} · Σ ${formatAmount(sum)}</div></div></div>` +
+        (tbTop.length
+          ? `<div class="ov-card is-wide"><div class="ov-card__icon is-purple">${svgIcon("bank")}</div>` +
+            `<div><div class="ov-card__label">ТБ · ${new Set(rows.map((r) => r.tb).filter(Boolean)).size}</div>` +
+            `<div class="ov-card__sub"><div class="ov-chips">${chips(tbTop)}</div></div></div></div>`
+          : "") +
+        (gosbTop.length
+          ? `<div class="ov-card is-wide"><div class="ov-card__icon">${svgIcon("building")}</div>` +
+            `<div><div class="ov-card__label">ГОСБ · ${new Set(rows.map((r) => r.gosb).filter(Boolean)).size}</div>` +
+            `<div class="ov-card__sub"><div class="ov-chips">${chips(gosbTop)}</div></div></div></div>`
+          : "") +
+        (clTop.length
+          ? `<div class="ov-card is-wide"><div class="ov-card__icon is-green">${svgIcon("grid")}</div>` +
+            `<div><div class="ov-card__label">Кластер · ${new Set(rows.map((r) => r.cluster).filter(Boolean)).size}</div>` +
+            `<div class="ov-card__sub"><div class="ov-chips">${chips(clTop)}</div></div></div></div>`
+          : "");
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function formatInt(n) {
+      return Number(n).toLocaleString("ru-RU");
     }
 
     function syncSliceOptions() {
@@ -1302,12 +2047,12 @@
         const v = opts[i].value;
         let ok = true;
         if (v === "tb") ok = columnPresence.hasTb;
-        else if (v === "gosb") ok = columnPresence.hasGosb;
-        else if (v === "tb_gosb") ok = columnPresence.hasTb && columnPresence.hasGosb;
         else if (v === "cluster") ok = columnPresence.hasCluster;
+        else if (v === "gosb" || v === "tb_gosb") ok = false;
         opts[i].disabled = !ok;
       }
-      if (el.sliceMode.selectedOptions[0] && el.sliceMode.selectedOptions[0].disabled) {
+      const cur = el.sliceMode.value;
+      if (cur === "gosb" || cur === "tb_gosb" || (el.sliceMode.selectedOptions[0] && el.sliceMode.selectedOptions[0].disabled)) {
         el.sliceMode.value = "all";
       }
       syncGroupLayoutUi();
@@ -1434,8 +2179,9 @@
       return added;
     }
 
-    /** При снятии ТБ/ГОСБ — убрать осиротевшие зависимые. */
+    /** При снятии — убрать осиротевшие зависимые (в обе стороны: орг ↔ кластер). */
     function pruneOrphansAfterUncheck(dim, value, sel) {
+      const pool = activeRowsPool();
       if (dim === "tb") {
         for (const g of [...sel.gosb]) {
           const parents = orgIndex.gosbToTb.get(g) || new Set();
@@ -1443,7 +2189,7 @@
           if (!still) sel.gosb.delete(g);
         }
         for (const c of [...sel.cluster]) {
-          const still = allRows.some(
+          const still = pool.some(
             (r) => r.cluster === c &&
               ((r.tb && sel.tb.has(r.tb)) || (r.gosb && sel.gosb.has(r.gosb)))
           );
@@ -1451,12 +2197,51 @@
         }
       } else if (dim === "gosb") {
         for (const c of [...sel.cluster]) {
-          const still = allRows.some(
+          const still = pool.some(
             (r) => r.cluster === c &&
               ((r.gosb && sel.gosb.has(r.gosb)) || (r.tb && sel.tb.has(r.tb) && !r.gosb))
           );
           if (!still) sel.cluster.delete(c);
         }
+      } else if (dim === "cluster") {
+        pruneOrgBySelectedClusters(sel);
+      }
+    }
+
+    /** ТБ/ГОСБ оставляем только если связаны с выбранными кластерами. */
+    function pruneOrgBySelectedClusters(sel) {
+      if (!sel.cluster.size) {
+        sel.tb.clear();
+        sel.gosb.clear();
+        return;
+      }
+      for (const t of [...sel.tb]) {
+        const linked = orgIndex.tbToCluster.get(t) || new Set();
+        if (![...linked].some((c) => sel.cluster.has(c))) sel.tb.delete(t);
+      }
+      for (const g of [...sel.gosb]) {
+        const linked = orgIndex.gosbToCluster.get(g) || new Set();
+        if (![...linked].some((c) => sel.cluster.has(c))) sel.gosb.delete(g);
+      }
+    }
+
+    /**
+     * Массовый выбор / снятие сразу по ТБ, ГОСБ и кластерам.
+     * @param {boolean} selectAll
+     */
+    function applyBulkFilterSelection(selectAll) {
+      if (selectAll) {
+        filterSelections = {
+          tb: new Set(filterUniverse.tb),
+          gosb: new Set(filterUniverse.gosb),
+          cluster: new Set(filterUniverse.cluster)
+        };
+      } else {
+        filterSelections = {
+          tb: new Set(),
+          gosb: new Set(),
+          cluster: new Set()
+        };
       }
     }
 
@@ -1477,61 +2262,69 @@
       return hint;
     }
 
+    /** Стабильный порядок списка (без перестановки при выборе). */
     function orderFilterValues(allValues, allowed, checked) {
-      const a = [];
-      const b = [];
-      const c = [];
-      for (const v of allValues) {
-        const ok = allowed.has(v);
-        const ch = checked.has(v);
-        if (ok && ch) a.push(v);
-        else if (ok) b.push(v);
-        else c.push(v);
-      }
-      const cmp = (x, y) => x.localeCompare(y, "ru");
-      a.sort(cmp);
-      b.sort(cmp);
-      c.sort(cmp);
-      return [...a, ...b, ...c].map((value) => ({
+      return allValues.map((value) => ({
         value,
         enabled: allowed.has(value),
         checked: checked.has(value)
       }));
     }
 
-    function orderTbNodes(tbList, allowedTb) {
-      const active = [];
-      const muted = [];
-      for (const tb of tbList) {
-        if (allowedTb.has(tb)) active.push(tb);
-        else muted.push(tb);
+    function stableSorted(list) {
+      return [...list].sort((a, b) => a.localeCompare(b, "ru"));
+    }
+
+    /** all | partial | none по выбранным из universe. */
+    function selectionFillState(selectedSet, universeList) {
+      const total = universeList.length;
+      if (!total) return "none";
+      let n = 0;
+      for (const v of universeList) {
+        if (selectedSet.has(v)) n += 1;
       }
-      const cmp = (x, y) => x.localeCompare(y, "ru");
-      active.sort(cmp);
-      muted.sort(cmp);
-      return [...active, ...muted];
+      if (n <= 0) return "none";
+      if (n >= total) return "all";
+      return "partial";
+    }
+
+    function setFilterBlockSelClass(node, state) {
+      if (!node) return;
+      node.classList.remove("is-sel-all", "is-sel-partial", "is-sel-none");
+      node.classList.add("is-sel-" + state);
+    }
+
+    function syncFilterBlockSelectionStyles() {
+      const orgItems = filterUniverse.tb.concat(filterUniverse.gosb);
+      const orgSelected = new Set([...(filterSelections.tb || []), ...(filterSelections.gosb || [])]);
+      setFilterBlockSelClass(el.orgTreeFilterBlock, selectionFillState(orgSelected, orgItems));
+      setFilterBlockSelClass(
+        el.clusterFilterBlock,
+        selectionFillState(filterSelections.cluster || new Set(), filterUniverse.cluster)
+      );
     }
 
     function rebuildFilterOptions(initial, hintText) {
-      const showTb = columnPresence.hasTb && allRows.some((r) => r.tb);
-      const showGosb = columnPresence.hasGosb && allRows.some((r) => r.gosb);
-      const showCluster = columnPresence.hasCluster && allRows.some((r) => r.cluster);
+      const pool = activeRowsPool();
+      const showTb = columnPresence.hasTb && pool.some((r) => r.tb);
+      const showGosb = columnPresence.hasGosb && pool.some((r) => r.gosb);
+      const showCluster = columnPresence.hasCluster && pool.some((r) => r.cluster);
       const showOrg = showTb || showGosb;
 
       if (el.orgTreeFilterBlock) el.orgTreeFilterBlock.classList.toggle("hidden", !showOrg);
       el.clusterFilterBlock.classList.toggle("hidden", !showCluster);
 
-      orgIndex = buildOrgIndex(allRows);
+      orgIndex = buildOrgIndex(pool);
 
       filterUniverse = {
         tb: showTb
-          ? [...new Set(allRows.map((r) => r.tb).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"))
+          ? [...new Set(pool.map((r) => r.tb).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"))
           : [],
         gosb: showGosb
-          ? [...new Set(allRows.map((r) => r.gosb).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"))
+          ? [...new Set(pool.map((r) => r.gosb).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"))
           : [],
         cluster: showCluster
-          ? [...new Set(allRows.map((r) => r.cluster).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"))
+          ? [...new Set(pool.map((r) => r.cluster).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"))
           : []
       };
 
@@ -1544,7 +2337,7 @@
       }
 
       const selections = readSelections();
-      const allowed = computeAllAllowed(selections, allRows);
+      const allowed = computeAllAllowed(selections, pool);
 
       if (el.filterHint) {
         el.filterHint.textContent = hintText || "";
@@ -1562,6 +2355,7 @@
       } else {
         el.clusterChecks.innerHTML = "";
       }
+      syncFilterBlockSelectionStyles();
     }
 
     function renderOrgTree(allowed, selections) {
@@ -1573,23 +2367,35 @@
         return;
       }
 
-      const tbOrder = orderTbNodes(filterUniverse.tb, allowed.tb);
-      // ГОСБ без ТБ — отдельной группой в конце
+      const tbOrder = filterUniverse.tb.slice();
       const orphanGosb = filterUniverse.gosb.filter((g) => {
         const tbs = orgIndex.gosbToTb.get(g);
         return !tbs || tbs.size === 0;
       });
 
       for (const tb of tbOrder) {
-        const tbActive = allowed.tb.has(tb);
+        const tbChecked = selections.tb.has(tb);
+        const childG = stableSorted([...(orgIndex.tbToGosb.get(tb) || [])]);
+        let gosbCheckedN = 0;
+        for (const g of childG) {
+          if (selections.gosb.has(g)) gosbCheckedN += 1;
+        }
+        let blockState = "none";
+        if (childG.length) {
+          if (tbChecked && gosbCheckedN === childG.length) blockState = "all";
+          else if (tbChecked || gosbCheckedN > 0) blockState = "partial";
+        } else {
+          blockState = tbChecked ? "all" : "none";
+        }
+
         const block = document.createElement("div");
-        block.className = "filter-tree__tb " + (tbActive ? "is-active" : "is-muted");
+        block.className = "filter-tree__tb is-sel-" + blockState;
 
         const tbLab = document.createElement("label");
-        tbLab.className = "filter-tree__row filter-tree__row--tb" + (tbActive ? "" : " is-muted");
+        tbLab.className = "filter-tree__row filter-tree__row--tb" + (tbChecked ? "" : " is-muted");
         const tbInp = document.createElement("input");
         tbInp.type = "checkbox";
-        tbInp.checked = selections.tb.has(tb);
+        tbInp.checked = tbChecked;
         tbInp.dataset.group = "tb";
         tbInp.value = tb;
         tbInp.addEventListener("change", onFilterCheckboxChange);
@@ -1597,21 +2403,19 @@
         tbSpan.textContent = tb;
         const badge = document.createElement("span");
         badge.className = "filter-tree__badge";
-        const childG = [...(orgIndex.tbToGosb.get(tb) || [])];
         badge.textContent = childG.length ? childG.length + " ГОСБ" : "";
         tbLab.appendChild(tbInp);
         tbLab.appendChild(tbSpan);
         if (childG.length) tbLab.appendChild(badge);
         block.appendChild(tbLab);
 
-        const gosbOrdered = orderTbNodes(childG, allowed.gosb);
-        for (const g of gosbOrdered) {
-          const gActive = allowed.gosb.has(g);
+        for (const g of childG) {
+          const gChecked = selections.gosb.has(g);
           const gLab = document.createElement("label");
-          gLab.className = "filter-tree__row filter-tree__row--gosb" + (gActive ? "" : " is-muted");
+          gLab.className = "filter-tree__row filter-tree__row--gosb" + (gChecked ? "" : " is-muted");
           const gInp = document.createElement("input");
           gInp.type = "checkbox";
-          gInp.checked = selections.gosb.has(g);
+          gInp.checked = gChecked;
           gInp.dataset.group = "gosb";
           gInp.value = g;
           gInp.addEventListener("change", onFilterCheckboxChange);
@@ -1625,19 +2429,28 @@
       }
 
       if (orphanGosb.length) {
+        const orphans = stableSorted(orphanGosb);
+        let oChecked = 0;
+        for (const g of orphans) {
+          if (selections.gosb.has(g)) oChecked += 1;
+        }
+        let oState = "none";
+        if (oChecked >= orphans.length) oState = "all";
+        else if (oChecked > 0) oState = "partial";
+
         const block = document.createElement("div");
-        block.className = "filter-tree__tb is-muted";
+        block.className = "filter-tree__tb is-sel-" + oState;
         const title = document.createElement("div");
         title.className = "filter-tree__row filter-tree__row--tb is-muted";
         title.textContent = "ГОСБ без ТБ";
         block.appendChild(title);
-        for (const g of orderTbNodes(orphanGosb, allowed.gosb)) {
-          const gActive = allowed.gosb.has(g);
+        for (const g of orphans) {
+          const gChecked = selections.gosb.has(g);
           const gLab = document.createElement("label");
-          gLab.className = "filter-tree__row filter-tree__row--gosb" + (gActive ? "" : " is-muted");
+          gLab.className = "filter-tree__row filter-tree__row--gosb" + (gChecked ? "" : " is-muted");
           const gInp = document.createElement("input");
           gInp.type = "checkbox";
-          gInp.checked = selections.gosb.has(g);
+          gInp.checked = gChecked;
           gInp.dataset.group = "gosb";
           gInp.value = g;
           gInp.addEventListener("change", onFilterCheckboxChange);
@@ -1659,7 +2472,7 @@
       }
       for (const item of items) {
         const label = document.createElement("label");
-        if (!item.enabled) label.classList.add("is-muted");
+        if (!item.checked) label.classList.add("is-muted");
         const input = document.createElement("input");
         input.type = "checkbox";
         input.checked = !!item.checked;
@@ -1685,8 +2498,8 @@
       rebuild();
     }
 
-    function filteredRows() {
-      let rows = allRows;
+    function filteredRowsFrom(sourceRows) {
+      let rows = sourceRows;
       const showOrg = el.orgTreeFilterBlock && !el.orgTreeFilterBlock.classList.contains("hidden");
       const showCluster = !el.clusterFilterBlock.classList.contains("hidden");
 
@@ -1703,6 +2516,20 @@
         if (sel.size > 0) rows = rows.filter((r) => !r.cluster || sel.has(r.cluster));
       }
       return rows;
+    }
+
+    function filteredRows() {
+      return filteredRowsFrom(allRows);
+    }
+
+    function filteredRowsB() {
+      return filteredRowsFrom(allRowsB);
+    }
+
+    function edgeSourceRows() {
+      const a = filteredRows();
+      if (viewMode === "compare" && allRowsB.length) return a.concat(filteredRowsB());
+      return a;
     }
 
     /** Точные мин/макс по суммам ТН (без floor/ceil). */
@@ -1804,6 +2631,7 @@
 
     /**
      * Общий обработчик кнопок распределения по числу ТН.
+     * Квантили всегда только по текущему периоду; прошлый не участвует.
      * @param {"equal"|"ladder"} kind
      */
     function applyWeightedCountEdges(kind) {
@@ -1811,37 +2639,56 @@
         setChartStatus("Сначала загрузите данные.", "err");
         return;
       }
-      const rows = filteredRows();
-      if (!rows.length) {
-        setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
+      const rowsA = filteredRows();
+      if (!rowsA.length) {
+        setChartStatus("После фильтров в текущем периоде ТН не осталось — нечего распределять.", "err");
         return;
       }
-      const { min, max } = edgeScaleMinMax(rows);
+      const aScale = edgeScaleMinMax(rowsA);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
-      edgeState.min = min;
-      edgeState.max = max;
-      const amounts = rows.map((r) => r.amount);
-      edgeState.edges = kind === "ladder"
-        ? ladderCountEdges(amounts, n, min, max)
-        : equalCountEdges(amounts, n, min, max);
+      const amounts = rowsA.map((r) => r.amount);
+      let edges = kind === "ladder"
+        ? ladderCountEdges(amounts, n, aScale.min, aScale.max)
+        : equalCountEdges(amounts, n, aScale.min, aScale.max);
+
+      // В сравнении шкалу рельса расширяем на оба периода; промежуточные границы остаются от текущего
+      if (viewMode === "compare" && allRowsB.length) {
+        const full = edgeScaleMinMax(edgeSourceRows());
+        edgeState.min = full.min;
+        edgeState.max = full.max;
+        edges = edges.slice();
+        edges[0] = full.min;
+        edges[edges.length - 1] = full.max;
+        for (let i = 1; i < edges.length - 1; i += 1) {
+          if (edges[i] < full.min) edges[i] = full.min;
+          if (edges[i] > full.max) edges[i] = full.max;
+        }
+        edgeState.edges = cascadeEdges(edges, 0);
+      } else {
+        edgeState.min = aScale.min;
+        edgeState.max = aScale.max;
+        edgeState.edges = edges;
+      }
+
       renderEdgeRail();
       rebuild();
       const binCount = n + 1;
+      const byCur = viewMode === "compare" ? " (по текущему периоду)" : "";
       if (kind === "ladder") {
         const weights = Array.from({ length: binCount }, (_, i) => binCount - i);
         const totalW = weights.reduce((a, b) => a + b, 0);
         const pct = weights.map((w) => Math.round((100 * w) / totalW));
         setChartStatus(
-          "Лесенка по числу ТН: " + binCount + " интервал(ов), целевые доли ≈ " +
-            pct.join("% / ") + "% (по всей выборке).",
+          "Лесенка по числу ТН" + byCur + ": " + binCount + " интервал(ов), целевые доли ≈ " +
+            pct.join("% / ") + "%.",
           "ok"
         );
       } else {
         setChartStatus(
-          "Границы по числу ТН: " + binCount + " интервал(ов), цель ≈ " +
-            Math.round(100 / binCount) + "% участников в каждом (по всей выборке).",
+          "Границы по числу ТН" + byCur + ": " + binCount + " интервал(ов), цель ≈ " +
+            Math.round(100 / binCount) + "% участников текущего периода в каждом.",
           "ok"
         );
       }
@@ -1861,7 +2708,7 @@
         setChartStatus("Сначала загрузите данные.", "err");
         return;
       }
-      const rows = filteredRows();
+      const rows = edgeSourceRows();
       if (!rows.length) {
         setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
         return;
@@ -1884,8 +2731,13 @@
     }
 
     function initEdgeStateFromData(forceReset) {
-      const rows = filteredRows();
-      const { min, max } = edgeScaleMinMax(rows);
+      const rows = edgeSourceRows();
+      if (!rows.length && !allRows.length) {
+        edgeState.edges = [];
+        renderEdgeRail();
+        return;
+      }
+      const { min, max } = edgeScaleMinMax(rows.length ? rows : allRows);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
@@ -1915,6 +2767,81 @@
       return edgeState.min + (pct / 100) * span;
     }
 
+    function countTnPerBin(rows, edges) {
+      const binCount = Math.max(0, edges.length - 1);
+      const counts = Array(binCount).fill(0);
+      for (const row of rows) {
+        const bi = binIndexForAmount(row.amount, edges);
+        if (bi >= 0) counts[bi] += 1;
+      }
+      return counts;
+    }
+
+    function formatSegPct(count, total) {
+      if (!total) return "0%";
+      const p = (100 * count) / total;
+      return (p >= 10 || p === 0 ? p.toFixed(0) : p.toFixed(1)) + "%";
+    }
+
+    function makeEdgeSegLabel(count, total, side, periodClass) {
+      const seg = document.createElement("div");
+      seg.className = "edge-rail__seg edge-rail__seg--" + side + (periodClass ? (" " + periodClass) : "");
+      const c = document.createElement("span");
+      c.className = "edge-rail__seg-count";
+      c.textContent = String(count);
+      const p = document.createElement("span");
+      p.className = "edge-rail__seg-pct";
+      p.textContent = formatSegPct(count, total);
+      seg.appendChild(c);
+      seg.appendChild(p);
+      const pctVal = total ? (100 * count) / total : 0;
+      seg.title = count + " ТН · " + pctVal.toFixed(1) + "% от " + total;
+      return seg;
+    }
+
+    /** Подписи ТН/% между бегунками (сверху текущий; в сравнении прошлый снизу). */
+    function updateEdgeSegmentLabels() {
+      if (!el.edgeRail) return;
+      el.edgeRail.querySelectorAll(".edge-rail__seg").forEach((n) => n.remove());
+      const edges = edgeState.edges;
+      if (!edges || edges.length < 2) return;
+
+      const compare = viewMode === "compare" && allRowsB.length > 0;
+      el.edgeRail.classList.toggle("is-compare", compare);
+
+      const rowsA = allRows.length ? filteredRows() : [];
+      const countsA = countTnPerBin(rowsA, edges);
+      const totalA = rowsA.length;
+      let countsB = null;
+      let totalB = 0;
+      if (compare) {
+        const rowsB = filteredRowsB();
+        countsB = countTnPerBin(rowsB, edges);
+        totalB = rowsB.length;
+      }
+
+      const binCount = edges.length - 1;
+      for (let i = 0; i < binCount; i += 1) {
+        const leftPct = valueToPct(edges[i]);
+        const rightPct = valueToPct(edges[i + 1]);
+        const mid = (leftPct + rightPct) / 2;
+        const spanPct = Math.abs(rightPct - leftPct);
+        const narrow = spanPct < 12;
+
+        const top = makeEdgeSegLabel(countsA[i] || 0, totalA, "top", compare ? "is-a" : "");
+        top.style.left = mid + "%";
+        if (narrow) top.classList.add("is-narrow");
+        el.edgeRail.appendChild(top);
+
+        if (compare && countsB) {
+          const bot = makeEdgeSegLabel(countsB[i] || 0, totalB, "bottom", "is-b");
+          bot.style.left = mid + "%";
+          if (narrow) bot.classList.add("is-narrow");
+          el.edgeRail.appendChild(bot);
+        }
+      }
+    }
+
     function renderEdgeRail() {
       const edges = edgeState.edges;
       if (!edges.length) {
@@ -1931,6 +2858,7 @@
       const activeSelEnd = active && active.selectionEnd;
 
       el.edgeRail.innerHTML = "";
+      el.edgeRail.classList.toggle("is-compare", viewMode === "compare" && allRowsB.length > 0);
       const track = document.createElement("div");
       track.className = "edge-rail__track";
       const fill = document.createElement("div");
@@ -1965,6 +2893,8 @@
         }
         el.edgeRail.appendChild(thumb);
       });
+
+      updateEdgeSegmentLabels();
 
       el.edgeValues.innerHTML = "";
       edges.forEach((v, i) => {
@@ -2022,6 +2952,7 @@
         if (document.activeElement === input) return;
         input.value = String(toIntegerEdge(edgeState.edges[idx]));
       });
+      updateEdgeSegmentLabels();
     }
 
     function applyEdgeValue(idx, rawVal) {
@@ -2086,16 +3017,23 @@
 
     function rebuild() {
       try {
+        syncViewModeUi();
         if (!allRows.length) {
           setChartStatus("Нет данных для графика.", "");
           return;
         }
-        const rows = filteredRows();
-        if (!rows.length) {
+        if (viewMode === "compare" && !allRowsB.length) {
+          setChartStatus("В сравнении загрузите оба периода (текущий и прошлый).", "err");
+          return;
+        }
+        const rowsA = filteredRows();
+        const rowsB = viewMode === "compare" ? filteredRowsB() : [];
+        const edgeRows = edgeSourceRows();
+        if (!edgeRows.length) {
           setChartStatus("После фильтров ТН не осталось.", "err");
           return;
         }
-        const scale = edgeScaleMinMax(rows);
+        const scale = edgeScaleMinMax(edgeRows);
         edgeState.min = scale.min;
         edgeState.max = scale.max;
         if (edgeState.edges.length) {
@@ -2107,20 +3045,99 @@
         } else {
           initEdgeStateFromData(true);
         }
-        const amounts = rows.map((r) => r.amount);
+        const amounts = edgeRows.map((r) => r.amount);
         const edges = buildBins(amounts, readBinOptions());
         const slice = el.sliceMode.value;
         syncGroupLayoutUi();
-        const hist = computeHistogram(rows, edges, slice);
+        const chartType = resolveChartType();
+        const compareLayout = (el.compareLayout && el.compareLayout.value) || "overlay";
+
+        if (viewMode === "compare") {
+          const histA = computeHistogram(rowsA, edges, slice);
+          const histB = computeHistogram(rowsB, edges, slice);
+          lastChartState = {
+            rows: rowsA,
+            rowsB,
+            edges,
+            hist: histA,
+            histB,
+            layout: "bin",
+            slice,
+            compare: true,
+            compareLayout,
+            chartType
+          };
+          const split = compareLayout === "side" || compareLayout === "stack";
+          const useOverlapBars = compareLayout === "overlap" && chartType === "bars";
+          document.body.classList.toggle("is-compare-split", split);
+          if (el.chartsDual) {
+            el.chartsDual.classList.toggle("is-side", compareLayout === "side");
+            el.chartsDual.classList.toggle("is-stack", compareLayout === "stack");
+          }
+          if (el.chartTitleA) {
+            el.chartTitleA.textContent = PERIOD_CUR.label + (fileNameA ? " · " + fileNameA : "");
+          }
+          if (el.chartTitleB) {
+            el.chartTitleB.textContent = PERIOD_PREV.label + (fileNameB ? " · " + fileNameB : "");
+          }
+
+          if (split) {
+            const layoutCmp = el.groupLayout.value === "slice" && slice !== "all" ? "slice" : "bin";
+            drawHistogram(histA, layoutCmp, rowsA, slice, { canvas: el.chartA, chartType, hitTarget: "a", clearPrimaryHits: true });
+            drawHistogram(histB, layoutCmp, rowsB, slice, { canvas: el.chartB, chartType, hitTarget: "b", clearPrimaryHits: false });
+            renderLegend(histA, layoutCmp, chartType);
+            renderCompareStats(rowsA, rowsB, histA, histB, edges);
+            renderFrequencyTableCompare(histA, histB, rowsA, rowsB, slice);
+            lastChartState.layout = layoutCmp;
+          } else {
+            // Наложение / рядом с перекрытием: уважаем «Группы на графике»
+            const layoutCmp = el.groupLayout.value === "slice" && slice !== "all" ? "slice" : "bin";
+            const overlayHist = buildPeriodOverlayHist(histA, histB, fileNameA, fileNameB, slice);
+            // Перекрытие столбиков — только при группировке по интервалам
+            const overlapNow = useOverlapBars && layoutCmp === "bin";
+            drawHistogram(overlayHist, layoutCmp, rowsA, slice, {
+              canvas: el.chart,
+              chartType,
+              hitTarget: "primary",
+              clearPrimaryHits: true,
+              barOverlap: overlapNow,
+              compareOverlay: { histA, histB, rowsA, rowsB, sliceMode: slice }
+            });
+            renderLegend(overlayHist, layoutCmp, chartType);
+            renderCompareStats(rowsA, rowsB, histA, histB, edges);
+            renderFrequencyTableCompare(histA, histB, rowsA, rowsB, slice);
+            lastChartState.layout = layoutCmp;
+          }
+          const layoutLabel = ({
+            overlay: "наложение",
+            overlap: "наложение с перекрытием",
+            side: "рядом",
+            stack: "друг под другом"
+          })[compareLayout] || compareLayout;
+          setChartStatus(
+            `Сравнение: ${histA.labels.length} интерв.; ` +
+              `${PERIOD_CUR.short} ${rowsA.length} ТН / ${PERIOD_PREV.short} ${rowsB.length} ТН · ${layoutLabel} · ${chartType}.`,
+            "ok"
+          );
+          return;
+        }
+
+        document.body.classList.remove("is-compare-split");
+        if (!rowsA.length) {
+          setChartStatus("После фильтров ТН не осталось.", "err");
+          return;
+        }
+        const hist = computeHistogram(rowsA, edges, slice);
         const layout = el.groupLayout.value === "slice" && slice !== "all" ? "slice" : "bin";
-        lastChartState = { rows, edges, hist, layout, slice };
-        drawHistogram(hist, layout, rows, slice);
-        renderLegend(hist, layout);
-        renderStats(rows, hist);
-        renderFrequencyTable(hist, rows, slice);
+        lastChartState = { rows: rowsA, edges, hist, layout, slice, chartType, compare: false };
+        drawHistogram(hist, layout, rowsA, slice, { canvas: el.chart, chartType, hitTarget: "primary", clearPrimaryHits: true });
+        renderLegend(hist, layout, chartType);
+        renderStats(rowsA, hist);
+        renderFrequencyTable(hist, rowsA, slice);
         setChartStatus(
           `Интервалов: ${hist.labels.length}; ТН на графике: ${hist.total}` +
-            (hist.below || hist.above ? ` (вне границ: ниже ${hist.below}, выше ${hist.above})` : "") + ".",
+            (hist.below || hist.above ? ` (вне границ: ниже ${hist.below}, выше ${hist.above})` : "") +
+            ` · ${chartType}.`,
           "ok"
         );
       } catch (err) {
@@ -2128,8 +3145,90 @@
       }
     }
 
-    function drawHistogram(hist, groupLayout, rows, sliceMode) {
-      const canvas = el.chart;
+    /**
+     * Наложение текущего/прошлого на общие интервалы.
+     * slice=all → две серии «Текущий · файл» / «Прошлый · файл».
+     * slice=tb|cluster → пары «Текущий · значение» / «Прошлый · значение».
+     */
+    function buildPeriodOverlayHist(histA, histB, nameA, nameB, sliceMode) {
+      const labels = histA.labels.slice();
+      const binN = labels.length;
+      const zeros = () => Array(binN).fill(0);
+      const countsOf = (hist, seriesName) => {
+        const s = (hist.series || []).find((x) => x.name === seriesName);
+        return s ? s.counts.slice() : zeros();
+      };
+      const sumAll = (hist) => (hist.series || []).reduce((acc, s) => {
+        s.counts.forEach((c, i) => { acc[i] = (acc[i] || 0) + c; });
+        return acc;
+      }, zeros());
+
+      let series;
+      if (!sliceMode || sliceMode === "all") {
+        series = [
+          { name: PERIOD_CUR.prefix + (nameA || PERIOD_CUR.label), counts: sumAll(histA) },
+          { name: PERIOD_PREV.prefix + (nameB || PERIOD_PREV.label), counts: sumAll(histB) }
+        ];
+      } else {
+        const nameSet = new Set();
+        for (const s of histA.series || []) nameSet.add(s.name);
+        for (const s of histB.series || []) nameSet.add(s.name);
+        const names = [...nameSet].sort((a, b) => a.localeCompare(b, "ru"));
+        series = [];
+        for (const nm of names) {
+          series.push({ name: PERIOD_CUR.prefix + nm, counts: countsOf(histA, nm) });
+          series.push({ name: PERIOD_PREV.prefix + nm, counts: countsOf(histB, nm) });
+        }
+        if (!series.length) {
+          series = [
+            { name: PERIOD_CUR.prefix + (nameA || PERIOD_CUR.label), counts: zeros() },
+            { name: PERIOD_PREV.prefix + (nameB || PERIOD_PREV.label), counts: zeros() }
+          ];
+        }
+      }
+
+      return {
+        labels,
+        edges: histA.edges,
+        series,
+        total: (histA.total || 0) + (histB.total || 0),
+        below: (histA.below || 0) + (histB.below || 0),
+        above: (histA.above || 0) + (histB.above || 0)
+      };
+    }
+
+    function syncViewModeUi() {
+      document.body.classList.toggle("is-compare", viewMode === "compare");
+      if (el.tabSingle) {
+        el.tabSingle.classList.toggle("is-active", viewMode === "single");
+        el.tabSingle.classList.toggle("secondary", viewMode !== "single");
+        el.tabSingle.setAttribute("aria-selected", viewMode === "single" ? "true" : "false");
+      }
+      if (el.tabCompare) {
+        el.tabCompare.classList.toggle("is-active", viewMode === "compare");
+        el.tabCompare.classList.toggle("secondary", viewMode !== "compare");
+        el.tabCompare.setAttribute("aria-selected", viewMode === "compare" ? "true" : "false");
+      }
+      if (el.periodTitleA) el.periodTitleA.textContent = viewMode === "compare" ? PERIOD_CUR.label : "Файл данных";
+      if (el.periodTitleB) el.periodTitleB.textContent = PERIOD_PREV.label;
+      if (el.chartHeading) {
+        el.chartHeading.textContent = viewMode === "compare" ? "Сравнение распределений" : "Гистограмма";
+      }
+      // Компоновка сравнения — только во вкладке сравнения
+      const cmpField = el.compareLayout && el.compareLayout.closest("label, .field, .compare-only");
+      if (cmpField) cmpField.hidden = viewMode !== "compare";
+      if (viewMode !== "compare") {
+        document.body.classList.remove("is-compare-split");
+      }
+    }
+
+    function drawHistogram(hist, groupLayout, rows, sliceMode, opts) {
+      opts = opts || {};
+      const canvas = opts.canvas || el.chart;
+      if (!canvas) return;
+      const chartTypeRaw = opts.chartType || (el.chartType && el.chartType.value) || "bars";
+      const chartType = chartTypeRaw === "line" ? "line" : "bars";
+      const hitTarget = opts.hitTarget || "primary";
       const dpr = window.devicePixelRatio || 1;
       const cssW = canvas.clientWidth || 640;
       const cssH = canvas.clientHeight || 400;
@@ -2149,16 +3248,42 @@
       let maxY = 1;
       for (const s of series) for (const c of s.counts) if (c > maxY) maxY = c;
 
-      const binUniques = collectBinUniques(rows || [], hist.edges || []);
+      const edgesRef = hist.edges && hist.edges.length ? hist.edges : [];
+      const compareOverlay = opts.compareOverlay || null;
+      const binRowsForAxis = compareOverlay
+        ? [].concat(compareOverlay.rowsA || [], compareOverlay.rowsB || [])
+        : (rows || []);
+      const binUniques = collectBinUniques(binRowsForAxis, edgesRef);
       const cellCache = new Map();
+
+      function rowsForSeriesName(seriesName) {
+        const name = String(seriesName || "");
+        if (compareOverlay) {
+          const m = /^(Текущий|Прошлый|A|B)\s*·\s*(.*)$/.exec(name);
+          if (m) {
+            const code = (m[1] === "Текущий" || m[1] === "A") ? "A" : "B";
+            const src = code === "A" ? (compareOverlay.rowsA || []) : (compareOverlay.rowsB || []);
+            const rest = String(m[2] || "").trim();
+            const sm = compareOverlay.sliceMode || "all";
+            if (sm !== "all" && rest) {
+              return src.filter((r) => sliceSeriesKey(r, sm) === rest);
+            }
+            return src;
+          }
+        }
+        return rows || [];
+      }
 
       function cellUniques(seriesName, binIndex) {
         const key = seriesName + "\0" + binIndex;
         if (cellCache.has(key)) return cellCache.get(key);
-        const subset = (rows || []).filter((r) =>
-          sliceSeriesKey(r, sliceMode || "all") === seriesName &&
-          binIndexForAmount(r.amount, hist.edges) === binIndex
-        );
+        const src = rowsForSeriesName(seriesName);
+        const period = isPeriodSeriesName(seriesName);
+        const subset = src.filter((r) => {
+          if (binIndexForAmount(r.amount, edgesRef) !== binIndex) return false;
+          if (period) return true; // уже отфильтровано в rowsForSeriesName
+          return sliceSeriesKey(r, sliceMode || "all") === seriesName;
+        });
         const u = {
           tn: subset.length,
           tb: uniqueFieldValues(subset, "tb").size,
@@ -2197,6 +3322,22 @@
 
       function axisPartsForBin(bi) {
         const base = hist.labels[bi];
+        if (compareOverlay && series.length >= 2) {
+          let tnCur = 0;
+          let tnPrev = 0;
+          for (const s of series) {
+            const code = periodCodeFromSeriesName(s.name);
+            const c = s.counts[bi] || 0;
+            if (code === "A") tnCur += c;
+            else if (code === "B") tnPrev += c;
+          }
+          return {
+            full: base + " · " + PERIOD_CUR.short + ":" + tnCur + " / " + PERIOD_PREV.short + ":" + tnPrev,
+            primary: base,
+            compact: compactIntervalLabel(base),
+            secondary: PERIOD_CUR.short + ":" + tnCur + " · " + PERIOD_PREV.short + ":" + tnPrev
+          };
+        }
         const u = binUniques[bi];
         const bits = metaBitsFromUniques(u, null);
         const tn = u ? u.tn.size : 0;
@@ -2212,7 +3353,9 @@
         const name = series[si].name;
         let tnSum = 0;
         for (let bi = 0; bi < binN; bi += 1) tnSum += series[si].counts[bi] || 0;
-        const subset = (rows || []).filter((r) => sliceSeriesKey(r, sliceMode || "all") === name);
+        const subset = isPeriodSeriesName(name)
+          ? rowsForSeriesName(name)
+          : (rows || []).filter((r) => sliceSeriesKey(r, sliceMode || "all") === name);
         const bits = [];
         if (columnPresence.hasTb && sliceMode !== "tb") {
           bits.push("ТБ:" + uniqueFieldValues(subset, "tb").size);
@@ -2453,9 +3596,11 @@
       const seriesGap = innerW * APP_CONFIG.chart.seriesGapRatio;
       const barW = (innerW - seriesGap * Math.max(0, barsPerGroup - 1)) / Math.max(1, barsPerGroup);
 
-      function fillBar(x, y, w, h, color) {
+      function fillBar(x, y, w, h, color, alpha) {
         if (h <= 0 && w > 0) return;
-        ctx.fillStyle = color;
+        const a = alpha == null ? 1 : alpha;
+        const rgb = parseHexColor(color);
+        ctx.save();
         ctx.beginPath();
         const r = Math.min(4, w / 2, Math.max(0, h / 2));
         ctx.moveTo(x + r, y);
@@ -2464,7 +3609,15 @@
         ctx.arcTo(x, y + h, x, y, 0);
         ctx.arcTo(x, y, x + w, y, r);
         ctx.closePath();
+        ctx.fillStyle = "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + "," + a + ")";
         ctx.fill();
+        if (a < 0.98) {
+          // Контур, чтобы перекрытие читалось на стекле
+          ctx.strokeStyle = "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + "," + Math.min(1, a + 0.22) + ")";
+          ctx.lineWidth = 1.35;
+          ctx.stroke();
+        }
+        ctx.restore();
       }
 
       /**
@@ -2539,18 +3692,169 @@
       function registerHitBar(x, barTop, barW, barH, tip) {
         const hitH = Math.max(barH, 8);
         const hitY = pad.t + plotH - hitH;
-        chartHitBars.push({
+        const hit = {
           x: x,
           y: hitY,
           w: Math.max(barW, 2),
           h: hitH,
-          tip: tip
+          tip: tip,
+          canvas: canvas
+        };
+        if (hitTarget === "a") chartHitBarsA.push(hit);
+        else if (hitTarget === "b") chartHitBarsB.push(hit);
+        else chartHitBars.push(hit);
+      }
+
+      if (opts.clearPrimaryHits !== false && hitTarget === "primary") chartHitBars = [];
+      if (hitTarget === "a") chartHitBarsA = [];
+      if (hitTarget === "b") chartHitBarsB = [];
+
+      const lineW = Number(APP_CONFIG.chart.lineWidth) || 2.5;
+      const pointR = Number(APP_CONFIG.chart.pointRadius) || 3.5;
+      const compareMode = !!(opts.compareOverlay || isPeriodCompareHist(hist));
+      const barOverlap = !!opts.barOverlap && chartType === "bars" && layout === "bin";
+      const overlapRatio = Math.max(0.15, Math.min(0.7, Number(APP_CONFIG.chart.barOverlapRatio) || 0.42));
+      const overlapAlpha = Math.max(0.45, Math.min(0.9, Number(APP_CONFIG.chart.barOverlapAlpha) || 0.7));
+
+      function seriesColor(si, bi) {
+        return chartColor({
+          layout,
+          chartType,
+          seriesIndex: si,
+          binIndex: bi,
+          hist,
+          compareMode
         });
       }
 
-      chartHitBars = [];
+      function drawLineChart() {
+        // Точки в центрах групп/интервалов — форма распределения
+        const drawOne = (counts, color, seriesName) => {
+          const pts = [];
+          const nGroups = layout === "bin" ? binN : seriesN;
+          for (let gi = 0; gi < nGroups; gi += 1) {
+            let count = 0;
+            let bi = gi;
+            if (layout === "bin") {
+              count = counts[gi] || 0;
+              bi = gi;
+            } else {
+              count = counts[gi] || 0;
+              bi = gi;
+            }
+            const cx = pad.l + gi * groupW + groupW / 2;
+            const cy = pad.t + plotH - (count / maxY) * plotH;
+            pts.push({ cx, cy, count, bi });
+            const u = cellUniques(seriesName, bi);
+            registerHitBar(cx - 8, cy, 16, Math.max(pad.t + plotH - cy, 8), formatBarHoverTip(hist.labels[bi], seriesName, u));
+          }
+          ctx.beginPath();
+          pts.forEach((p, i) => {
+            if (i === 0) ctx.moveTo(p.cx, p.cy);
+            else ctx.lineTo(p.cx, p.cy);
+          });
+          ctx.strokeStyle = color;
+          ctx.lineWidth = lineW;
+          ctx.lineJoin = "round";
+          ctx.lineCap = "round";
+          ctx.stroke();
+          for (const p of pts) {
+            ctx.beginPath();
+            ctx.arc(p.cx, p.cy, pointR, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+            if (p.count > 0) {
+              drawBarTnLabel(String(p.count), String(p.count), p.cx - 10, p.cy - 4, 20, 12, color);
+            }
+          }
+        };
 
-      if (layout === "bin") {
+        if (layout === "bin") {
+          for (let si = 0; si < seriesN; si += 1) {
+            drawOne(series[si].counts, seriesColor(si, 0), series[si].name);
+          }
+          for (let bi = 0; bi < binN; bi += 1) {
+            drawXLabel(axisPartsList[bi], pad.l + bi * groupW + groupW / 2, groupW);
+          }
+        } else {
+          for (let si = 0; si < seriesN; si += 1) {
+            const color = seriesColor(si, 0);
+            const pts = [];
+            for (let bi = 0; bi < binN; bi += 1) {
+              const count = series[si].counts[bi] || 0;
+              const gx = pad.l + si * groupW + gap / 2;
+              const cx = gx + (bi + 0.5) * (innerW / Math.max(1, binN));
+              const cy = pad.t + plotH - (count / maxY) * plotH;
+              pts.push({ cx, cy, count, bi });
+              const u = cellUniques(series[si].name, bi);
+              registerHitBar(cx - 6, cy, 12, Math.max(8, pad.t + plotH - cy), formatBarHoverTip(hist.labels[bi], series[si].name, u));
+            }
+            ctx.beginPath();
+            pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.cx, p.cy) : ctx.lineTo(p.cx, p.cy));
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineW;
+            ctx.stroke();
+            pts.forEach((p) => {
+              ctx.beginPath();
+              ctx.arc(p.cx, p.cy, pointR * 0.85, 0, Math.PI * 2);
+              ctx.fillStyle = color;
+              ctx.fill();
+            });
+            drawXLabel(axisPartsList[si], pad.l + si * groupW + groupW / 2, groupW);
+          }
+        }
+      }
+
+      /**
+       * Столбики текущего и прошлого слегка наезжают друг на друга;
+       * полупрозрачная заливка + контур — зона перекрытия читается как смесь цветов.
+       */
+      function drawOverlappingBars() {
+        const pairCount = Math.ceil(seriesN / 2);
+        const pairGap = pairCount > 1 ? innerW * 0.05 : 0;
+        const pairSlot = (innerW - pairGap * Math.max(0, pairCount - 1)) / Math.max(1, pairCount);
+        const ovBarW = Math.max(6, (pairSlot * 0.98) / (2 - overlapRatio));
+        const step = ovBarW * (1 - overlapRatio);
+
+        for (let bi = 0; bi < binN; bi += 1) {
+          const gx = pad.l + bi * groupW + gap / 2;
+          for (let pi = 0; pi < pairCount; pi += 1) {
+            const pairBase = gx + pi * (pairSlot + pairGap) + Math.max(0, (pairSlot - (ovBarW + step)) / 2);
+            const siCur = 2 * pi;
+            const siPrev = 2 * pi + 1;
+            // Сначала прошлый (правее), затем текущий сверху — перекрытие видно
+            const drawOrder = [siPrev, siCur].filter((si) => si < seriesN);
+            for (const si of drawOrder) {
+              const code = periodCodeFromSeriesName(series[si].name);
+              const isPrev = code === "B" || (code == null && (si % 2) === 1);
+              const count = series[si].counts[bi] || 0;
+              const h = (count / maxY) * plotH;
+              const x = pairBase + (isPrev ? step : 0);
+              const y = pad.t + plotH - h;
+              const color = seriesColor(si, bi);
+              fillBar(x, y, ovBarW, Math.max(h, 0), color, overlapAlpha);
+              const u = cellUniques(series[si].name, bi);
+              registerHitBar(
+                x, y, ovBarW, Math.max(h, 0),
+                formatBarHoverTip(hist.labels[bi], series[si].name, u)
+              );
+              if (count > 0) {
+                drawBarTnLabel(barNameText(u), String(u.tn), x, y, ovBarW, Math.max(h, 0), color);
+              }
+            }
+          }
+          drawXLabel(axisPartsList[bi], gx + innerW / 2, groupW);
+        }
+      }
+
+      if (chartType === "line") {
+        drawLineChart();
+      } else if (barOverlap) {
+        drawOverlappingBars();
+      } else if (layout === "bin") {
         for (let bi = 0; bi < binN; bi += 1) {
           const gx = pad.l + bi * groupW + gap / 2;
           for (let si = 0; si < seriesN; si += 1) {
@@ -2558,7 +3862,7 @@
             const h = (count / maxY) * plotH;
             const x = gx + si * (barW + seriesGap);
             const y = pad.t + plotH - h;
-            const color = SERIES_COLORS[si % SERIES_COLORS.length];
+            const color = seriesColor(si, bi);
             fillBar(x, y, barW, Math.max(h, 0), color);
             const u = cellUniques(series[si].name, bi);
             registerHitBar(
@@ -2579,7 +3883,7 @@
             const h = (count / maxY) * plotH;
             const x = gx + bi * (barW + seriesGap);
             const y = pad.t + plotH - h;
-            const color = SERIES_COLORS[bi % SERIES_COLORS.length];
+            const color = seriesColor(si, bi);
             fillBar(x, y, barW, Math.max(h, 0), color);
             const u = cellUniques(series[si].name, bi);
             registerHitBar(
@@ -2600,12 +3904,24 @@
       return s.slice(0, max - 1) + "…";
     }
 
-    function renderLegend(hist, groupLayout) {
+    function renderLegend(hist, groupLayout, chartType) {
       const layout = groupLayout === "slice" ? "slice" : "bin";
-      if (layout === "bin") {
+      const type = chartType || (el.chartType && el.chartType.value) || "bars";
+      const compareMode = isPeriodCompareHist(hist);
+      // Для slice+bars легенда = интервалы; для slice+line = серии (цвет линии)
+      const legendBySeries = layout === "bin" || type === "line";
+
+      if (legendBySeries) {
         const series = hist.series.slice(0, APP_CONFIG.chart.maxLegendItems);
         el.legend.innerHTML = series.map((s, i) => {
-          const color = SERIES_COLORS[i % SERIES_COLORS.length];
+          const color = chartColor({
+            layout,
+            chartType: type,
+            seriesIndex: i,
+            binIndex: 0,
+            hist,
+            compareMode
+          });
           return `<span><i style="background:${color}"></i>${escapeHtml(s.name)}</span>`;
         }).join("");
         if (hist.series.length > series.length) {
@@ -2614,7 +3930,14 @@
       } else {
         const labels = hist.labels.slice(0, APP_CONFIG.chart.maxLegendItems);
         el.legend.innerHTML = labels.map((lab, i) => {
-          const color = SERIES_COLORS[i % SERIES_COLORS.length];
+          const color = chartColor({
+            layout: "slice",
+            chartType: "bars",
+            seriesIndex: 0,
+            binIndex: i,
+            hist,
+            compareMode: false
+          });
           return `<span><i style="background:${color}"></i>${escapeHtml(lab)}</span>`;
         }).join("");
         if (hist.labels.length > labels.length) {
@@ -2866,10 +4189,62 @@
       el.freqDetail.innerHTML = html || '<p class="hint">Нет данных для таблицы интервалов.</p>';
     }
 
-    function escapeHtml(str) {
-      const d = document.createElement("div");
-      d.textContent = str == null ? "" : String(str);
-      return d.innerHTML;
+    function totalsByBin(hist) {
+      const n = hist.labels.length;
+      const out = Array(n).fill(0);
+      for (const s of hist.series) {
+        for (let i = 0; i < n; i += 1) out[i] += s.counts[i] || 0;
+      }
+      return out;
+    }
+
+    function renderCompareStats(rowsA, rowsB, histA, histB, edges) {
+      const sumAmt = (rows) => rows.reduce((a, r) => a + r.amount, 0);
+      const avgAmt = (rows) => rows.length ? sumAmt(rows) / rows.length : 0;
+      const ta = totalsByBin(histA);
+      const tb = totalsByBin(histB);
+      let maxShift = 0;
+      let maxShiftLabel = "—";
+      for (let i = 0; i < ta.length; i += 1) {
+        const d = Math.abs((ta[i] || 0) - (tb[i] || 0));
+        if (d > maxShift) {
+          maxShift = d;
+          maxShiftLabel = histA.labels[i] || ("#" + (i + 1));
+        }
+      }
+      const items = [
+        [PERIOD_CUR.short + " · ТН", String(rowsA.length)],
+        [PERIOD_PREV.short + " · ТН", String(rowsB.length)],
+        ["Δ ТН (прошл. − тек.)", String(rowsB.length - rowsA.length)],
+        [PERIOD_CUR.short + " · среднее", formatAmount(avgAmt(rowsA))],
+        [PERIOD_PREV.short + " · среднее", formatAmount(avgAmt(rowsB))],
+        ["Интервалов", String(edges.length - 1)],
+        ["Макс. сдвиг |Δ|", maxShift + " · " + maxShiftLabel]
+      ];
+      el.stats.innerHTML = items.map(([k, v]) =>
+        `<div class="stat"><div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v)}</div></div>`
+      ).join("");
+    }
+
+    function renderFrequencyTableCompare(histA, histB, rowsA, rowsB, sliceMode) {
+      const ta = totalsByBin(histA);
+      const tb = totalsByBin(histB);
+      const totalA = rowsA.length || 1;
+      const totalB = rowsB.length || 1;
+      let html = '<div class="freq-block"><h3>Сравнение по интервалам (текущий vs прошлый)</h3>';
+      html += "<table><thead><tr><th>Интервал</th>" +
+        "<th>ТН тек.</th><th>% тек.</th><th>ТН прош.</th><th>% прош.</th><th>Δ (прош.−тек.)</th></tr></thead><tbody>";
+      for (let i = 0; i < histA.labels.length; i += 1) {
+        const a = ta[i] || 0;
+        const b = tb[i] || 0;
+        html += `<tr><td>${escapeHtml(histA.labels[i])}</td><td>${a}</td><td>${((100 * a) / totalA).toFixed(1)}%</td>` +
+          `<td>${b}</td><td>${((100 * b) / totalB).toFixed(1)}%</td><td>${b - a}</td></tr>`;
+      }
+      html += `<tr><td><strong>Итого</strong></td><td><strong>${rowsA.length}</strong></td><td>100%</td>` +
+        `<td><strong>${rowsB.length}</strong></td><td>100%</td><td><strong>${rowsB.length - rowsA.length}</strong></td></tr>`;
+      html += "</tbody></table></div>";
+      html += '<p class="hint">Таблица — итоги текущего и прошлого по общим границам. Разрез ТБ/кластер виден на графике.</p>';
+      el.freqDetail.innerHTML = html;
     }
 
     /* Tooltip: data-tip и столбики гистограммы */
@@ -2897,39 +4272,47 @@
         tip.setAttribute("aria-hidden", "true");
       }
 
-      function hitTestChartBar(clientX, clientY) {
-        if (!el.chart || !chartHitBars.length) return null;
-        const rect = el.chart.getBoundingClientRect();
+      function hitTestOnCanvas(canvas, hits, clientX, clientY) {
+        if (!canvas || !hits || !hits.length) return null;
+        const rect = canvas.getBoundingClientRect();
         const x = clientX - rect.left;
         const y = clientY - rect.top;
         if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
-        for (let i = chartHitBars.length - 1; i >= 0; i -= 1) {
-          const b = chartHitBars[i];
+        for (let i = hits.length - 1; i >= 0; i -= 1) {
+          const b = hits[i];
           if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b;
         }
         return null;
       }
 
+      function hitTestChartBar(clientX, clientY) {
+        return hitTestOnCanvas(el.chart, chartHitBars, clientX, clientY)
+          || hitTestOnCanvas(el.chartA, chartHitBarsA, clientX, clientY)
+          || hitTestOnCanvas(el.chartB, chartHitBarsB, clientX, clientY);
+      }
+
       document.addEventListener("mousemove", (e) => {
         const node = e.target.closest("[data-tip]");
         if (node) {
-          el.chart.style.cursor = "";
+          if (el.chart) el.chart.style.cursor = "";
           show(node.getAttribute("data-tip") || "", e.clientX, e.clientY);
           return;
         }
         const bar = hitTestChartBar(e.clientX, e.clientY);
         if (bar) {
-          el.chart.style.cursor = "pointer";
+          if (e.target && e.target.style) e.target.style.cursor = "pointer";
           show(bar.tip, e.clientX, e.clientY);
           return;
         }
-        if (e.target === el.chart) el.chart.style.cursor = "default";
         hide();
       }, true);
 
-      el.chart.addEventListener("mouseleave", () => {
-        el.chart.style.cursor = "";
-        hide();
+      [el.chart, el.chartA, el.chartB].forEach((c) => {
+        if (!c) return;
+        c.addEventListener("mouseleave", () => {
+          c.style.cursor = "";
+          hide();
+        });
       });
     })();
 
@@ -2942,25 +4325,40 @@
       });
     }
 
+    function setViewMode(mode) {
+      viewMode = mode === "compare" ? "compare" : "single";
+      syncViewModeUi();
+      refreshPresenceAndFilters(false);
+      initEdgeStateFromData(true);
+      rebuild();
+    }
+
+    if (el.tabSingle) el.tabSingle.addEventListener("click", () => setViewMode("single"));
+    if (el.tabCompare) el.tabCompare.addEventListener("click", () => setViewMode("compare"));
+
     el.fileInput.addEventListener("change", async () => {
       const file = el.fileInput.files && el.fileInput.files[0];
       if (!file) return;
       try {
         const text = await readFileAsText(file);
-        el.pasteArea.value = text;
-        applyParsed(parseTableText(text), file.name);
+        applyParsedToPeriod("a", parseTableText(text), file.name);
       } catch (err) {
         setLoadStatus((err && err.message) ? err.message : String(err), "err");
       }
     });
 
-    el.btnParse.addEventListener("click", () => {
-      try {
-        applyParsed(parseTableText(el.pasteArea.value), "вставка");
-      } catch (err) {
-        setLoadStatus((err && err.message) ? err.message : String(err), "err");
-      }
-    });
+    if (el.fileInputB) {
+      el.fileInputB.addEventListener("change", async () => {
+        const file = el.fileInputB.files && el.fileInputB.files[0];
+        if (!file) return;
+        try {
+          const text = await readFileAsText(file);
+          applyParsedToPeriod("b", parseTableText(text), file.name);
+        } catch (err) {
+          setLoadStatus((err && err.message) ? err.message : String(err), "err");
+        }
+      });
+    }
 
     el.btnRebuild.addEventListener("click", rebuild);
 
@@ -2971,69 +4369,118 @@
     if (el.btnExportTn) el.btnExportTn.addEventListener("click", exportUniqueTnCsv);
     if (el.btnExportGroups) el.btnExportGroups.addEventListener("click", exportGroupsText);
 
-    el.btnClear.addEventListener("click", () => {
+    function clearPeriodB() {
+      rawRowsB = [];
+      allRowsB = [];
+      presenceB = { hasTb: false, hasGosb: false, hasCluster: false };
+      columnPresenceB = presenceB;
+      fileNameB = "";
+      if (el.fileInputB) el.fileInputB.value = "";
+      if (el.fileOverviewB) el.fileOverviewB.innerHTML = "";
+      chartHitBarsB = [];
+    }
+
+    function clearPeriodA() {
       rawRows = [];
       allRows = [];
-      lastChartState = null;
+      presenceA = { hasTb: false, hasGosb: false, hasCluster: false };
+      fileNameA = "";
+      if (el.fileInput) el.fileInput.value = "";
+      if (el.fileOverviewA) el.fileOverviewA.innerHTML = "";
       chartHitBars = [];
-      columnPresence = { hasTb: false, hasGosb: false, hasCluster: false };
-      el.pasteArea.value = "";
-      el.fileInput.value = "";
-      el.orgTree.innerHTML = '<div class="empty">Загрузите данные</div>';
-      el.clusterChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
-      filterSelections = { tb: new Set(), gosb: new Set(), cluster: new Set() };
-      el.legend.innerHTML = "";
-      el.stats.innerHTML = "";
-      if (el.freqDetail) el.freqDetail.innerHTML = "";
-      edgeState.edges = [];
-      renderEdgeRail();
-      setLoadStatus("Данные очищены.", "");
-      setChartStatus("", "");
-      const ctx = el.chart.getContext("2d");
-      ctx && ctx.clearRect(0, 0, el.chart.width, el.chart.height);
+      chartHitBarsA = [];
+    }
+
+    function resetUiAfterDataClear() {
+      lastChartState = null;
+      columnPresence = mergedColumnPresence();
+      if (!allRows.length && !allRowsB.length) {
+        el.orgTree.innerHTML = '<div class="empty">Загрузите данные</div>';
+        el.clusterChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
+        filterSelections = { tb: new Set(), gosb: new Set(), cluster: new Set() };
+        el.legend.innerHTML = "";
+        el.stats.innerHTML = "";
+        if (el.freqDetail) el.freqDetail.innerHTML = "";
+        edgeState.edges = [];
+        renderEdgeRail();
+        setChartStatus("", "");
+        document.body.classList.remove("is-compare-split");
+        [el.chart, el.chartA, el.chartB].forEach((c) => {
+          if (!c) return;
+          const ctx = c.getContext("2d");
+          ctx && ctx.clearRect(0, 0, c.width, c.height);
+        });
+      } else {
+        refreshPresenceAndFilters(true);
+        initEdgeStateFromData(true);
+        rebuild();
+      }
+      setLoadStatus("", "");
+    }
+
+    el.btnClear.addEventListener("click", () => {
+      clearPeriodA();
+      // В одиночном режиме очищаем всё; в сравнении — только текущий период
+      if (viewMode !== "compare") clearPeriodB();
+      resetUiAfterDataClear();
     });
+
+    if (el.btnClearB) {
+      el.btnClearB.addEventListener("click", () => {
+        clearPeriodB();
+        resetUiAfterDataClear();
+      });
+    }
 
     el.sliceMode.addEventListener("change", () => {
       syncGroupLayoutUi();
       rebuild();
     });
     el.groupLayout.addEventListener("change", rebuild);
+    if (el.chartType) el.chartType.addEventListener("change", rebuild);
+    if (el.compareLayout) el.compareLayout.addEventListener("change", rebuild);
     el.movableEdgeCount.addEventListener("change", () => {
       initEdgeStateFromData(true);
       rebuild();
     });
 
-    document.querySelectorAll("[data-check-all],[data-check-none]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const all = btn.getAttribute("data-check-all");
-        const none = btn.getAttribute("data-check-none");
-        const group = all || none;
-        if (group === "org") {
-          if (all) {
-            filterSelections.tb = new Set(filterUniverse.tb);
-            filterSelections.gosb = new Set(filterUniverse.gosb);
-          } else {
-            filterSelections.tb = new Set();
-            filterSelections.gosb = new Set();
-          }
-        } else if (group === "cluster") {
-          filterSelections.cluster = all ? new Set(filterUniverse.cluster) : new Set();
-        }
-        rebuildFilterOptions(false, "");
-        initEdgeStateFromData(false);
-        rebuild();
-      });
-    });
+    function runBulkFilterSelection(selectAll) {
+      applyBulkFilterSelection(selectAll);
+      rebuildFilterOptions(
+        false,
+        selectAll ? "Выбраны все ТБ, ГОСБ и кластеры" : "Сняты все отметки ТБ, ГОСБ и кластеров"
+      );
+      initEdgeStateFromData(false);
+      rebuild();
+    }
+
+    if (el.btnFilterSelectAll) {
+      const ico = el.btnFilterSelectAll.querySelector(".btn-ico");
+      if (ico) ico.innerHTML = svgIcon("checkAll");
+      el.btnFilterSelectAll.addEventListener("click", () => runBulkFilterSelection(true));
+    }
+    if (el.btnFilterClearAll) {
+      const ico = el.btnFilterClearAll.querySelector(".btn-ico");
+      if (ico) ico.innerHTML = svgIcon("clearAll");
+      el.btnFilterClearAll.addEventListener("click", () => runBulkFilterSelection(false));
+    }
 
     window.addEventListener("resize", () => {
       if (allRows.length) rebuild();
     });
 
     document.title = APP_CONFIG.pageTitle;
-    el.sliceMode.value = APP_CONFIG.defaultSliceMode || "all";
+    {
+      const allowedSlice = new Set(["all", "tb", "cluster"]);
+      const defSlice = APP_CONFIG.defaultSliceMode || "all";
+      el.sliceMode.value = allowedSlice.has(defSlice) ? defSlice : "all";
+    }
     el.groupLayout.value = APP_CONFIG.defaultGroupLayout || "slice";
+    if (el.chartType) el.chartType.value = APP_CONFIG.defaultChartType || "bars";
+    if (el.compareLayout) el.compareLayout.value = APP_CONFIG.defaultCompareLayout || "overlay";
     el.movableEdgeCount.value = String(APP_CONFIG.defaultMovableEdges);
     el.movableEdgeCount.max = String(APP_CONFIG.movableEdgesMax || 40);
+    syncViewModeUi();
     syncGroupLayoutUi();
 
     // Экспорт для тестов в Node (если страница открыта как модуль — не используется)
@@ -3044,6 +4491,8 @@
       aggregateByTn,
       cascadeEdges,
       evenlySpacedEdges,
+      equalCountEdges,
+      ladderCountEdges,
       buildBins,
       integerBounds,
       toIntegerEdge,
