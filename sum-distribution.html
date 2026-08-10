@@ -222,7 +222,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap: 6px;
-      max-height: 180px;
+      max-height: 220px;
       overflow: auto;
       padding: 8px;
       border-radius: 12px;
@@ -237,18 +237,75 @@
       color: var(--glass-text);
       cursor: pointer;
     }
-    .checks label.check-disabled {
-      opacity: 0.42;
+    .checks label.is-muted,
+    .filter-tree label.is-muted {
+      opacity: 0.45;
       color: #8e8e93;
-      cursor: not-allowed;
     }
-    .checks label.check-disabled input { cursor: not-allowed; }
+    .checks label.is-muted { cursor: pointer; }
     .checks .empty { color: var(--glass-text-secondary); font-size: 0.84rem; }
     .filter-block.hidden { display: none; }
     .filter-hint {
       font-size: 0.8rem;
-      color: #c27a00;
+      color: #6e6e73;
       min-height: 1.2em;
+    }
+
+    /* Дерево ТБ → ГОСБ */
+    .filter-tree {
+      max-height: 280px;
+      overflow: auto;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.45);
+      border: 1px solid var(--glass-white-border-light);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .filter-tree__tb {
+      border-radius: 10px;
+      padding: 4px 6px 6px;
+    }
+    .filter-tree__tb.is-active {
+      background: rgba(0, 122, 255, 0.06);
+    }
+    .filter-tree__tb.is-muted {
+      background: transparent;
+    }
+    .filter-tree__row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 0.84rem;
+      cursor: pointer;
+      color: var(--glass-text);
+      padding: 3px 2px;
+    }
+    .filter-tree__row--tb {
+      font-weight: 650;
+    }
+    .filter-tree__row--gosb {
+      margin-left: 22px;
+      font-weight: 500;
+      font-size: 0.8rem;
+      color: var(--glass-text-secondary);
+    }
+    .filter-tree__row--gosb.is-muted span,
+    .filter-tree__row--tb.is-muted span {
+      color: #8e8e93;
+    }
+    .filter-tree__row input {
+      margin-top: 2px;
+      flex: 0 0 auto;
+    }
+    .filter-tree__badge {
+      margin-left: auto;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--glass-text-secondary);
+      opacity: 0.85;
+      white-space: nowrap;
     }
 
     .bin-editor { display: none; }
@@ -592,22 +649,14 @@
         </div>
         <div id="filterHint" class="filter-hint" aria-live="polite"></div>
 
-        <div class="filter-block" id="tbFilterBlock">
+        <div class="filter-block" id="orgTreeFilterBlock">
           <div class="toolbar">
-            <strong>ТБ</strong>
-            <button class="btn secondary small" type="button" data-check-all="tb">Все</button>
-            <button class="btn secondary small" type="button" data-check-none="tb">Снять</button>
+            <strong>ТБ / ГОСБ</strong>
+            <button class="btn secondary small" type="button" data-check-all="org">Все</button>
+            <button class="btn secondary small" type="button" data-check-none="org">Снять</button>
           </div>
-          <div id="tbChecks" class="checks"><div class="empty">Загрузите данные</div></div>
-        </div>
-
-        <div class="filter-block" id="gosbFilterBlock">
-          <div class="toolbar">
-            <strong>ГОСБ</strong>
-            <button class="btn secondary small" type="button" data-check-all="gosb">Все</button>
-            <button class="btn secondary small" type="button" data-check-none="gosb">Снять</button>
-          </div>
-          <div id="gosbChecks" class="checks"><div class="empty">Загрузите данные</div></div>
+          <p class="hint" style="margin:0 0 6px">Активные сверху. Серые тоже можно выбрать — подтянутся связанные ТБ/ГОСБ/кластеры.</p>
+          <div id="orgTree" class="filter-tree"><div class="empty">Загрузите данные</div></div>
         </div>
 
         <div class="filter-block" id="clusterFilterBlock">
@@ -746,11 +795,9 @@
       groupLayout: document.getElementById("groupLayout"),
       filterHint: document.getElementById("filterHint"),
       binCustomHint: document.getElementById("binCustomHint"),
-      tbChecks: document.getElementById("tbChecks"),
-      gosbChecks: document.getElementById("gosbChecks"),
+      orgTree: document.getElementById("orgTree"),
+      orgTreeFilterBlock: document.getElementById("orgTreeFilterBlock"),
       clusterChecks: document.getElementById("clusterChecks"),
-      tbFilterBlock: document.getElementById("tbFilterBlock"),
-      gosbFilterBlock: document.getElementById("gosbFilterBlock"),
       clusterFilterBlock: document.getElementById("clusterFilterBlock"),
       binMode: document.getElementById("binMode"),
       binCount: document.getElementById("binCount"),
@@ -1320,26 +1367,55 @@
       prevSliceForLayout = slice;
     }
 
-    function checksRoot(group) {
-      if (group === "tb") return el.tbChecks;
-      if (group === "gosb") return el.gosbChecks;
-      return el.clusterChecks;
+    /** Состояние фильтров (источник правды; DOM только отображает). */
+    let filterSelections = { tb: new Set(), gosb: new Set(), cluster: new Set() };
+
+    /** Индекс ТБ ↔ ГОСБ ↔ кластер по данным. */
+    let orgIndex = {
+      tbToGosb: new Map(),
+      gosbToTb: new Map(),
+      tbToCluster: new Map(),
+      gosbToCluster: new Map(),
+      clusterToTb: new Map(),
+      clusterToGosb: new Map()
+    };
+
+    function addToMapSet(map, key, value) {
+      if (!key || !value) return;
+      if (!map.has(key)) map.set(key, new Set());
+      map.get(key).add(value);
     }
 
-    function selectedValues(group) {
-      const set = new Set();
-      checksRoot(group).querySelectorAll('input[type="checkbox"]').forEach((inp) => {
-        if (inp.checked) set.add(inp.value);
-      });
-      return set;
+    function buildOrgIndex(rows) {
+      const idx = {
+        tbToGosb: new Map(),
+        gosbToTb: new Map(),
+        tbToCluster: new Map(),
+        gosbToCluster: new Map(),
+        clusterToTb: new Map(),
+        clusterToGosb: new Map()
+      };
+      for (const r of rows) {
+        addToMapSet(idx.tbToGosb, r.tb, r.gosb);
+        addToMapSet(idx.gosbToTb, r.gosb, r.tb);
+        addToMapSet(idx.tbToCluster, r.tb, r.cluster);
+        addToMapSet(idx.gosbToCluster, r.gosb, r.cluster);
+        addToMapSet(idx.clusterToTb, r.cluster, r.tb);
+        addToMapSet(idx.clusterToGosb, r.cluster, r.gosb);
+      }
+      return idx;
+    }
+
+    function cloneSelections(sel) {
+      return {
+        tb: new Set(sel.tb || []),
+        gosb: new Set(sel.gosb || []),
+        cluster: new Set(sel.cluster || [])
+      };
     }
 
     function readSelections() {
-      return {
-        tb: selectedValues("tb"),
-        gosb: selectedValues("gosb"),
-        cluster: selectedValues("cluster")
-      };
+      return cloneSelections(filterSelections);
     }
 
     /** Допустимые значения dim; пустой выбор по другому измерению = нет ограничения. */
@@ -1362,28 +1438,80 @@
       };
     }
 
-    function pruneIncompatibleSelections(selections, rows) {
-      const next = {
-        tb: new Set(selections.tb || []),
-        gosb: new Set(selections.gosb || []),
-        cluster: new Set(selections.cluster || [])
+    /**
+     * При выборе «серого» / любого пункта — подтянуть родителей и зависимых.
+     * Возвращает список добавленных меток для подсказки.
+     */
+    function expandSelectionOnCheck(dim, value, sel) {
+      const added = [];
+      const markAdd = (d, v) => {
+        if (!v || sel[d].has(v)) return;
+        sel[d].add(v);
+        added.push(d + ":" + v);
       };
-      const pruned = [];
-      for (let iter = 0; iter < 3; iter += 1) {
-        let changed = false;
-        const allowed = computeAllAllowed(next, rows);
-        for (const dim of FILTER_DIMS) {
-          for (const v of [...next[dim]]) {
-            if (!allowed[dim].has(v)) {
-              next[dim].delete(v);
-              pruned.push(dim + ":" + v);
-              changed = true;
-            }
-          }
-        }
-        if (!changed) break;
+
+      if (dim === "tb") {
+        // Выбор ТБ (в т.ч. «серого») — сразу все его ГОСБ и кластеры
+        const gosbs = orgIndex.tbToGosb.get(value) || new Set();
+        for (const g of gosbs) markAdd("gosb", g);
+        const clusters = orgIndex.tbToCluster.get(value) || new Set();
+        for (const c of clusters) markAdd("cluster", c);
+      } else if (dim === "gosb") {
+        // Выбор ГОСБ — только родительский ТБ (и кластеры этого ГОСБ); остальные ГОСБ ТБ не трогаем
+        const tbs = orgIndex.gosbToTb.get(value) || new Set();
+        for (const t of tbs) markAdd("tb", t);
+        const clusters = orgIndex.gosbToCluster.get(value) || new Set();
+        for (const c of clusters) markAdd("cluster", c);
+      } else if (dim === "cluster") {
+        const tbs = orgIndex.clusterToTb.get(value) || new Set();
+        for (const t of tbs) markAdd("tb", t);
+        const gosbs = orgIndex.clusterToGosb.get(value) || new Set();
+        for (const g of gosbs) markAdd("gosb", g);
       }
-      return { selections: next, pruned };
+      return added;
+    }
+
+    /** При снятии ТБ/ГОСБ — убрать осиротевшие зависимые. */
+    function pruneOrphansAfterUncheck(dim, value, sel) {
+      if (dim === "tb") {
+        for (const g of [...sel.gosb]) {
+          const parents = orgIndex.gosbToTb.get(g) || new Set();
+          const still = [...parents].some((t) => sel.tb.has(t));
+          if (!still) sel.gosb.delete(g);
+        }
+        for (const c of [...sel.cluster]) {
+          const still = allRows.some(
+            (r) => r.cluster === c &&
+              ((r.tb && sel.tb.has(r.tb)) || (r.gosb && sel.gosb.has(r.gosb)))
+          );
+          if (!still) sel.cluster.delete(c);
+        }
+      } else if (dim === "gosb") {
+        for (const c of [...sel.cluster]) {
+          const still = allRows.some(
+            (r) => r.cluster === c &&
+              ((r.gosb && sel.gosb.has(r.gosb)) || (r.tb && sel.tb.has(r.tb) && !r.gosb))
+          );
+          if (!still) sel.cluster.delete(c);
+        }
+      }
+    }
+
+    function applySelectionChange(dim, value, checked) {
+      const sel = cloneSelections(filterSelections);
+      let hint = "";
+      if (checked) {
+        sel[dim].add(value);
+        const added = expandSelectionOnCheck(dim, value, sel);
+        if (added.length) {
+          hint = "Добавлены связанные: " + added.slice(0, 10).join(", ") + (added.length > 10 ? "…" : "");
+        }
+      } else {
+        sel[dim].delete(value);
+        pruneOrphansAfterUncheck(dim, value, sel);
+      }
+      filterSelections = sel;
+      return hint;
     }
 
     function orderFilterValues(allValues, allowed, checked) {
@@ -1408,14 +1536,29 @@
       }));
     }
 
-    function rebuildFilterOptions(initial) {
+    function orderTbNodes(tbList, allowedTb) {
+      const active = [];
+      const muted = [];
+      for (const tb of tbList) {
+        if (allowedTb.has(tb)) active.push(tb);
+        else muted.push(tb);
+      }
+      const cmp = (x, y) => x.localeCompare(y, "ru");
+      active.sort(cmp);
+      muted.sort(cmp);
+      return [...active, ...muted];
+    }
+
+    function rebuildFilterOptions(initial, hintText) {
       const showTb = columnPresence.hasTb && allRows.some((r) => r.tb);
       const showGosb = columnPresence.hasGosb && allRows.some((r) => r.gosb);
       const showCluster = columnPresence.hasCluster && allRows.some((r) => r.cluster);
+      const showOrg = showTb || showGosb;
 
-      el.tbFilterBlock.classList.toggle("hidden", !showTb);
-      el.gosbFilterBlock.classList.toggle("hidden", !showGosb);
+      if (el.orgTreeFilterBlock) el.orgTreeFilterBlock.classList.toggle("hidden", !showOrg);
       el.clusterFilterBlock.classList.toggle("hidden", !showCluster);
+
+      orgIndex = buildOrgIndex(allRows);
 
       filterUniverse = {
         tb: showTb
@@ -1429,37 +1572,120 @@
           : []
       };
 
-      let selections;
       if (initial) {
-        selections = {
+        filterSelections = {
           tb: new Set(filterUniverse.tb),
           gosb: new Set(filterUniverse.gosb),
           cluster: new Set(filterUniverse.cluster)
         };
-      } else {
-        selections = readSelections();
-      }
-      const pruned = pruneIncompatibleSelections(selections, allRows);
-      selections = pruned.selections;
-      if (pruned.pruned.length && el.filterHint) {
-        el.filterHint.textContent = "Сняты несовместимые: " + pruned.pruned.slice(0, 8).join(", ") +
-          (pruned.pruned.length > 8 ? "…" : "");
-      } else if (el.filterHint) {
-        el.filterHint.textContent = "";
       }
 
+      const selections = readSelections();
       const allowed = computeAllAllowed(selections, allRows);
-      if (showTb) {
-        renderChecks(el.tbChecks, orderFilterValues(filterUniverse.tb, allowed.tb, selections.tb), "tb");
-      } else el.tbChecks.innerHTML = "";
 
-      if (showGosb) {
-        renderChecks(el.gosbChecks, orderFilterValues(filterUniverse.gosb, allowed.gosb, selections.gosb), "gosb");
-      } else el.gosbChecks.innerHTML = "";
+      if (el.filterHint) {
+        el.filterHint.textContent = hintText || "";
+      }
+
+      if (showOrg) renderOrgTree(allowed, selections);
+      else if (el.orgTree) el.orgTree.innerHTML = "";
 
       if (showCluster) {
-        renderChecks(el.clusterChecks, orderFilterValues(filterUniverse.cluster, allowed.cluster, selections.cluster), "cluster");
-      } else el.clusterChecks.innerHTML = "";
+        renderChecks(
+          el.clusterChecks,
+          orderFilterValues(filterUniverse.cluster, allowed.cluster, selections.cluster),
+          "cluster"
+        );
+      } else {
+        el.clusterChecks.innerHTML = "";
+      }
+    }
+
+    function renderOrgTree(allowed, selections) {
+      const root = el.orgTree;
+      if (!root) return;
+      root.innerHTML = "";
+      if (!filterUniverse.tb.length && !filterUniverse.gosb.length) {
+        root.innerHTML = '<div class="empty">Нет значений</div>';
+        return;
+      }
+
+      const tbOrder = orderTbNodes(filterUniverse.tb, allowed.tb);
+      // ГОСБ без ТБ — отдельной группой в конце
+      const orphanGosb = filterUniverse.gosb.filter((g) => {
+        const tbs = orgIndex.gosbToTb.get(g);
+        return !tbs || tbs.size === 0;
+      });
+
+      for (const tb of tbOrder) {
+        const tbActive = allowed.tb.has(tb);
+        const block = document.createElement("div");
+        block.className = "filter-tree__tb " + (tbActive ? "is-active" : "is-muted");
+
+        const tbLab = document.createElement("label");
+        tbLab.className = "filter-tree__row filter-tree__row--tb" + (tbActive ? "" : " is-muted");
+        const tbInp = document.createElement("input");
+        tbInp.type = "checkbox";
+        tbInp.checked = selections.tb.has(tb);
+        tbInp.dataset.group = "tb";
+        tbInp.value = tb;
+        tbInp.addEventListener("change", onFilterCheckboxChange);
+        const tbSpan = document.createElement("span");
+        tbSpan.textContent = tb;
+        const badge = document.createElement("span");
+        badge.className = "filter-tree__badge";
+        const childG = [...(orgIndex.tbToGosb.get(tb) || [])];
+        badge.textContent = childG.length ? childG.length + " ГОСБ" : "";
+        tbLab.appendChild(tbInp);
+        tbLab.appendChild(tbSpan);
+        if (childG.length) tbLab.appendChild(badge);
+        block.appendChild(tbLab);
+
+        const gosbOrdered = orderTbNodes(childG, allowed.gosb);
+        for (const g of gosbOrdered) {
+          const gActive = allowed.gosb.has(g);
+          const gLab = document.createElement("label");
+          gLab.className = "filter-tree__row filter-tree__row--gosb" + (gActive ? "" : " is-muted");
+          const gInp = document.createElement("input");
+          gInp.type = "checkbox";
+          gInp.checked = selections.gosb.has(g);
+          gInp.dataset.group = "gosb";
+          gInp.value = g;
+          gInp.addEventListener("change", onFilterCheckboxChange);
+          const gSpan = document.createElement("span");
+          gSpan.textContent = g;
+          gLab.appendChild(gInp);
+          gLab.appendChild(gSpan);
+          block.appendChild(gLab);
+        }
+        root.appendChild(block);
+      }
+
+      if (orphanGosb.length) {
+        const block = document.createElement("div");
+        block.className = "filter-tree__tb is-muted";
+        const title = document.createElement("div");
+        title.className = "filter-tree__row filter-tree__row--tb is-muted";
+        title.textContent = "ГОСБ без ТБ";
+        block.appendChild(title);
+        for (const g of orderTbNodes(orphanGosb, allowed.gosb)) {
+          const gActive = allowed.gosb.has(g);
+          const gLab = document.createElement("label");
+          gLab.className = "filter-tree__row filter-tree__row--gosb" + (gActive ? "" : " is-muted");
+          const gInp = document.createElement("input");
+          gInp.type = "checkbox";
+          gInp.checked = selections.gosb.has(g);
+          gInp.dataset.group = "gosb";
+          gInp.value = g;
+          gInp.addEventListener("change", onFilterCheckboxChange);
+          const gSpan = document.createElement("span");
+          gSpan.textContent = g;
+          gLab.appendChild(gInp);
+          gLab.appendChild(gSpan);
+          block.appendChild(gLab);
+        }
+        root.appendChild(block);
+      }
     }
 
     function renderChecks(container, items, group) {
@@ -1470,11 +1696,11 @@
       }
       for (const item of items) {
         const label = document.createElement("label");
-        if (!item.enabled) label.classList.add("check-disabled");
+        if (!item.enabled) label.classList.add("is-muted");
         const input = document.createElement("input");
         input.type = "checkbox";
-        input.checked = !!item.checked && item.enabled;
-        input.disabled = !item.enabled;
+        input.checked = !!item.checked;
+        input.disabled = false;
         input.dataset.group = group;
         input.value = item.value;
         const span = document.createElement("span");
@@ -1486,27 +1712,32 @@
       }
     }
 
-    function onFilterCheckboxChange() {
-      rebuildFilterOptions(false);
+    function onFilterCheckboxChange(ev) {
+      const inp = ev.currentTarget;
+      const dim = inp.dataset.group;
+      const value = inp.value;
+      const hint = applySelectionChange(dim, value, inp.checked);
+      rebuildFilterOptions(false, hint);
       initEdgeStateFromData(false);
       rebuild();
     }
 
     function filteredRows() {
       let rows = allRows;
-      for (const dim of FILTER_DIMS) {
-        const block =
-          dim === "tb" ? el.tbFilterBlock :
-          dim === "gosb" ? el.gosbFilterBlock :
-          el.clusterFilterBlock;
-        const hasCol =
-          dim === "tb" ? columnPresence.hasTb :
-          dim === "gosb" ? columnPresence.hasGosb :
-          columnPresence.hasCluster;
-        if (!hasCol || block.classList.contains("hidden")) continue;
-        const sel = selectedValues(dim);
-        if (sel.size === 0) continue;
-        rows = rows.filter((r) => !r[dim] || sel.has(r[dim]));
+      const showOrg = el.orgTreeFilterBlock && !el.orgTreeFilterBlock.classList.contains("hidden");
+      const showCluster = !el.clusterFilterBlock.classList.contains("hidden");
+
+      if (showOrg && columnPresence.hasTb) {
+        const sel = filterSelections.tb;
+        if (sel.size > 0) rows = rows.filter((r) => !r.tb || sel.has(r.tb));
+      }
+      if (showOrg && columnPresence.hasGosb) {
+        const sel = filterSelections.gosb;
+        if (sel.size > 0) rows = rows.filter((r) => !r.gosb || sel.has(r.gosb));
+      }
+      if (showCluster && columnPresence.hasCluster) {
+        const sel = filterSelections.cluster;
+        if (sel.size > 0) rows = rows.filter((r) => !r.cluster || sel.has(r.cluster));
       }
       return rows;
     }
@@ -2431,7 +2662,33 @@
       return cols;
     }
 
-    function buildIntervalStatsBlock(title, subsetRows, edges, labels, cols) {
+    function formatPctShare(part, whole) {
+      if (!whole || !Number.isFinite(part)) return "—";
+      const p = (100 * part) / whole;
+      return new Intl.NumberFormat("ru-RU", {
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0
+      }).format(p) + "%";
+    }
+
+    /** Подпись колонки «% внутри разреза» в зависимости от режима. */
+    function blockPctColumnMeta(sliceMode) {
+      if (sliceMode === "tb") {
+        return { label: "% в ТБ", tip: "Доля ТН интервала от всех ТН этого ТБ" };
+      }
+      if (sliceMode === "gosb") {
+        return { label: "% в ГОСБ", tip: "Доля ТН интервала от всех ТН этого ГОСБ" };
+      }
+      if (sliceMode === "cluster") {
+        return { label: "% в кластере", tip: "Доля ТН интервала от всех ТН этого кластера" };
+      }
+      if (sliceMode === "tb_gosb") {
+        return { label: "% в ТБ+ГОСБ", tip: "Доля ТН интервала от всех ТН этой пары ТБ/ГОСБ" };
+      }
+      return null;
+    }
+
+    function buildIntervalStatsBlock(title, subsetRows, edges, labels, cols, opts) {
       const bins = collectBinUniques(subsetRows, edges);
       const uni = {
         tn: subsetRows.length,
@@ -2439,6 +2696,10 @@
         gosb: uniqueFieldValues(subsetRows, "gosb").size,
         cluster: uniqueFieldValues(subsetRows, "cluster").size
       };
+      const totalAllTn = Math.max(0, Number(opts && opts.totalAllTn) || subsetRows.length);
+      const totalBlockTn = subsetRows.length;
+      const blockPct = opts && opts.blockPctMeta ? opts.blockPctMeta : null;
+      const showBlockPct = !!(blockPct && totalBlockTn > 0);
 
       let html = '<section class="freq-block">';
       if (title) html += `<h3 class="freq-block__title">${escapeHtml(title)}</h3>`;
@@ -2446,13 +2707,24 @@
       for (const c of cols) {
         html += `<th title="${escapeHtml(c.tip)}">${escapeHtml(c.label)}</th>`;
       }
+      html += '<th title="Доля ТН интервала от всех ТН на графике">% всех</th>';
+      if (showBlockPct) {
+        html += `<th title="${escapeHtml(blockPct.tip)}">${escapeHtml(blockPct.label)}</th>`;
+      }
       html += "</tr></thead><tbody>";
 
       for (let i = 0; i < labels.length; i += 1) {
+        const tnBin = bins[i] ? bins[i].tn.size : 0;
         html += `<tr><td>${escapeHtml(labels[i])}</td>`;
         for (const c of cols) {
           const n = bins[i] ? bins[i][c.key].size : 0;
           html += `<td title="${escapeHtml(c.tip + ": " + n)}">${n}</td>`;
+        }
+        const pctAll = formatPctShare(tnBin, totalAllTn);
+        html += `<td title="ТН в интервале / все ТН на графике: ${tnBin} / ${totalAllTn}">${pctAll}</td>`;
+        if (showBlockPct) {
+          const pctB = formatPctShare(tnBin, totalBlockTn);
+          html += `<td title="${escapeHtml(blockPct.tip + ": " + tnBin + " / " + totalBlockTn)}">${pctB}</td>`;
         }
         html += "</tr>";
       }
@@ -2460,6 +2732,10 @@
       html += '<tr class="freq-total"><td>Итого</td>';
       for (const c of cols) {
         html += `<td title="Всего уник. ${escapeHtml(c.label)} в блоке">${uni[c.key] || 0}</td>`;
+      }
+      html += `<td title="Сумма долей по интервалам ≈ 100% от ${totalAllTn}">${formatPctShare(totalBlockTn, totalAllTn)}</td>`;
+      if (showBlockPct) {
+        html += `<td title="100% блока (${totalBlockTn} ТН)">100%</td>`;
       }
       html += "</tr>";
 
@@ -2484,6 +2760,13 @@
       const cols = intervalStatColumns(sliceMode);
       const edges = hist.edges;
       const labels = hist.labels;
+      const totalAllTn = rows.length;
+      const blockPctMeta = blockPctColumnMeta(sliceMode);
+      const optsBase = {
+        totalAllTn: totalAllTn,
+        sliceMode: sliceMode,
+        blockPctMeta: blockPctMeta
+      };
       let html = "";
 
       if (sliceMode === "all") {
@@ -2492,7 +2775,8 @@
           rows,
           edges,
           labels,
-          cols
+          cols,
+          optsBase
         );
       } else {
         const order = hist.series.map((s) => s.name);
@@ -2504,7 +2788,8 @@
             subset,
             edges,
             labels,
-            cols
+            cols,
+            optsBase
           );
         }
       }
@@ -2621,9 +2906,9 @@
       columnPresence = { hasTb: false, hasGosb: false, hasCluster: false };
       el.pasteArea.value = "";
       el.fileInput.value = "";
-      el.tbChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
-      el.gosbChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
+      el.orgTree.innerHTML = '<div class="empty">Загрузите данные</div>';
       el.clusterChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
+      filterSelections = { tb: new Set(), gosb: new Set(), cluster: new Set() };
       el.legend.innerHTML = "";
       el.stats.innerHTML = "";
       if (el.freqDetail) el.freqDetail.innerHTML = "";
@@ -2658,17 +2943,18 @@
         const all = btn.getAttribute("data-check-all");
         const none = btn.getAttribute("data-check-none");
         const group = all || none;
-        const root = checksRoot(group);
-        if (all) {
-          root.querySelectorAll('input[type="checkbox"]').forEach((inp) => {
-            if (!inp.disabled) inp.checked = true;
-          });
-        } else {
-          root.querySelectorAll('input[type="checkbox"]').forEach((inp) => {
-            inp.checked = false;
-          });
+        if (group === "org") {
+          if (all) {
+            filterSelections.tb = new Set(filterUniverse.tb);
+            filterSelections.gosb = new Set(filterUniverse.gosb);
+          } else {
+            filterSelections.tb = new Set();
+            filterSelections.gosb = new Set();
+          }
+        } else if (group === "cluster") {
+          filterSelections.cluster = all ? new Set(filterUniverse.cluster) : new Set();
         }
-        rebuildFilterOptions(false);
+        rebuildFilterOptions(false, "");
         initEdgeStateFromData(false);
         rebuild();
       });
@@ -2707,7 +2993,7 @@
       parseTableText,
       computeAllowedValues,
       computeAllAllowed,
-      pruneIncompatibleSelections,
+      expandSelectionOnCheck,
       orderFilterValues,
       FILTER_DIMS
     };

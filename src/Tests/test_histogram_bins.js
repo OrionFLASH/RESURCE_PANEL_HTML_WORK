@@ -391,28 +391,49 @@ function computeAllowedValues(dim, selections, rows) {
   return new Set(filtered.map((r) => r[dim]).filter(Boolean));
 }
 
-function pruneIncompatibleSelections(selections, rows) {
-  const next = {
-    tb: new Set(selections.tb || []),
-    gosb: new Set(selections.gosb || []),
-    cluster: new Set(selections.cluster || [])
+function addToMapSet(map, key, value) {
+  if (!key || !value) return;
+  if (!map.has(key)) map.set(key, new Set());
+  map.get(key).add(value);
+}
+
+function buildOrgIndex(rows) {
+  const idx = {
+    tbToGosb: new Map(),
+    gosbToTb: new Map(),
+    tbToCluster: new Map(),
+    gosbToCluster: new Map(),
+    clusterToTb: new Map(),
+    clusterToGosb: new Map()
   };
-  const pruned = [];
-  for (let iter = 0; iter < 3; iter += 1) {
-    let changed = false;
-    for (const dim of FILTER_DIMS) {
-      const allowed = computeAllowedValues(dim, next, rows);
-      for (const v of [...next[dim]]) {
-        if (!allowed.has(v)) {
-          next[dim].delete(v);
-          pruned.push(`${dim}:${v}`);
-          changed = true;
-        }
-      }
-    }
-    if (!changed) break;
+  for (const r of rows) {
+    addToMapSet(idx.tbToGosb, r.tb, r.gosb);
+    addToMapSet(idx.gosbToTb, r.gosb, r.tb);
+    addToMapSet(idx.tbToCluster, r.tb, r.cluster);
+    addToMapSet(idx.gosbToCluster, r.gosb, r.cluster);
+    addToMapSet(idx.clusterToTb, r.cluster, r.tb);
+    addToMapSet(idx.clusterToGosb, r.cluster, r.gosb);
   }
-  return { selections: next, pruned };
+  return idx;
+}
+
+function expandSelectionOnCheck(dim, value, sel, orgIndex) {
+  const markAdd = (d, v) => {
+    if (!v || sel[d].has(v)) return;
+    sel[d].add(v);
+  };
+  if (dim === "tb") {
+    // Выбор ТБ — все его ГОСБ и кластеры
+    for (const g of orgIndex.tbToGosb.get(value) || []) markAdd("gosb", g);
+    for (const c of orgIndex.tbToCluster.get(value) || []) markAdd("cluster", c);
+  } else if (dim === "gosb") {
+    // Выбор ГОСБ — только родительский ТБ (+ кластеры этого ГОСБ)
+    for (const t of orgIndex.gosbToTb.get(value) || []) markAdd("tb", t);
+    for (const c of orgIndex.gosbToCluster.get(value) || []) markAdd("cluster", c);
+  } else if (dim === "cluster") {
+    for (const t of orgIndex.clusterToTb.get(value) || []) markAdd("tb", t);
+    for (const g of orgIndex.clusterToGosb.get(value) || []) markAdd("gosb", g);
+  }
 }
 
 function orderFilterValues(allValues, allowed, checked) {
@@ -484,22 +505,29 @@ console.log("cascade filters");
     { tn: "2", amount: 2, tb: "TB1", gosb: "G2", cluster: "C1" },
     { tn: "3", amount: 3, tb: "TB2", gosb: "G3", cluster: "C2" }
   ];
+  const idx = buildOrgIndex(rows);
   const selTb = { tb: new Set(["TB1"]), gosb: new Set(), cluster: new Set() };
   const allowedG = computeAllowedValues("gosb", selTb, rows);
   assert("TB1 → G1+G2", allowedG.has("G1") && allowedG.has("G2") && !allowedG.has("G3"));
   const allowedC = computeAllowedValues("cluster", selTb, rows);
   assert("TB1 → только C1", allowedC.has("C1") && !allowedC.has("C2"));
 
-  const bad = {
-    tb: new Set(["TB1"]),
-    gosb: new Set(["G1", "G3"]),
-    cluster: new Set(["C1", "C2"])
-  };
-  const { selections, pruned } = pruneIncompatibleSelections(bad, rows);
-  assert("TB1 сохранён", selections.tb.has("TB1"));
-  assert("G1 сохранён, G3 снят", selections.gosb.has("G1") && !selections.gosb.has("G3"));
-  assert("C1 сохранён, C2 снят", selections.cluster.has("C1") && !selections.cluster.has("C2"));
-  assert("prune что-то снял", pruned.length >= 2);
+  // Выбор «серого» ГОСБ G3 подтягивает TB2 и C2, но не чужие ГОСБ
+  const sel = { tb: new Set(["TB1"]), gosb: new Set(["G1"]), cluster: new Set(["C1"]) };
+  sel.gosb.add("G3");
+  expandSelectionOnCheck("gosb", "G3", sel, idx);
+  assert("G3 → TB2", sel.tb.has("TB2"));
+  assert("G3 → C2", sel.cluster.has("C2"));
+  assert("TB1 сохранён", sel.tb.has("TB1"));
+  assert("G3 не тянет G2", !sel.gosb.has("G2"));
+  assert("G1 остаётся", sel.gosb.has("G1"));
+
+  // Выбор ТБ подтягивает его ГОСБ и кластеры
+  const sel2 = { tb: new Set(), gosb: new Set(), cluster: new Set() };
+  sel2.tb.add("TB2");
+  expandSelectionOnCheck("tb", "TB2", sel2, idx);
+  assert("TB2 → G3", sel2.gosb.has("G3"));
+  assert("TB2 → C2", sel2.cluster.has("C2"));
 
   const ordered = orderFilterValues(
     ["G3", "G1", "G2"],
@@ -508,7 +536,7 @@ console.log("cascade filters");
   );
   assert("сначала отмеченные совместимые", ordered[0].value === "G2" && ordered[0].enabled);
   assert("потом совместимые", ordered[1].value === "G1" && ordered[1].enabled);
-  assert("потом disabled", ordered[2].value === "G3" && !ordered[2].enabled);
+  assert("потом muted", ordered[2].value === "G3" && !ordered[2].enabled);
 }
 
 console.log("groupLayout axis");
