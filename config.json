@@ -1,0 +1,16 @@
+{
+  "pageTitle": "Распределение сумм (ТБ / ГОСБ)",
+  "defaultBinCount": 10,
+  "defaultBinMode": "count",
+  "defaultSliceMode": "all",
+  "csvDelimiters": [";", ",", "\t"],
+  "amountColumnAliases": ["сумма", "sum", "amount", "сумм"],
+  "tbColumnAliases": ["тб", "tb"],
+  "gosbColumnAliases": ["госб", "gosb", "гос"],
+  "chart": {
+    "barGapRatio": 0.12,
+    "seriesGapRatio": 0.04,
+    "maxLegendItems": 24
+  },
+  "demoEnabled": true
+}
