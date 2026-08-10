@@ -25,6 +25,8 @@
 - [v] Экспорт: CSV+Группа, CSV ТН×8+Группа, TXT групп JSON-like
 - [v] Целые границы (floor/ceil шкалы, ползунок/ввод целыми); красивый формат сумм; мин/макс в статистике без округления шкалы
 - [v] Подробная статистика по интервалам: уник. ТБ/ГОСБ/ТН; блоки по разрезу ТБ/ГОСБ/кластер
+- [v] Подписи ТН на столбиках (−90° / над столбиком); в имени «N (ТБ: x / ГОСБ: y)»; в таблице — абсолюты + строка «Итого»
+- [v] Адаптивные подписи оси X; hover-статистика по столбику; по умолчанию «Значения разреза» при выборе разреза
 
 ## Модули (внутри sum-distribution.html)
 
@@ -34,14 +36,14 @@
 - `computeAllowedValues` / `pruneIncompatibleSelections` / `rebuildFilterOptions` / `filteredRows` — каскад фильтров
 - `integerBounds` / `buildBins` / multi-thumb `edgeRail` / поля ввода границ — целые границы (UI под графиком)
 - `formatAmount` / `formatAmountExact` — суммы с разрядами; точные мин/макс в статистике
-- `computeHistogram` / `drawHistogram(hist, groupLayout)` / `collectBinUniques` / `renderFrequencyTable` — график и детальная таблица интервалов
+- `computeHistogram` / `drawHistogram` / `chartHitBars` / `collectBinUniques` / `renderFrequencyTable` — график, hover, таблица интервалов
 - `groupNameForAmount` / `exportRawCsvWithGroup` / `exportUniqueTnCsv` / `exportGroupsText` — выгрузки
 
 ## Как проверить
 
 1. Открыть `sum-distribution.html` в браузере (`file://`).
 2. Сгенерировать и загрузить демо: `python3 tools/build_sum_demo_csv_20k.py` → `samples/…`.
-3. По умолчанию — ползунки (2 границы) с бейджами групп; поля ввода целых.
-4. Проверить таблицу интервалов (ТБ/ГОСБ/ТН) и блоки при разрезе ТБ / ГОСБ / кластер.
-5. Три кнопки сохранения; легенда под графиком.
+3. По умолчанию — ползунки (2 границы); выбрать разрез ТБ → «Группы» = «Значения».
+4. Навести на столбик — подсказка со статой; подписи оси не обрезаны.
+5. Таблица интервалов с «Итого»; три кнопки сохранения.
 6. `node src/Tests/test_histogram_bins.js`

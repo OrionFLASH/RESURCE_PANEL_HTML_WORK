@@ -15,7 +15,7 @@
   "defaultBinCount": 10,
   "defaultBinMode": "custom",
   "defaultSliceMode": "all",
-  "defaultGroupLayout": "bin",
+  "defaultGroupLayout": "slice",
   "defaultMovableEdges": 2,
   "movableEdgesMax": 40,
   "tnPadLength": 20,
@@ -397,14 +397,14 @@
     .chart-below { display: grid; gap: 10px; }
     .chart-wrap {
       width: 100%;
-      height: min(520px, 58vh);
+      height: min(560px, 62vh);
       position: relative;
       border-radius: 14px;
       background: rgba(255,255,255,0.4);
       border: 1px solid var(--glass-white-border-light);
-      overflow: hidden;
+      overflow: visible;
     }
-    canvas#chart { width: 100%; height: 100%; display: block; }
+    canvas#chart { width: 100%; height: 100%; display: block; border-radius: 14px; }
     @media (max-width: 980px) {
       .chart-sticky { position: static; top: auto; }
     }
@@ -466,6 +466,11 @@
       margin: 0 0 8px;
       line-height: 1.35;
     }
+    .freq-block table tr.freq-total td {
+      font-weight: 700;
+      border-top: 1px solid rgba(0, 0, 0, 0.12);
+      background: rgba(247, 249, 252, 0.85);
+    }
     .freq-block table th:not(:first-child),
     .freq-block table td:not(:first-child) {
       font-variant-numeric: tabular-nums;
@@ -510,6 +515,7 @@
       font-size: 12px;
       line-height: 1.45;
       color: var(--glass-text);
+      white-space: pre-line;
     }
     .glass-tip.show { display: block; }
     @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -580,7 +586,7 @@
             <span>Группы на графике</span>
             <select id="groupLayout">
               <option value="bin">Интервалы сумм (внутри — разрез)</option>
-              <option value="slice">Значения разреза (внутри — распределение)</option>
+              <option value="slice" selected>Значения разреза (внутри — распределение)</option>
             </select>
           </label>
         </div>
@@ -724,6 +730,10 @@
 
     /** Последний расчёт для экспорта */
     let lastChartState = null;
+
+    /** Области столбиков для hover-подсказки (координаты CSS-пикселей canvas). */
+    /** @type {{ x: number, y: number, w: number, h: number, tip: string }[]} */
+    let chartHitBars = [];
 
     const el = {
       fileInput: document.getElementById("fileInput"),
@@ -1293,13 +1303,21 @@
       syncGroupLayoutUi();
     }
 
+    /** Предыдущий разрез — чтобы при переходе с «все» включить «Значения» по умолчанию. */
+    let prevSliceForLayout = null;
+
     function syncGroupLayoutUi() {
       const slice = el.sliceMode.value;
       const sliceOpt = el.groupLayout.querySelector('option[value="slice"]');
       if (sliceOpt) sliceOpt.disabled = slice === "all";
-      if (slice === "all" && el.groupLayout.value === "slice") {
-        el.groupLayout.value = "bin";
+      const preferSlice = (APP_CONFIG.defaultGroupLayout || "slice") === "slice";
+      if (slice === "all") {
+        if (el.groupLayout.value === "slice") el.groupLayout.value = "bin";
+      } else if (preferSlice && (prevSliceForLayout === "all" || prevSliceForLayout == null)) {
+        // Разрез только что стал доступен — по умолчанию «Значения разреза»
+        el.groupLayout.value = "slice";
       }
+      prevSliceForLayout = slice;
     }
 
     function checksRoot(group) {
@@ -1795,7 +1813,7 @@
         const hist = computeHistogram(rows, edges, slice);
         const layout = el.groupLayout.value === "slice" && slice !== "all" ? "slice" : "bin";
         lastChartState = { rows, edges, hist, layout, slice };
-        drawHistogram(hist, layout);
+        drawHistogram(hist, layout, rows, slice);
         renderLegend(hist, layout);
         renderStats(rows, hist);
         renderFrequencyTable(hist, rows, slice);
@@ -1809,7 +1827,7 @@
       }
     }
 
-    function drawHistogram(hist, groupLayout) {
+    function drawHistogram(hist, groupLayout, rows, sliceMode) {
       const canvas = el.chart;
       const dpr = window.devicePixelRatio || 1;
       const cssW = canvas.clientWidth || 640;
@@ -1820,15 +1838,291 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, cssW, cssH);
 
-      const pad = { t: 24, r: 16, b: 58, l: 48 };
-      const plotW = cssW - pad.l - pad.r;
-      const plotH = cssH - pad.t - pad.b;
+      const pad = { t: 36, r: 16, b: 88, l: 48 };
+      let plotW = cssW - pad.l - pad.r;
+      let plotH = cssH - pad.t - pad.b;
       const layout = groupLayout === "slice" ? "slice" : "bin";
       const series = hist.series.slice(0, APP_CONFIG.chart.maxLegendItems);
       const binN = hist.labels.length;
       const seriesN = Math.max(1, series.length);
       let maxY = 1;
       for (const s of series) for (const c of s.counts) if (c > maxY) maxY = c;
+
+      const binUniques = collectBinUniques(rows || [], hist.edges || []);
+      const cellCache = new Map();
+
+      function cellUniques(seriesName, binIndex) {
+        const key = seriesName + "\0" + binIndex;
+        if (cellCache.has(key)) return cellCache.get(key);
+        const subset = (rows || []).filter((r) =>
+          sliceSeriesKey(r, sliceMode || "all") === seriesName &&
+          binIndexForAmount(r.amount, hist.edges) === binIndex
+        );
+        const u = {
+          tn: subset.length,
+          tb: uniqueFieldValues(subset, "tb").size,
+          gosb: uniqueFieldValues(subset, "gosb").size,
+          cluster: uniqueFieldValues(subset, "cluster").size
+        };
+        cellCache.set(key, u);
+        return u;
+      }
+
+      function barNameText(u) {
+        const bits = [];
+        if (columnPresence.hasTb) bits.push("ТБ: " + u.tb);
+        if (columnPresence.hasGosb) bits.push("ГОСБ: " + u.gosb);
+        if (!bits.length && columnPresence.hasCluster) bits.push("Кл: " + u.cluster);
+        if (bits.length) return String(u.tn) + " (" + bits.join(" / ") + ")";
+        return String(u.tn);
+      }
+
+      /** Компактный вид интервала: «0–12345» вместо длинной скобки. */
+      function compactIntervalLabel(label) {
+        const m = String(label).match(/([\d\s\u00a0.,]+)\s*[…\-]{1,3}\s*([\d\s\u00a0.,]+)/);
+        if (!m) return String(label);
+        const a = m[1].replace(/[\s\u00a0]/g, "");
+        const b = m[2].replace(/[\s\u00a0]/g, "");
+        return a + "–" + b;
+      }
+
+      function metaBitsFromUniques(u, exclude) {
+        const bits = [];
+        if (!u) return bits;
+        if (columnPresence.hasTb && exclude !== "tb") bits.push("ТБ:" + u.tb.size);
+        if (columnPresence.hasGosb && exclude !== "gosb") bits.push("ГОСБ:" + u.gosb.size);
+        return bits;
+      }
+
+      function axisPartsForBin(bi) {
+        const base = hist.labels[bi];
+        const u = binUniques[bi];
+        const bits = metaBitsFromUniques(u, null);
+        const tn = u ? u.tn.size : 0;
+        return {
+          full: bits.length ? (base + " · " + tn + " (" + bits.join(" / ") + ")") : (base + " · " + tn),
+          primary: base,
+          compact: compactIntervalLabel(base),
+          secondary: bits.length ? (tn + " (" + bits.join("/") + ")") : String(tn)
+        };
+      }
+
+      function axisPartsForSeries(si) {
+        const name = series[si].name;
+        let tnSum = 0;
+        for (let bi = 0; bi < binN; bi += 1) tnSum += series[si].counts[bi] || 0;
+        const subset = (rows || []).filter((r) => sliceSeriesKey(r, sliceMode || "all") === name);
+        const bits = [];
+        if (columnPresence.hasTb && sliceMode !== "tb") {
+          bits.push("ТБ:" + uniqueFieldValues(subset, "tb").size);
+        }
+        if (columnPresence.hasGosb && sliceMode !== "gosb" && sliceMode !== "tb_gosb") {
+          bits.push("ГОСБ:" + uniqueFieldValues(subset, "gosb").size);
+        }
+        if (columnPresence.hasCluster && sliceMode !== "cluster") {
+          bits.push("Кл:" + uniqueFieldValues(subset, "cluster").size);
+        }
+        const secondary = bits.length
+          ? ("ТН:" + tnSum + " · " + bits.join(" · "))
+          : ("ТН:" + tnSum);
+        return {
+          full: name + " · " + secondary,
+          primary: name,
+          compact: name,
+          secondary: secondary
+        };
+      }
+
+      const groupCount = layout === "slice" ? seriesN : binN;
+      const barsPerGroup = layout === "slice" ? binN : seriesN;
+      let groupW = plotW / Math.max(1, groupCount);
+
+      // Предварительно оцениваем высоту зоны подписей под осью X
+      const axisPartsList = [];
+      if (layout === "bin") {
+        for (let bi = 0; bi < binN; bi += 1) axisPartsList.push(axisPartsForBin(bi));
+      } else {
+        for (let si = 0; si < seriesN; si += 1) axisPartsList.push(axisPartsForSeries(si));
+      }
+
+      function pickAxisMode(slotW) {
+        if (layout === "slice") {
+          // Имена ТБ/ГОСБ/кластеров: приоритет вертикали, чтобы длинные названия умещались
+          if (slotW >= 100) return "stack";
+          if (slotW >= 36) return "vert2";
+          return "vert";
+        }
+        if (slotW >= 108) return "stack";
+        if (slotW >= 64) return "tilt";
+        return "vert";
+      }
+
+      function fitTextWidth(text, maxW, fontPx) {
+        let fs = fontPx;
+        let t = String(text || "");
+        ctx.font = fs + "px sans-serif";
+        while (fs > 7 && ctx.measureText(t).width > maxW) {
+          fs -= 1;
+          ctx.font = fs + "px sans-serif";
+        }
+        while (t.length > 3 && ctx.measureText(t).width > maxW) {
+          t = t.slice(0, -2) + "…";
+        }
+        return { text: t, fontPx: fs };
+      }
+
+      ctx.font = "10px sans-serif";
+      let needBottom = 56;
+      const modeProbe = pickAxisMode(groupW);
+      for (const p of axisPartsList) {
+        if (modeProbe === "stack") {
+          needBottom = Math.max(needBottom, 52);
+        } else if (modeProbe === "tilt") {
+          const w = Math.max(ctx.measureText(p.primary).width, ctx.measureText(p.secondary).width);
+          needBottom = Math.max(needBottom, Math.ceil(w * 0.55) + 28);
+        } else {
+          // vert / vert2: место под полное имя ТБ + строку статистики
+          const w = Math.max(
+            ctx.measureText(p.primary).width,
+            ctx.measureText(p.secondary).width
+          );
+          needBottom = Math.max(needBottom, Math.min(210, Math.ceil(w) + 22));
+        }
+      }
+      pad.b = Math.max(56, Math.min(layout === "slice" ? 210 : 180, needBottom));
+      plotW = cssW - pad.l - pad.r;
+      plotH = Math.max(80, cssH - pad.t - pad.b);
+      groupW = plotW / Math.max(1, groupCount);
+
+      /**
+       * Цвет подписи столбика: внутри — контраст к заливке; снаружи — оттенок столбика.
+       */
+      function parseHexColor(hex) {
+        const s = String(hex || "").replace("#", "").trim();
+        if (s.length === 3) {
+          return {
+            r: parseInt(s[0] + s[0], 16),
+            g: parseInt(s[1] + s[1], 16),
+            b: parseInt(s[2] + s[2], 16)
+          };
+        }
+        if (s.length >= 6) {
+          return {
+            r: parseInt(s.slice(0, 2), 16),
+            g: parseInt(s.slice(2, 4), 16),
+            b: parseInt(s.slice(4, 6), 16)
+          };
+        }
+        return { r: 0, g: 122, b: 255 };
+      }
+
+      function relativeLuminance(rgb) {
+        const lin = (c) => {
+          const x = c / 255;
+          return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * lin(rgb.r) + 0.7152 * lin(rgb.g) + 0.0722 * lin(rgb.b);
+      }
+
+      function labelColorsForBar(barColor) {
+        const rgb = parseHexColor(barColor);
+        const lum = relativeLuminance(rgb);
+        const onBar = lum > 0.55 ? "rgba(29,29,31,0.92)" : "rgba(255,255,255,0.96)";
+        const darken = (c) => Math.max(0, Math.round(c * 0.72));
+        const above = "rgb(" + darken(rgb.r) + "," + darken(rgb.g) + "," + darken(rgb.b) + ")";
+        return { onBar, above };
+      }
+
+      /**
+       * Число ТН на столбике: −90° против часовой; если не влезает — над столбиком.
+       */
+      function drawBarTnLabel(fullText, shortText, x, barTop, barW, barH, barColor) {
+        if (!fullText || fullText === "0") return;
+        const candidates = [fullText];
+        if (shortText && shortText !== fullText) candidates.push(shortText);
+        const colors = labelColorsForBar(barColor);
+
+        let chosen = shortText || fullText;
+        let fontSize = 10;
+        let metrics = null;
+        let mode = "above";
+
+        for (let fs = 11; fs >= 8; fs -= 1) {
+          ctx.font = "600 " + fs + "px sans-serif";
+          for (const text of candidates) {
+            const m = ctx.measureText(text);
+            const rotH = m.width + 4;
+            if (barH >= rotH + 4 && barW >= fs + 3) {
+              chosen = text;
+              fontSize = fs;
+              metrics = m;
+              mode = "inside";
+              break;
+            }
+          }
+          if (mode === "inside") break;
+        }
+
+        if (mode !== "inside") {
+          for (let fs = 11; fs >= 8; fs -= 1) {
+            ctx.font = "600 " + fs + "px sans-serif";
+            const mFull = ctx.measureText(fullText);
+            if (mFull.width <= barW + 8) {
+              chosen = fullText;
+              fontSize = fs;
+              metrics = mFull;
+              mode = "above";
+              break;
+            }
+            const mShort = ctx.measureText(shortText || fullText);
+            if (mShort.width <= barW + 4) {
+              chosen = shortText || fullText;
+              fontSize = fs;
+              metrics = mShort;
+              mode = "above";
+              break;
+            }
+            if (barW >= fs + 2) {
+              chosen = shortText || String(shortText || fullText).split(" ")[0];
+              fontSize = fs;
+              metrics = ctx.measureText(chosen);
+              mode = "above-rot";
+              break;
+            }
+          }
+        }
+
+        if (!metrics) {
+          ctx.font = "600 9px sans-serif";
+          chosen = shortText || fullText;
+          metrics = ctx.measureText(chosen);
+          mode = "above";
+          fontSize = 9;
+        }
+
+        ctx.save();
+        ctx.font = "600 " + fontSize + "px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        if (mode === "inside") {
+          ctx.fillStyle = colors.onBar;
+          ctx.translate(x + barW / 2, barTop + barH / 2);
+          ctx.rotate(-Math.PI / 2);
+          ctx.fillText(chosen, 0, 0);
+        } else if (mode === "above-rot") {
+          ctx.fillStyle = colors.above;
+          const cy = Math.max(pad.t + 6, barTop - 10);
+          ctx.translate(x + barW / 2, cy);
+          ctx.rotate(-Math.PI / 2);
+          ctx.fillText(chosen, 0, 0);
+        } else {
+          ctx.fillStyle = colors.above;
+          const cy = Math.max(pad.t + 8, barTop - 9);
+          ctx.fillText(chosen, x + barW / 2, cy);
+        }
+        ctx.restore();
+      }
 
       ctx.strokeStyle = "rgba(29,29,31,0.12)";
       ctx.lineWidth = 1;
@@ -1853,18 +2147,16 @@
         ctx.fillText(String(val), pad.l - 6, y + 3);
       }
 
-      const groupCount = layout === "slice" ? seriesN : binN;
-      const barsPerGroup = layout === "slice" ? binN : seriesN;
-      const groupW = plotW / Math.max(1, groupCount);
       const gap = groupW * APP_CONFIG.chart.barGapRatio;
       const innerW = groupW - gap;
       const seriesGap = innerW * APP_CONFIG.chart.seriesGapRatio;
       const barW = (innerW - seriesGap * Math.max(0, barsPerGroup - 1)) / Math.max(1, barsPerGroup);
 
       function fillBar(x, y, w, h, color) {
+        if (h <= 0 && w > 0) return;
         ctx.fillStyle = color;
         ctx.beginPath();
-        const r = 4;
+        const r = Math.min(4, w / 2, Math.max(0, h / 2));
         ctx.moveTo(x + r, y);
         ctx.arcTo(x + w, y, x + w, y + h, r);
         ctx.arcTo(x + w, y + h, x, y + h, 0);
@@ -1874,17 +2166,88 @@
         ctx.fill();
       }
 
-      function drawXLabel(text, cx) {
-        const short = shortenLabel(text, groupCount > 12 ? 14 : 26);
+      /**
+       * Подпись под группой столбиков: режим зависит от ширины слота.
+       * stack — 2 строки; tilt — наклон; vert2/vert — −90°, имя + стата умещаются в pad.b.
+       */
+      function drawXLabel(parts, cx, slotW) {
+        const mode = pickAxisMode(slotW);
+        const baseY = pad.t + plotH + 8;
         ctx.save();
-        ctx.translate(cx, pad.t + plotH + 10);
-        ctx.rotate(-Math.PI / 5);
-        ctx.textAlign = "right";
         ctx.fillStyle = "#6e6e73";
-        ctx.font = "10px sans-serif";
-        ctx.fillText(short, 0, 0);
+
+        if (mode === "stack") {
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          const f1 = fitTextWidth(parts.primary, slotW - 4, 10);
+          ctx.font = f1.fontPx + "px sans-serif";
+          ctx.fillText(f1.text, cx, baseY);
+          const f2 = fitTextWidth(parts.secondary, slotW - 4, 9);
+          ctx.font = f2.fontPx + "px sans-serif";
+          ctx.fillText(f2.text, cx, baseY + 13);
+        } else if (mode === "tilt") {
+          const angle = -Math.PI / 4;
+          ctx.translate(cx, baseY + 2);
+          ctx.rotate(angle);
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          const maxLen = Math.max(24, pad.b - 18);
+          const f1 = fitTextWidth(parts.primary, maxLen, 10);
+          ctx.font = f1.fontPx + "px sans-serif";
+          ctx.fillText(f1.text, 0, -6);
+          const f2 = fitTextWidth(parts.secondary, maxLen, 9);
+          ctx.font = f2.fontPx + "px sans-serif";
+          ctx.fillText(f2.text, 0, 6);
+        } else {
+          // vert2 / vert: две параллельные вертикальные строки — имя ТБ и статистика
+          ctx.translate(cx, Math.min(cssH - 4, pad.t + plotH + pad.b - 4));
+          ctx.rotate(-Math.PI / 2);
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          const maxLen = Math.max(40, pad.b - 10);
+          const f1 = fitTextWidth(parts.primary, maxLen, 10);
+          ctx.font = "600 " + f1.fontPx + "px sans-serif";
+          const f2 = fitTextWidth(parts.secondary, maxLen, Math.max(7, f1.fontPx - 1));
+          if (mode === "vert2" || (parts.secondary && slotW >= 28)) {
+            ctx.fillText(f1.text, 0, -5);
+            ctx.font = f2.fontPx + "px sans-serif";
+            ctx.fillText(f2.text, 0, 6);
+          } else {
+            // Очень узко: одна строка «имя · стата», сначала уменьшаем шрифт
+            const one = fitTextWidth(f1.text + " · " + f2.text, maxLen, 9);
+            ctx.font = one.fontPx + "px sans-serif";
+            ctx.fillText(one.text, 0, 0);
+          }
+        }
         ctx.restore();
       }
+
+      function formatBarHoverTip(binLabel, seriesName, u) {
+        const lines = [];
+        lines.push(binLabel || "Интервал");
+        if (seriesName && seriesName !== "Вся выборка") {
+          lines.push("Серия: " + seriesName);
+        }
+        lines.push("ТН: " + (u ? u.tn : 0));
+        if (columnPresence.hasTb) lines.push("ТБ: " + (u ? u.tb : 0));
+        if (columnPresence.hasGosb) lines.push("ГОСБ: " + (u ? u.gosb : 0));
+        if (columnPresence.hasCluster) lines.push("Кластер: " + (u ? u.cluster : 0));
+        return lines.join("\n");
+      }
+
+      function registerHitBar(x, barTop, barW, barH, tip) {
+        const hitH = Math.max(barH, 8);
+        const hitY = pad.t + plotH - hitH;
+        chartHitBars.push({
+          x: x,
+          y: hitY,
+          w: Math.max(barW, 2),
+          h: hitH,
+          tip: tip
+        });
+      }
+
+      chartHitBars = [];
 
       if (layout === "bin") {
         for (let bi = 0; bi < binN; bi += 1) {
@@ -1894,9 +2257,18 @@
             const h = (count / maxY) * plotH;
             const x = gx + si * (barW + seriesGap);
             const y = pad.t + plotH - h;
-            fillBar(x, y, barW, h, SERIES_COLORS[si % SERIES_COLORS.length]);
+            const color = SERIES_COLORS[si % SERIES_COLORS.length];
+            fillBar(x, y, barW, Math.max(h, 0), color);
+            const u = cellUniques(series[si].name, bi);
+            registerHitBar(
+              x, y, barW, Math.max(h, 0),
+              formatBarHoverTip(hist.labels[bi], series[si].name, u)
+            );
+            if (count > 0) {
+              drawBarTnLabel(barNameText(u), String(u.tn), x, y, barW, Math.max(h, 0), color);
+            }
           }
-          drawXLabel(hist.labels[bi], gx + innerW / 2);
+          drawXLabel(axisPartsList[bi], gx + innerW / 2, groupW);
         }
       } else {
         for (let si = 0; si < seriesN; si += 1) {
@@ -1906,9 +2278,18 @@
             const h = (count / maxY) * plotH;
             const x = gx + bi * (barW + seriesGap);
             const y = pad.t + plotH - h;
-            fillBar(x, y, barW, h, SERIES_COLORS[bi % SERIES_COLORS.length]);
+            const color = SERIES_COLORS[bi % SERIES_COLORS.length];
+            fillBar(x, y, barW, Math.max(h, 0), color);
+            const u = cellUniques(series[si].name, bi);
+            registerHitBar(
+              x, y, barW, Math.max(h, 0),
+              formatBarHoverTip(hist.labels[bi], series[si].name, u)
+            );
+            if (count > 0) {
+              drawBarTnLabel(barNameText(u), String(u.tn), x, y, barW, Math.max(h, 0), color);
+            }
           }
-          drawXLabel(series[si].name, gx + innerW / 2);
+          drawXLabel(axisPartsList[si], gx + innerW / 2, groupW);
         }
       }
     }
@@ -2027,31 +2408,27 @@
         cols.push({ key, label, tip });
       };
       if (sliceMode === "tb") {
-        add("gosb", "ГОСБ", "Уник. ГОСБ в интервале / уник. ГОСБ в этом ТБ");
-        add("cluster", "Кластер", "Уник. кластеры в интервале / в этом ТБ");
+        add("gosb", "ГОСБ", "Уник. ГОСБ в интервале");
+        add("cluster", "Кластер", "Уник. кластеры в интервале");
       } else if (sliceMode === "gosb") {
-        add("tb", "ТБ", "Уник. ТБ в интервале / уник. ТБ в этом ГОСБ");
-        add("cluster", "Кластер", "Уник. кластеры в интервале / в этом ГОСБ");
+        add("tb", "ТБ", "Уник. ТБ в интервале");
+        add("cluster", "Кластер", "Уник. кластеры в интервале");
       } else if (sliceMode === "cluster") {
-        add("tb", "ТБ", "Уник. ТБ в интервале / уник. ТБ в этом кластере");
-        add("gosb", "ГОСБ", "Уник. ГОСБ в интервале / уник. ГОСБ в этом кластере");
+        add("tb", "ТБ", "Уник. ТБ в интервале");
+        add("gosb", "ГОСБ", "Уник. ГОСБ в интервале");
       } else if (sliceMode === "tb_gosb") {
-        add("cluster", "Кластер", "Уник. кластеры в интервале / в паре ТБ+ГОСБ");
+        add("cluster", "Кластер", "Уник. кластеры в интервале");
       } else {
-        add("tb", "ТБ", "Уник. ТБ в интервале / уник. ТБ на графике");
-        add("gosb", "ГОСБ", "Уник. ГОСБ в интервале / уник. ГОСБ на графике");
-        add("cluster", "Кластер", "Уник. кластеры в интервале / на графике");
+        add("tb", "ТБ", "Уник. ТБ в интервале");
+        add("gosb", "ГОСБ", "Уник. ГОСБ в интервале");
+        add("cluster", "Кластер", "Уник. кластеры в интервале");
       }
       cols.push({
         key: "tn",
         label: "ТН",
-        tip: "Уник. ТН в интервале / уник. ТН в блоке"
+        tip: "Уник. ТН в интервале"
       });
       return cols;
-    }
-
-    function formatStatRatio(part, whole) {
-      return String(part) + " / " + String(whole);
     }
 
     function buildIntervalStatsBlock(title, subsetRows, edges, labels, cols) {
@@ -2062,14 +2439,9 @@
         gosb: uniqueFieldValues(subsetRows, "gosb").size,
         cluster: uniqueFieldValues(subsetRows, "cluster").size
       };
-      const metaParts = [`ТН: ${uni.tn}`];
-      if (columnPresence.hasTb) metaParts.push(`ТБ: ${uni.tb}`);
-      if (columnPresence.hasGosb) metaParts.push(`ГОСБ: ${uni.gosb}`);
-      if (columnPresence.hasCluster) metaParts.push(`кластеров: ${uni.cluster}`);
 
       let html = '<section class="freq-block">';
       if (title) html += `<h3 class="freq-block__title">${escapeHtml(title)}</h3>`;
-      html += `<p class="freq-block__meta">В блоке — ${escapeHtml(metaParts.join(" · "))}. В ячейках: попало в интервал / всего в блоке.</p>`;
       html += '<div class="table-wrap"><table><thead><tr><th>Интервал</th>';
       for (const c of cols) {
         html += `<th title="${escapeHtml(c.tip)}">${escapeHtml(c.label)}</th>`;
@@ -2080,12 +2452,17 @@
         html += `<tr><td>${escapeHtml(labels[i])}</td>`;
         for (const c of cols) {
           const n = bins[i] ? bins[i][c.key].size : 0;
-          const den = uni[c.key] || 0;
-          const text = formatStatRatio(n, den);
-          html += `<td title="${escapeHtml(c.tip + ": " + text)}">${text}</td>`;
+          html += `<td title="${escapeHtml(c.tip + ": " + n)}">${n}</td>`;
         }
         html += "</tr>";
       }
+
+      html += '<tr class="freq-total"><td>Итого</td>';
+      for (const c of cols) {
+        html += `<td title="Всего уник. ${escapeHtml(c.label)} в блоке">${uni[c.key] || 0}</td>`;
+      }
+      html += "</tr>";
+
       html += "</tbody></table></div></section>";
       return html;
     }
@@ -2140,10 +2517,11 @@
       return d.innerHTML;
     }
 
-    /* Tooltip */
+    /* Tooltip: data-tip и столбики гистограммы */
     (function initTips() {
       const tip = el.glassTip;
       const OFFSET = Number(APP_CONFIG.tipOffsetPx) || 14;
+
       function show(text, x, y) {
         tip.textContent = text;
         tip.classList.add("show");
@@ -2158,16 +2536,46 @@
         tip.style.left = left + "px";
         tip.style.top = top + "px";
       }
+
       function hide() {
         tip.classList.remove("show");
         tip.setAttribute("aria-hidden", "true");
       }
+
+      function hitTestChartBar(clientX, clientY) {
+        if (!el.chart || !chartHitBars.length) return null;
+        const rect = el.chart.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+        for (let i = chartHitBars.length - 1; i >= 0; i -= 1) {
+          const b = chartHitBars[i];
+          if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b;
+        }
+        return null;
+      }
+
       document.addEventListener("mousemove", (e) => {
         const node = e.target.closest("[data-tip]");
-        if (!node) { hide(); return; }
-        show(node.getAttribute("data-tip") || "", e.clientX, e.clientY);
+        if (node) {
+          el.chart.style.cursor = "";
+          show(node.getAttribute("data-tip") || "", e.clientX, e.clientY);
+          return;
+        }
+        const bar = hitTestChartBar(e.clientX, e.clientY);
+        if (bar) {
+          el.chart.style.cursor = "pointer";
+          show(bar.tip, e.clientX, e.clientY);
+          return;
+        }
+        if (e.target === el.chart) el.chart.style.cursor = "default";
+        hide();
       }, true);
-      document.addEventListener("mouseleave", hide, true);
+
+      el.chart.addEventListener("mouseleave", () => {
+        el.chart.style.cursor = "";
+        hide();
+      });
     })();
 
     function readFileAsText(file) {
@@ -2209,6 +2617,7 @@
       rawRows = [];
       allRows = [];
       lastChartState = null;
+      chartHitBars = [];
       columnPresence = { hasTb: false, hasGosb: false, hasCluster: false };
       el.pasteArea.value = "";
       el.fileInput.value = "";
@@ -2273,7 +2682,7 @@
     el.binCount.value = String(APP_CONFIG.defaultBinCount);
     el.binMode.value = APP_CONFIG.defaultBinMode;
     el.sliceMode.value = APP_CONFIG.defaultSliceMode || "all";
-    el.groupLayout.value = APP_CONFIG.defaultGroupLayout || "bin";
+    el.groupLayout.value = APP_CONFIG.defaultGroupLayout || "slice";
     el.movableEdgeCount.value = String(APP_CONFIG.defaultMovableEdges);
     el.movableEdgeCount.max = String(APP_CONFIG.movableEdgesMax || 40);
     syncBinModeUi();
