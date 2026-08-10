@@ -12,8 +12,6 @@
 {
   "_comment": "Все изменяемые параметры sum-distribution. После правки обновите страницу.",
   "pageTitle": "Распределение сумм (ТН)",
-  "defaultBinCount": 10,
-  "defaultBinMode": "custom",
   "defaultSliceMode": "all",
   "defaultGroupLayout": "slice",
   "defaultMovableEdges": 2,
@@ -667,48 +665,6 @@
           </div>
           <div id="clusterChecks" class="checks"><div class="empty">Загрузите данные</div></div>
         </div>
-
-        <h2 class="section-gap">3. Интервалы сумм</h2>
-
-        <div class="row">
-          <label class="field" data-tip="Равная ширина, фиксированная ширина или ручные границы на шкале">
-            <span>Режим границ</span>
-            <select id="binMode">
-              <option value="count">Равная ширина (по числу интервалов)</option>
-              <option value="width">Заданная ширина интервала</option>
-              <option value="custom" selected>Ручные границы (ползунки)</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="row" id="binCountRow">
-          <label class="field" id="binCountLabel" data-tip="Сколько равных интервалов между мин и макс">
-            <span>Число интервалов</span>
-            <input id="binCount" type="number" min="1" max="200" step="1" value="10">
-          </label>
-          <label class="field">
-            <span>Мин. (пусто = авто, floor)</span>
-            <input id="binMin" type="number" step="1" placeholder="авто">
-          </label>
-          <label class="field">
-            <span>Макс. (пусто = авто, ceil)</span>
-            <input id="binMax" type="number" step="1" placeholder="авто">
-          </label>
-        </div>
-
-        <div class="row bin-editor" id="binWidthRow">
-          <label class="field">
-            <span>Ширина интервала</span>
-            <input id="binWidth" type="number" min="1" step="1" placeholder="например 50000">
-          </label>
-          <label class="field">
-            <span>Начало (origin)</span>
-            <input id="binOrigin" type="number" step="1" placeholder="авто = минимум">
-          </label>
-        </div>
-        <p class="hint" id="binCustomHint" style="display:none">
-          Ручные границы настраиваются ползунками <strong>под графиком</strong> — удобнее сопоставлять с гистограммой.
-        </p>
       </section>
 
       <section class="panel panel-chart-col">
@@ -720,12 +676,26 @@
           <div id="legend" class="legend" data-tip="Цвета серий: ТБ / ГОСБ / кластер или интервалы (в зависимости от режима)"></div>
         </div>
         <div class="chart-below">
-          <div class="bin-editor" id="binCustomRow">
-            <label class="field" data-tip="Число подвижных границ между минимумом и максимумом">
-              <span>Число границ (ползунков)</span>
-              <input id="movableEdgeCount" type="number" min="1" max="40" step="1" value="2">
-            </label>
-            <p class="hint">Края шкалы — минимум и максимум выборки (фиксированы). Двигайте ползунки или введите значение в поле — граница и ползунок синхронизируются.</p>
+          <div id="binCustomRow">
+            <div class="row" style="align-items:end; gap:10px; flex-wrap:wrap">
+              <label class="field" data-tip="Число подвижных границ между минимумом и максимумом">
+                <span>Число границ (ползунков)</span>
+                <input id="movableEdgeCount" type="number" min="1" max="40" step="1" value="2">
+              </label>
+              <button class="btn secondary" type="button" id="btnEqualCountEdges"
+                data-tip="Поставить границы так, чтобы в каждом интервале было примерно одинаковое число ТН (по всей текущей выборке после фильтров). Внутри ТБ/ГОСБ/кластера доли могут отличаться.">
+                Равно по числу ТН
+              </button>
+              <button class="btn secondary" type="button" id="btnLadderCountEdges"
+                data-tip="Лесенка: в 1-м интервале больше всего ТН, во 2-м меньше, … в последнем меньше всех (веса K : K−1 : … : 1). По всей выборке после фильтров.">
+                Лесенка по числу ТН
+              </button>
+              <button class="btn secondary" type="button" id="btnEvenWidthEdges"
+                data-tip="Равные интервалы по сумме: шкала от мин до макс делится на одинаковые по ширине отрезки (не по числу ТН).">
+                Равные интервалы
+              </button>
+            </div>
+            <p class="hint">Края шкалы — минимум и максимум выборки (фиксированы). Двигайте ползунки или кнопки выше. «Равные интервалы» — равная ширина по сумме; «Равно по числу ТН» / «Лесенка» — по числу участников.</p>
             <div class="edge-rail-wrap">
               <div id="edgeRail" class="edge-rail" aria-label="Шкала границ интервалов"></div>
               <div id="edgeValues" class="edge-values"></div>
@@ -794,21 +764,14 @@
       sliceMode: document.getElementById("sliceMode"),
       groupLayout: document.getElementById("groupLayout"),
       filterHint: document.getElementById("filterHint"),
-      binCustomHint: document.getElementById("binCustomHint"),
       orgTree: document.getElementById("orgTree"),
       orgTreeFilterBlock: document.getElementById("orgTreeFilterBlock"),
       clusterChecks: document.getElementById("clusterChecks"),
       clusterFilterBlock: document.getElementById("clusterFilterBlock"),
-      binMode: document.getElementById("binMode"),
-      binCount: document.getElementById("binCount"),
-      binCountLabel: document.getElementById("binCountLabel"),
-      binMin: document.getElementById("binMin"),
-      binMax: document.getElementById("binMax"),
-      binWidth: document.getElementById("binWidth"),
-      binOrigin: document.getElementById("binOrigin"),
       movableEdgeCount: document.getElementById("movableEdgeCount"),
-      binCountRow: document.getElementById("binCountRow"),
-      binWidthRow: document.getElementById("binWidthRow"),
+      btnEqualCountEdges: document.getElementById("btnEqualCountEdges"),
+      btnLadderCountEdges: document.getElementById("btnLadderCountEdges"),
+      btnEvenWidthEdges: document.getElementById("btnEvenWidthEdges"),
       binCustomRow: document.getElementById("binCustomRow"),
       edgeRail: document.getElementById("edgeRail"),
       edgeValues: document.getElementById("edgeValues"),
@@ -1785,6 +1748,141 @@
       return edges;
     }
 
+    /**
+     * Границы по весам числа ТН: вес[i] задаёт целевую долю i-го интервала.
+     * @param {number[]} amounts
+     * @param {number} movableCount
+     * @param {number} min
+     * @param {number} max
+     * @param {number[]} weights длины movableCount+1
+     * @returns {number[]}
+     */
+    function weightedCountEdges(amounts, movableCount, min, max, weights) {
+      const n = Math.max(1, Math.floor(movableCount));
+      const binCount = n + 1;
+      const sorted = amounts.filter((x) => Number.isFinite(x)).slice().sort((a, b) => a - b);
+      if (!sorted.length) return evenlySpacedEdges(min, max, n);
+
+      const w = (weights && weights.length === binCount)
+        ? weights.map((x) => Math.max(0, Number(x) || 0))
+        : Array(binCount).fill(1);
+      const totalW = w.reduce((a, b) => a + b, 0) || binCount;
+
+      const edges = [toIntegerEdge(min)];
+      let cumW = 0;
+      for (let i = 0; i < n; i += 1) {
+        cumW += w[i];
+        const idx = Math.min(sorted.length - 1, Math.floor((cumW / totalW) * sorted.length));
+        let v = toIntegerEdge(sorted[idx]);
+        if (v < min) v = toIntegerEdge(min);
+        if (v > max) v = toIntegerEdge(max);
+        edges.push(v);
+      }
+      edges.push(toIntegerEdge(max));
+      for (let i = 1; i < edges.length; i += 1) {
+        if (edges[i] < edges[i - 1]) edges[i] = edges[i - 1];
+      }
+      edges[0] = toIntegerEdge(min);
+      edges[edges.length - 1] = toIntegerEdge(max);
+      return edges;
+    }
+
+    /** Равные доли ТН по интервалам. */
+    function equalCountEdges(amounts, movableCount, min, max) {
+      const n = Math.max(1, Math.floor(movableCount));
+      const binCount = n + 1;
+      return weightedCountEdges(amounts, n, min, max, Array(binCount).fill(1));
+    }
+
+    /** Лесенка: веса K, K−1, …, 1 (первый интервал больше всех). */
+    function ladderCountEdges(amounts, movableCount, min, max) {
+      const n = Math.max(1, Math.floor(movableCount));
+      const binCount = n + 1;
+      const weights = Array.from({ length: binCount }, (_, i) => binCount - i);
+      return weightedCountEdges(amounts, n, min, max, weights);
+    }
+
+    /**
+     * Общий обработчик кнопок распределения по числу ТН.
+     * @param {"equal"|"ladder"} kind
+     */
+    function applyWeightedCountEdges(kind) {
+      if (!allRows.length) {
+        setChartStatus("Сначала загрузите данные.", "err");
+        return;
+      }
+      const rows = filteredRows();
+      if (!rows.length) {
+        setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
+        return;
+      }
+      const { min, max } = edgeScaleMinMax(rows);
+      const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
+      const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
+      el.movableEdgeCount.value = String(n);
+      edgeState.min = min;
+      edgeState.max = max;
+      const amounts = rows.map((r) => r.amount);
+      edgeState.edges = kind === "ladder"
+        ? ladderCountEdges(amounts, n, min, max)
+        : equalCountEdges(amounts, n, min, max);
+      renderEdgeRail();
+      rebuild();
+      const binCount = n + 1;
+      if (kind === "ladder") {
+        const weights = Array.from({ length: binCount }, (_, i) => binCount - i);
+        const totalW = weights.reduce((a, b) => a + b, 0);
+        const pct = weights.map((w) => Math.round((100 * w) / totalW));
+        setChartStatus(
+          "Лесенка по числу ТН: " + binCount + " интервал(ов), целевые доли ≈ " +
+            pct.join("% / ") + "% (по всей выборке).",
+          "ok"
+        );
+      } else {
+        setChartStatus(
+          "Границы по числу ТН: " + binCount + " интервал(ов), цель ≈ " +
+            Math.round(100 / binCount) + "% участников в каждом (по всей выборке).",
+          "ok"
+        );
+      }
+    }
+
+    function applyEqualCountEdges() {
+      applyWeightedCountEdges("equal");
+    }
+
+    function applyLadderCountEdges() {
+      applyWeightedCountEdges("ladder");
+    }
+
+    /** Равная ширина интервалов по шкале сумм (не по числу ТН). */
+    function applyEvenWidthEdges() {
+      if (!allRows.length) {
+        setChartStatus("Сначала загрузите данные.", "err");
+        return;
+      }
+      const rows = filteredRows();
+      if (!rows.length) {
+        setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
+        return;
+      }
+      const { min, max } = edgeScaleMinMax(rows);
+      const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
+      const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
+      el.movableEdgeCount.value = String(n);
+      edgeState.min = min;
+      edgeState.max = max;
+      edgeState.edges = evenlySpacedEdges(min, max, n);
+      renderEdgeRail();
+      rebuild();
+      const binCount = n + 1;
+      setChartStatus(
+        "Равные интервалы по сумме: " + binCount + " отрезок(ов) одинаковой ширины от " +
+          formatAmount(min) + " до " + formatAmount(max) + ".",
+        "ok"
+      );
+    }
+
     function initEdgeStateFromData(forceReset) {
       const rows = filteredRows();
       const { min, max } = edgeScaleMinMax(rows);
@@ -1848,8 +1946,9 @@
         thumb.className = "edge-rail__thumb" + (isFixed ? " is-fixed" : "");
         thumb.style.left = valueToPct(val) + "%";
         thumb.dataset.index = String(idx);
-        // Бегунок idx — верхняя граница «Группа idx» (мин без номера; макс = последняя группа)
-        const groupNum = idx === 0 ? 0 : idx;
+        // Номер группы только на подвижных бегунках (не на мин и не на макс)
+        const isMax = idx === edges.length - 1;
+        const groupNum = (!isFixed && idx > 0) ? idx : 0;
         if (groupNum > 0) {
           const badge = document.createElement("span");
           badge.className = "edge-rail__badge";
@@ -1860,7 +1959,7 @@
         thumb.title = (groupNum > 0 ? ("Группа " + groupNum + ": ") : "") + formatAmount(val);
         thumb.setAttribute("aria-label", groupNum > 0
           ? ("Граница группы " + groupNum + ", " + formatAmount(val))
-          : ("Минимум " + formatAmount(val)));
+          : (isMax ? ("Максимум " + formatAmount(val)) : ("Минимум " + formatAmount(val))));
         if (!isFixed) {
           thumb.addEventListener("pointerdown", onThumbPointerDown);
         }
@@ -1870,9 +1969,7 @@
       el.edgeValues.innerHTML = "";
       edges.forEach((v, i) => {
         const isFixed = i === 0 || i === edges.length - 1;
-        const tag = i === 0
-          ? "мин"
-          : (i === edges.length - 1 ? ("макс · группа " + i) : ("группа " + i));
+        const tag = i === 0 ? "мин" : (i === edges.length - 1 ? "макс" : ("группа " + i));
         const lab = document.createElement("label");
         const span = document.createElement("span");
         span.textContent = tag;
@@ -1916,7 +2013,7 @@
         const idx = Number(thumb.dataset.index);
         if (!Number.isFinite(idx) || !edgeState.edges[idx] && edgeState.edges[idx] !== 0) return;
         thumb.style.left = valueToPct(edgeState.edges[idx]) + "%";
-        const groupNum = idx === 0 ? 0 : idx;
+        const groupNum = (idx > 0 && idx < edgeState.edges.length - 1) ? idx : 0;
         thumb.title = (groupNum > 0 ? ("Группа " + groupNum + ": ") : "") + formatAmount(edgeState.edges[idx]);
       });
       el.edgeValues.querySelectorAll("input[data-edge-index]").forEach((input) => {
@@ -1981,37 +2078,10 @@
     }
 
     function readBinOptions() {
-      const mode = el.binMode.value;
-      const count = Number(el.binCount.value);
-      const widthRaw = el.binWidth.value.trim();
-      const originRaw = el.binOrigin.value.trim();
-      const minRaw = el.binMin.value.trim();
-      const maxRaw = el.binMax.value.trim();
       return {
-        mode,
-        count: Number.isFinite(count) ? count : APP_CONFIG.defaultBinCount,
-        width: widthRaw === "" ? null : Number(widthRaw),
-        origin: originRaw === "" ? null : Number(originRaw),
-        min: minRaw === "" ? null : Number(minRaw),
-        max: maxRaw === "" ? null : Number(maxRaw),
+        mode: "custom",
         customEdges: edgeState.edges.slice()
       };
-    }
-
-    function syncBinModeUi() {
-      const mode = el.binMode.value;
-      el.binWidthRow.classList.toggle("visible", mode === "width");
-      el.binCustomRow.classList.toggle("visible", mode === "custom");
-      if (el.binCustomHint) {
-        el.binCustomHint.style.display = mode === "custom" ? "block" : "none";
-      }
-      el.binCountLabel.style.display = mode === "count" ? "grid" : "none";
-      if (mode === "custom") {
-        el.binCountRow.style.display = "none";
-        initEdgeStateFromData(false);
-      } else {
-        el.binCountRow.style.display = "flex";
-      }
     }
 
     function rebuild() {
@@ -2025,17 +2095,17 @@
           setChartStatus("После фильтров ТН не осталось.", "err");
           return;
         }
-        if (el.binMode.value === "custom") {
-          const scale = edgeScaleMinMax(rows);
-          edgeState.min = scale.min;
-          edgeState.max = scale.max;
-          if (edgeState.edges.length) {
-            edgeState.edges[0] = edgeState.min;
-            edgeState.edges[edgeState.edges.length - 1] = edgeState.max;
-            edgeState.edges = cascadeEdges(edgeState.edges, 0);
-            if (edgeState.dragIndex >= 0) syncEdgeUiFromState();
-            else renderEdgeRail();
-          }
+        const scale = edgeScaleMinMax(rows);
+        edgeState.min = scale.min;
+        edgeState.max = scale.max;
+        if (edgeState.edges.length) {
+          edgeState.edges[0] = edgeState.min;
+          edgeState.edges[edgeState.edges.length - 1] = edgeState.max;
+          edgeState.edges = cascadeEdges(edgeState.edges, 0);
+          if (edgeState.dragIndex >= 0) syncEdgeUiFromState();
+          else renderEdgeRail();
+        } else {
+          initEdgeStateFromData(true);
         }
         const amounts = rows.map((r) => r.amount);
         const edges = buildBins(amounts, readBinOptions());
@@ -2894,6 +2964,9 @@
 
     el.btnRebuild.addEventListener("click", rebuild);
 
+    if (el.btnEqualCountEdges) el.btnEqualCountEdges.addEventListener("click", applyEqualCountEdges);
+    if (el.btnLadderCountEdges) el.btnLadderCountEdges.addEventListener("click", applyLadderCountEdges);
+    if (el.btnEvenWidthEdges) el.btnEvenWidthEdges.addEventListener("click", applyEvenWidthEdges);
     if (el.btnExportRaw) el.btnExportRaw.addEventListener("click", exportRawCsvWithGroup);
     if (el.btnExportTn) el.btnExportTn.addEventListener("click", exportUniqueTnCsv);
     if (el.btnExportGroups) el.btnExportGroups.addEventListener("click", exportGroupsText);
@@ -2925,14 +2998,6 @@
       rebuild();
     });
     el.groupLayout.addEventListener("change", rebuild);
-    el.binMode.addEventListener("change", () => {
-      syncBinModeUi();
-      rebuild();
-    });
-    ["binCount", "binMin", "binMax", "binWidth", "binOrigin"].forEach((id) => {
-      const node = document.getElementById(id);
-      node.addEventListener("change", rebuild);
-    });
     el.movableEdgeCount.addEventListener("change", () => {
       initEdgeStateFromData(true);
       rebuild();
@@ -2965,13 +3030,10 @@
     });
 
     document.title = APP_CONFIG.pageTitle;
-    el.binCount.value = String(APP_CONFIG.defaultBinCount);
-    el.binMode.value = APP_CONFIG.defaultBinMode;
     el.sliceMode.value = APP_CONFIG.defaultSliceMode || "all";
     el.groupLayout.value = APP_CONFIG.defaultGroupLayout || "slice";
     el.movableEdgeCount.value = String(APP_CONFIG.defaultMovableEdges);
     el.movableEdgeCount.max = String(APP_CONFIG.movableEdgesMax || 40);
-    syncBinModeUi();
     syncGroupLayoutUi();
 
     // Экспорт для тестов в Node (если страница открыта как модуль — не используется)

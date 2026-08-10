@@ -134,6 +134,62 @@ function evenlySpacedEdges(min, max, movableCount) {
   return edges;
 }
 
+/** Квантили по числу ТН с произвольными весами интервалов. */
+function weightedCountEdges(amounts, movableCount, min, max, weights) {
+  const n = Math.max(1, Math.floor(movableCount));
+  const binCount = n + 1;
+  const sorted = amounts.filter((x) => Number.isFinite(x)).slice().sort((a, b) => a - b);
+  if (!sorted.length) return evenlySpacedEdges(min, max, n);
+
+  const w = (weights && weights.length === binCount)
+    ? weights.map((x) => Math.max(0, Number(x) || 0))
+    : Array(binCount).fill(1);
+  const totalW = w.reduce((a, b) => a + b, 0) || binCount;
+
+  const edges = [toIntegerEdge(min)];
+  let cumW = 0;
+  for (let i = 0; i < n; i += 1) {
+    cumW += w[i];
+    const idx = Math.min(sorted.length - 1, Math.floor((cumW / totalW) * sorted.length));
+    let v = toIntegerEdge(sorted[idx]);
+    if (v < min) v = toIntegerEdge(min);
+    if (v > max) v = toIntegerEdge(max);
+    edges.push(v);
+  }
+  edges.push(toIntegerEdge(max));
+  for (let i = 1; i < edges.length; i += 1) {
+    if (edges[i] < edges[i - 1]) edges[i] = edges[i - 1];
+  }
+  edges[0] = toIntegerEdge(min);
+  edges[edges.length - 1] = toIntegerEdge(max);
+  return edges;
+}
+
+/** Квантили по числу ТН: movableCount ползунков → movableCount+1 интервалов. */
+function equalCountEdges(amounts, movableCount, min, max) {
+  const n = Math.max(1, Math.floor(movableCount));
+  const binCount = n + 1;
+  return weightedCountEdges(amounts, n, min, max, Array(binCount).fill(1));
+}
+
+/** Лесенка: веса K…1. */
+function ladderCountEdges(amounts, movableCount, min, max) {
+  const n = Math.max(1, Math.floor(movableCount));
+  const binCount = n + 1;
+  const weights = Array.from({ length: binCount }, (_, i) => binCount - i);
+  return weightedCountEdges(amounts, n, min, max, weights);
+}
+
+function countByBin(amounts, edges) {
+  const binCount = edges.length - 1;
+  const counts = Array(binCount).fill(0);
+  for (const a of amounts) {
+    const bi = binIndexForAmount(a, edges);
+    if (bi >= 0) counts[bi] += 1;
+  }
+  return counts;
+}
+
 function buildBins(amounts, opts) {
   if (!amounts.length) throw new Error("Нет сумм для построения интервалов.");
   const dataMin = Math.min(...amounts);
@@ -556,6 +612,53 @@ console.log("groupLayout axis");
     "slice: ось = ТБ",
     JSON.stringify(groupAxisLabels(hist, "slice")) === JSON.stringify(["TB1", "TB2"])
   );
+}
+
+console.log("equalCountEdges");
+{
+  const amounts = [1, 2, 3, 4, 5, 6, 7, 8];
+  const edges = equalCountEdges(amounts, 3, 1, 8);
+  assert("3 ползунка → 5 рёбер", edges.length === 5, JSON.stringify(edges));
+  assert("min/max", edges[0] === 1 && edges[4] === 8);
+  const counts = countByBin(amounts, edges);
+  assert("по 2 в каждом", counts.every((c) => c === 2), JSON.stringify(counts));
+  assert("монотонны", edges.every((e, i) => i === 0 || e >= edges[i - 1]));
+}
+{
+  // 3 ползунка → 4 интервала ≈ по 25%
+  const amounts = Array.from({ length: 100 }, (_, i) => i + 1);
+  const edges = equalCountEdges(amounts, 3, 1, 100);
+  const counts = countByBin(amounts, edges);
+  assert("4 интервала", counts.length === 4);
+  const minC = Math.min(...counts);
+  const maxC = Math.max(...counts);
+  assert("отклонение ≤1 при уникальных", maxC - minC <= 1, JSON.stringify(counts));
+}
+{
+  const amounts = [10, 10, 10, 10, 50, 50, 50, 50];
+  const edges = equalCountEdges(amounts, 1, 10, 50);
+  assert("2 интервала при дубликатах", edges.length === 3);
+  const counts = countByBin(amounts, edges);
+  assert("сумма сохранена", counts.reduce((a, b) => a + b, 0) === 8, JSON.stringify(counts));
+}
+
+console.log("ladderCountEdges");
+{
+  // 3 ползунка → 4 интервала, веса 4:3:2:1, total 10 → при N=10 ровно 4,3,2,1
+  const amounts = Array.from({ length: 10 }, (_, i) => i + 1);
+  const edges = ladderCountEdges(amounts, 3, 1, 10);
+  assert("5 рёбер", edges.length === 5);
+  const counts = countByBin(amounts, edges);
+  assert("лесенка 4,3,2,1", JSON.stringify(counts) === "[4,3,2,1]", JSON.stringify(counts));
+  assert("убывание", counts.every((c, i) => i === 0 || c <= counts[i - 1]));
+}
+{
+  const amounts = Array.from({ length: 100 }, (_, i) => i + 1);
+  const edges = ladderCountEdges(amounts, 3, 1, 100);
+  const counts = countByBin(amounts, edges);
+  assert("4 интервала лесенка", counts.length === 4);
+  assert("первый больше последнего", counts[0] > counts[3], JSON.stringify(counts));
+  assert("монотонно не возрастает", counts.every((c, i) => i === 0 || c <= counts[i - 1]), JSON.stringify(counts));
 }
 
 console.log("interval uniques");
