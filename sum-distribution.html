@@ -3,21 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Распределение сумм (ТБ / ГОСБ)</title>
+  <title>Распределение сумм (ТН)</title>
   <style>
     :root {
-      --bg0: #eef3f8;
-      --bg1: #d9e6f2;
-      --ink: #152033;
-      --muted: #5a6b7d;
-      --card: rgba(255, 255, 255, 0.82);
-      --card-border: rgba(255, 255, 255, 0.65);
-      --line: #c9d6e4;
-      --accent: #0b6bcb;
-      --accent-soft: rgba(11, 107, 203, 0.12);
-      --accent-2: #0f8a6a;
-      --danger: #c0392b;
-      --shadow: 0 10px 30px rgba(21, 32, 51, 0.08);
+      --glass-bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 50%, #d4e0ed 100%);
+      --glass-white: rgba(255, 255, 255, 0.72);
+      --glass-white-light: rgba(255, 255, 255, 0.58);
+      --glass-white-border: rgba(255, 255, 255, 0.55);
+      --glass-white-border-light: rgba(255, 255, 255, 0.4);
+      --glass-text: #1d1d1f;
+      --glass-text-secondary: #6e6e73;
+      --glass-blue: #007AFF;
+      --glass-blue-light: rgba(0, 122, 255, 0.14);
+      --glass-purple: #5856D6;
+      --glass-red: #FF3B30;
+      --glass-green: #34C759;
+      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
       --radius: 16px;
       --font: "Segoe UI", "PT Sans", "Helvetica Neue", sans-serif;
     }
@@ -27,64 +29,65 @@
     body {
       margin: 0;
       min-height: 100vh;
-      color: var(--ink);
+      color: var(--glass-text);
       font-family: var(--font);
-      background:
-        radial-gradient(1200px 500px at 10% -10%, rgba(11, 107, 203, 0.18), transparent 60%),
-        radial-gradient(900px 420px at 90% 0%, rgba(15, 138, 106, 0.14), transparent 55%),
-        linear-gradient(160deg, var(--bg0), var(--bg1));
+      background: var(--glass-bg-gradient);
     }
 
     .wrap {
-      max-width: 1280px;
+      max-width: 1440px;
       margin: 0 auto;
       padding: 28px 20px 48px;
     }
 
-    header.page-head {
-      margin-bottom: 22px;
-    }
-
+    header.page-head { margin-bottom: 22px; }
     header.page-head h1 {
       margin: 0 0 8px;
       font-size: clamp(1.55rem, 2.4vw, 2.1rem);
       letter-spacing: -0.02em;
-      line-height: 1.15;
+      background: linear-gradient(135deg, var(--glass-blue) 0%, var(--glass-purple) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
-
     header.page-head p {
       margin: 0;
-      color: var(--muted);
-      max-width: 62ch;
+      color: var(--glass-text-secondary);
+      max-width: 72ch;
       line-height: 1.45;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: 1.05fr 1.2fr;
+      grid-template-columns: minmax(300px, 0.85fr) minmax(420px, 1.45fr);
       gap: 16px;
+      align-items: start;
     }
-
     @media (max-width: 980px) {
       .grid { grid-template-columns: 1fr; }
     }
 
     .panel {
-      background: var(--card);
-      border: 1px solid var(--card-border);
+      background: var(--glass-white);
+      border: 1px solid var(--glass-white-border);
       border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
       padding: 16px 16px 14px;
+    }
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .panel { background: #f7f9fc; }
     }
 
     .panel h2 {
       margin: 0 0 12px;
       font-size: 1.05rem;
     }
+    .panel h2 + .stack-gap,
+    .section-gap { margin-top: 18px; }
 
     .stack { display: grid; gap: 12px; }
-
     .row {
       display: flex;
       flex-wrap: wrap;
@@ -96,196 +99,56 @@
       display: grid;
       gap: 6px;
       font-size: 0.86rem;
-      color: var(--muted);
-      min-width: 140px;
+      color: var(--glass-text-secondary);
+      min-width: 120px;
       flex: 1;
     }
-
-    label.field > span { font-weight: 600; color: var(--ink); }
+    label.field > span { font-weight: 600; color: var(--glass-text); }
 
     input[type="text"],
     input[type="number"],
+    input[type="file"],
     select,
     textarea {
       width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 12px;
       padding: 9px 11px;
       font: inherit;
-      color: var(--ink);
-      background: #fff;
+      color: var(--glass-text);
+      background: rgba(255, 255, 255, 0.88);
     }
-
     textarea {
-      min-height: 150px;
+      min-height: 130px;
       resize: vertical;
-      font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
-      font-size: 0.86rem;
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.84rem;
       line-height: 1.4;
     }
 
     .btn {
       border: 0;
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 10px 14px;
       font: inherit;
       font-weight: 600;
       cursor: pointer;
-      background: var(--accent);
+      background: var(--glass-blue);
       color: #fff;
-      transition: transform 0.15s ease, filter 0.15s ease;
+      transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
     }
-
-    .btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .btn:hover { filter: brightness(1.05); transform: translateY(-1px); box-shadow: var(--glass-shadow-hover); }
     .btn:active { transform: translateY(0); }
     .btn.secondary {
-      background: #fff;
-      color: var(--ink);
-      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--glass-text);
+      border: 1px solid rgba(0, 0, 0, 0.08);
     }
     .btn.ghost {
-      background: var(--accent-soft);
-      color: var(--accent);
+      background: var(--glass-blue-light);
+      color: var(--glass-blue);
     }
-
-    .hint {
-      font-size: 0.84rem;
-      color: var(--muted);
-      line-height: 1.4;
-    }
-
-    .status {
-      min-height: 1.25em;
-      font-size: 0.9rem;
-      color: var(--muted);
-    }
-    .status.ok { color: var(--accent-2); }
-    .status.err { color: var(--danger); }
-
-    .checks {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 6px 10px;
-      max-height: 180px;
-      overflow: auto;
-      padding: 8px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #fff;
-    }
-
-    .checks label {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      font-size: 0.88rem;
-      color: var(--ink);
-    }
-
-    .checks .empty {
-      color: var(--muted);
-      font-size: 0.88rem;
-      grid-column: 1 / -1;
-    }
-
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .chart-wrap {
-      position: relative;
-      width: 100%;
-      height: min(460px, 58vh);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.95), rgba(245,249,252,0.95));
-      overflow: hidden;
-    }
-
-    canvas#chart {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-
-    .legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 14px;
-      margin-top: 10px;
-      font-size: 0.84rem;
-    }
-
-    .legend-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .swatch {
-      width: 12px;
-      height: 12px;
-      border-radius: 3px;
-      display: inline-block;
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 8px;
-      margin: 10px 0 0;
-    }
-
-    .stat {
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 10px 12px;
-    }
-
-    .stat .k { font-size: 0.78rem; color: var(--muted); }
-    .stat .v { font-size: 1.05rem; font-weight: 700; margin-top: 2px; }
-
-    .table-wrap {
-      margin-top: 12px;
-      overflow: auto;
-      max-height: 280px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: #fff;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.86rem;
-    }
-
-    th, td {
-      padding: 8px 10px;
-      border-bottom: 1px solid #e7eef5;
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    th:first-child, td:first-child { text-align: left; }
-
-    thead th {
-      position: sticky;
-      top: 0;
-      background: #f4f8fc;
-      z-index: 1;
-      font-weight: 700;
-    }
-
-    .bin-editor {
-      display: none;
-    }
-    .bin-editor.visible { display: block; }
+    .btn.small { padding: 6px 10px; font-size: 0.82rem; }
 
     .file-row {
       display: flex;
@@ -294,20 +157,213 @@
       align-items: center;
     }
 
-    .file-row input[type="file"] {
-      max-width: 100%;
+    .status {
+      font-size: 0.88rem;
+      color: var(--glass-text-secondary);
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: var(--glass-white-light);
+      border: 1px solid var(--glass-white-border-light);
     }
+    .status.ok { color: #0b5; border-color: rgba(52, 199, 89, 0.35); }
+    .status.err { color: var(--glass-red); border-color: rgba(255, 59, 48, 0.3); }
+
+    .hint { font-size: 0.82rem; color: var(--glass-text-secondary); line-height: 1.4; }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .checks {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 6px;
+      max-height: 180px;
+      overflow: auto;
+      padding: 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.45);
+      border: 1px solid var(--glass-white-border-light);
+    }
+    .checks label {
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+      font-size: 0.82rem;
+      color: var(--glass-text);
+      cursor: pointer;
+    }
+    .checks .empty { color: var(--glass-text-secondary); font-size: 0.84rem; }
+    .filter-block.hidden { display: none; }
+
+    .bin-editor { display: none; }
+    .bin-editor.visible { display: block; }
+
+    /* Multi-thumb edge slider */
+    .edge-rail-wrap { margin-top: 8px; }
+    .edge-rail {
+      position: relative;
+      height: 44px;
+      margin: 18px 8px 8px;
+      user-select: none;
+      touch-action: none;
+    }
+    .edge-rail__track {
+      position: absolute;
+      left: 0; right: 0; top: 50%;
+      height: 8px;
+      margin-top: -4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(0,122,255,0.18), rgba(88,86,214,0.22));
+      border: 1px solid rgba(255,255,255,0.65);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .edge-rail__fill {
+      position: absolute;
+      top: 0; bottom: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--glass-blue), var(--glass-purple));
+      opacity: 0.55;
+    }
+    .edge-rail__mark {
+      position: absolute;
+      top: 50%;
+      width: 2px;
+      height: 16px;
+      margin: -8px 0 0 -1px;
+      background: rgba(29, 29, 31, 0.25);
+      pointer-events: none;
+    }
+    .edge-rail__thumb {
+      position: absolute;
+      top: 50%;
+      width: 22px;
+      height: 22px;
+      margin: -11px 0 0 -11px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid var(--glass-blue);
+      box-shadow: 0 4px 14px rgba(0, 122, 255, 0.28);
+      cursor: grab;
+      z-index: 2;
+    }
+    .edge-rail__thumb:active { cursor: grabbing; transform: scale(1.06); }
+    .edge-rail__thumb.is-fixed {
+      border-color: rgba(29,29,31,0.35);
+      background: #f2f2f7;
+      cursor: default;
+      box-shadow: none;
+      width: 14px;
+      height: 14px;
+      margin: -7px 0 0 -7px;
+      z-index: 1;
+    }
+    .edge-values {
+      display: grid;
+      gap: 6px;
+      margin-top: 8px;
+      font-size: 0.82rem;
+      color: var(--glass-text-secondary);
+    }
+    .edge-values strong { color: var(--glass-text); font-variant-numeric: tabular-nums; }
+
+    .chart-wrap {
+      width: 100%;
+      height: min(520px, 58vh);
+      position: relative;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.4);
+      border: 1px solid var(--glass-white-border-light);
+      overflow: hidden;
+    }
+    canvas#chart { width: 100%; height: 100%; display: block; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin-top: 10px;
+      font-size: 0.82rem;
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend i {
+      width: 10px; height: 10px; border-radius: 3px; display: inline-block;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .stat {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.55);
+      border: 1px solid var(--glass-white-border-light);
+    }
+    .stat .k { font-size: 0.75rem; color: var(--glass-text-secondary); }
+    .stat .v { font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+    .table-wrap {
+      margin-top: 12px;
+      max-height: 280px;
+      overflow: auto;
+      border-radius: 12px;
+      border: 1px solid var(--glass-white-border-light);
+      background: rgba(255,255,255,0.5);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    th, td {
+      padding: 7px 10px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      text-align: right;
+      white-space: nowrap;
+    }
+    th:first-child, td:first-child { text-align: left; }
+    th { position: sticky; top: 0; background: rgba(247,249,252,0.95); z-index: 1; }
 
     details.help {
-      border: 1px dashed var(--line);
-      border-radius: 10px;
+      border: 1px dashed rgba(0,0,0,0.1);
+      border-radius: 12px;
       padding: 8px 10px;
-      background: rgba(255,255,255,0.55);
+      background: rgba(255,255,255,0.45);
     }
+    details.help summary { cursor: pointer; font-weight: 600; }
 
-    details.help summary {
-      cursor: pointer;
-      font-weight: 600;
+    /* Liquid Glass tooltip */
+    .glass-tip {
+      position: fixed;
+      z-index: 10000;
+      left: 0; top: 0;
+      pointer-events: none;
+      display: none;
+      max-width: min(380px, 90vw);
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px) saturate(160%);
+      -webkit-backdrop-filter: blur(12px) saturate(160%);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      border-radius: 14px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.88);
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--glass-text);
+    }
+    .glass-tip.show { display: block; }
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .glass-tip { background: rgba(255,255,255,0.94); }
     }
   </style>
 </head>
@@ -316,8 +372,10 @@
     <header class="page-head">
       <h1>Распределение сумм</h1>
       <p>
-        Загрузите CSV или вставьте таблицу со столбцами <strong>ТБ</strong>, <strong>ГОСБ</strong> и <strong>сумма</strong>.
-        Страница построит гистограмму: по оси X — интервалы сумм, по оси Y — число строк в интервале.
+        Обязательные столбцы: <strong>ТН</strong> и <strong>сумма</strong>. Опционально: ТБ, ГОСБ, кластер
+        (без них фильтры и разрезы по этим полям недоступны). Перед гистограммой суммы
+        <strong>суммируются по ТН</strong> (ТН нормализуется до 20 цифр). Демо-файл:
+        <code>samples/sum-distribution-demo-1800.csv</code>.
       </p>
     </header>
 
@@ -326,79 +384,92 @@
         <h2>1. Данные</h2>
 
         <div class="file-row">
-          <input id="fileInput" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt">
-          <button class="btn secondary" type="button" id="btnDemo">Демо-данные</button>
-          <button class="btn secondary" type="button" id="btnClear">Очистить</button>
+          <input id="fileInput" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt"
+            data-tip="Выберите CSV/TSV. Обязательны колонки ТН и сумма (алиасы допускаются).">
+          <button class="btn secondary" type="button" id="btnClear" data-tip="Очистить загруженные данные и график">Очистить</button>
         </div>
 
-        <label class="field">
+        <label class="field" data-tip="Можно вставить таблицу из Excel (разделители ; , или табуляция)">
           <span>Вставка таблицы (CSV / TSV / из Excel)</span>
-          <textarea id="pasteArea" placeholder="ТБ;ГОСБ;сумма&#10;Москва;ГОСБ-1;125000&#10;Москва;ГОСБ-2;89000&#10;..."></textarea>
+          <textarea id="pasteArea" placeholder="ТН;ТБ;ГОСБ;кластер;сумма&#10;00000000000001875872;...;125000&#10;..."></textarea>
         </label>
 
         <div class="row">
-          <button class="btn" type="button" id="btnParse">Загрузить из окна</button>
-          <button class="btn ghost" type="button" id="btnRebuild">Обновить график</button>
+          <button class="btn" type="button" id="btnParse" data-tip="Разобрать текст из окна вставки">Загрузить из окна</button>
+          <button class="btn ghost" type="button" id="btnRebuild" data-tip="Пересчитать фильтры, интервалы и график">Обновить график</button>
         </div>
 
         <div id="loadStatus" class="status">Данные ещё не загружены.</div>
 
         <details class="help">
-          <summary>Формат входных данных</summary>
+          <summary data-tip="Подсказка по алиасам колонок">Формат и алиасы колонок</summary>
           <p class="hint" style="margin:8px 0 0">
-            Разделители: <code>;</code>, <code>,</code> или табуляция. Первая строка — заголовки
-            (допускаются варианты: ТБ/TB, ГОСБ/GOSB, сумма/sum/amount). Суммы можно писать с пробелами
-            тысяч и запятой как десятичным разделителем: <code>1 234,56</code>.
+            Регистр заголовков не важен. Если несколько колонок из одного списка алиасов —
+            берётся та, чьё имя раньше в списке алиасов.<br>
+            <strong>сумма:</strong> сумма, прирост, прирос, рост, итог, sum, amount<br>
+            <strong>ТН:</strong> тн, tn, табельный, таб.ном, табельный номер<br>
+            <strong>ТБ:</strong> тб, tb, тербанк · <strong>ГОСБ:</strong> госб, gosb ·
+            <strong>кластер:</strong> кластер, cluster
           </p>
         </details>
 
-        <h2>2. Фильтры и разрез</h2>
+        <h2 class="section-gap">2. Фильтры и разрез</h2>
 
         <div class="row">
-          <label class="field">
+          <label class="field" data-tip="Серии гистограммы после агрегации по ТН">
             <span>Разрез</span>
             <select id="sliceMode">
               <option value="all">Вся выборка</option>
               <option value="tb">В разрезе ТБ</option>
               <option value="gosb">В разрезе ГОСБ</option>
               <option value="tb_gosb">В разрезе ТБ + ГОСБ</option>
+              <option value="cluster">В разрезе кластера</option>
             </select>
           </label>
         </div>
 
-        <div>
+        <div class="filter-block" id="tbFilterBlock">
           <div class="toolbar">
             <strong>ТБ</strong>
-            <button class="btn secondary" type="button" data-check-all="tb" style="padding:6px 10px;font-size:0.82rem">Все</button>
-            <button class="btn secondary" type="button" data-check-none="tb" style="padding:6px 10px;font-size:0.82rem">Снять</button>
+            <button class="btn secondary small" type="button" data-check-all="tb">Все</button>
+            <button class="btn secondary small" type="button" data-check-none="tb">Снять</button>
           </div>
           <div id="tbChecks" class="checks"><div class="empty">Загрузите данные</div></div>
         </div>
 
-        <div>
+        <div class="filter-block" id="gosbFilterBlock">
           <div class="toolbar">
             <strong>ГОСБ</strong>
-            <button class="btn secondary" type="button" data-check-all="gosb" style="padding:6px 10px;font-size:0.82rem">Все</button>
-            <button class="btn secondary" type="button" data-check-none="gosb" style="padding:6px 10px;font-size:0.82rem">Снять</button>
+            <button class="btn secondary small" type="button" data-check-all="gosb">Все</button>
+            <button class="btn secondary small" type="button" data-check-none="gosb">Снять</button>
           </div>
           <div id="gosbChecks" class="checks"><div class="empty">Загрузите данные</div></div>
         </div>
 
-        <h2>3. Интервалы сумм</h2>
+        <div class="filter-block" id="clusterFilterBlock">
+          <div class="toolbar">
+            <strong>Кластер</strong>
+            <button class="btn secondary small" type="button" data-check-all="cluster">Все</button>
+            <button class="btn secondary small" type="button" data-check-none="cluster">Снять</button>
+          </div>
+          <div id="clusterChecks" class="checks"><div class="empty">Загрузите данные</div></div>
+        </div>
+
+        <h2 class="section-gap">3. Интервалы сумм</h2>
 
         <div class="row">
-          <label class="field">
+          <label class="field" data-tip="Равная ширина, фиксированная ширина или ручные границы на шкале">
             <span>Режим границ</span>
             <select id="binMode">
               <option value="count">Равная ширина (по числу интервалов)</option>
               <option value="width">Заданная ширина интервала</option>
-              <option value="custom">Ручные границы</option>
+              <option value="custom">Ручные границы (ползунки)</option>
             </select>
           </label>
         </div>
 
         <div class="row" id="binCountRow">
-          <label class="field">
+          <label class="field" id="binCountLabel" data-tip="Сколько равных интервалов между мин и макс">
             <span>Число интервалов</span>
             <input id="binCount" type="number" min="1" max="200" step="1" value="10">
           </label>
@@ -424,17 +495,21 @@
         </div>
 
         <div class="bin-editor" id="binCustomRow">
-          <label class="field">
-            <span>Границы через запятую или с новой строки</span>
-            <textarea id="binEdges" placeholder="0, 50000, 100000, 200000, 500000"></textarea>
+          <label class="field" data-tip="Число подвижных границ между минимумом и максимумом. Пример: 2 → min — ● — ● — max">
+            <span>Число границ (ползунков)</span>
+            <input id="movableEdgeCount" type="number" min="1" max="40" step="1" value="3">
           </label>
-          <p class="hint">Нужно минимум 2 границы. Интервалы: [a, b), последний — [a, b].</p>
+          <p class="hint">Края шкалы — минимум и максимум выборки (фиксированы). Двигайте промежуточные границы; порядок сохраняется.</p>
+          <div class="edge-rail-wrap">
+            <div id="edgeRail" class="edge-rail" aria-label="Шкала границ интервалов"></div>
+            <div id="edgeValues" class="edge-values"></div>
+          </div>
         </div>
       </section>
 
       <section class="panel">
         <h2>Гистограмма</h2>
-        <div class="chart-wrap">
+        <div class="chart-wrap" data-tip="Ось X — интервалы сумм (после SUM по ТН), ось Y — число ТН в интервале">
           <canvas id="chart" aria-label="Гистограмма распределения сумм"></canvas>
         </div>
         <div id="legend" class="legend"></div>
@@ -450,73 +525,90 @@
     </div>
   </div>
 
+  <div id="glassTip" class="glass-tip" aria-hidden="true"></div>
+
   <script>
-    /**
-     * Встроенный конфиг страницы (дублирует config.json для автономной работы).
-     */
     const APP_CONFIG = {
-      pageTitle: "Распределение сумм (ТБ / ГОСБ)",
+      pageTitle: "Распределение сумм (ТН)",
       defaultBinCount: 10,
       defaultBinMode: "count",
       defaultSliceMode: "all",
+      defaultMovableEdges: 3,
+      tnPadLength: 20,
       csvDelimiters: [";", ",", "\t"],
-      amountColumnAliases: ["сумма", "sum", "amount", "сумм"],
-      tbColumnAliases: ["тб", "tb"],
+      amountColumnAliases: ["сумма", "прирост", "прирос", "рост", "итог", "sum", "amount", "сумм"],
+      tnColumnAliases: ["тн", "tn", "табельный", "таб.ном", "табельный номер", "emp_id"],
+      tbColumnAliases: ["тб", "tb", "тербанк", "тер.банк"],
       gosbColumnAliases: ["госб", "gosb", "гос"],
+      clusterColumnAliases: ["кластер", "cluster", "cluster_code"],
       chart: {
         barGapRatio: 0.12,
         seriesGapRatio: 0.04,
         maxLegendItems: 24
       },
-      demoEnabled: true
+      demoEnabled: false
     };
 
-    /** @typedef {{ tb: string, gosb: string, amount: number }} DataRow */
+    /** @typedef {{ tn: string, amount: number, tb: string, gosb: string, cluster: string }} DataRow */
 
-    /** @type {DataRow[]} */
+    /** @type {DataRow[]} сырые строки */
+    let rawRows = [];
+    /** @type {DataRow[]} агрегаты по ТН */
     let allRows = [];
+    /** @type {{ hasTb: boolean, hasGosb: boolean, hasCluster: boolean }} */
+    let columnPresence = { hasTb: false, hasGosb: false, hasCluster: false };
+
+    /** Состояние ручных границ */
+    const edgeState = {
+      min: 0,
+      max: 1,
+      /** @type {number[]} полные рёбра включая min/max */
+      edges: [],
+      dragIndex: -1
+    };
 
     const el = {
       fileInput: document.getElementById("fileInput"),
       pasteArea: document.getElementById("pasteArea"),
       btnParse: document.getElementById("btnParse"),
       btnRebuild: document.getElementById("btnRebuild"),
-      btnDemo: document.getElementById("btnDemo"),
       btnClear: document.getElementById("btnClear"),
       loadStatus: document.getElementById("loadStatus"),
       sliceMode: document.getElementById("sliceMode"),
       tbChecks: document.getElementById("tbChecks"),
       gosbChecks: document.getElementById("gosbChecks"),
+      clusterChecks: document.getElementById("clusterChecks"),
+      tbFilterBlock: document.getElementById("tbFilterBlock"),
+      gosbFilterBlock: document.getElementById("gosbFilterBlock"),
+      clusterFilterBlock: document.getElementById("clusterFilterBlock"),
       binMode: document.getElementById("binMode"),
       binCount: document.getElementById("binCount"),
+      binCountLabel: document.getElementById("binCountLabel"),
       binMin: document.getElementById("binMin"),
       binMax: document.getElementById("binMax"),
       binWidth: document.getElementById("binWidth"),
       binOrigin: document.getElementById("binOrigin"),
-      binEdges: document.getElementById("binEdges"),
+      movableEdgeCount: document.getElementById("movableEdgeCount"),
       binCountRow: document.getElementById("binCountRow"),
       binWidthRow: document.getElementById("binWidthRow"),
       binCustomRow: document.getElementById("binCustomRow"),
+      edgeRail: document.getElementById("edgeRail"),
+      edgeValues: document.getElementById("edgeValues"),
       chart: document.getElementById("chart"),
       legend: document.getElementById("legend"),
       stats: document.getElementById("stats"),
       freqHead: document.getElementById("freqHead"),
       freqBody: document.getElementById("freqBody"),
-      chartStatus: document.getElementById("chartStatus")
+      chartStatus: document.getElementById("chartStatus"),
+      glassTip: document.getElementById("glassTip")
     };
 
     const SERIES_COLORS = [
-      "#0b6bcb", "#0f8a6a", "#c27a00", "#8e3b8f", "#c0392b",
-      "#2c7a7b", "#2b6cb0", "#b7791f", "#805ad5", "#dd6b20",
-      "#319795", "#3182ce", "#d69e2e", "#9f7aea", "#e53e3e",
-      "#38a169", "#4299e1", "#d97706", "#718096", "#ed8936"
+      "#007AFF", "#34C759", "#FF9500", "#5856D6", "#FF3B30",
+      "#5AC8FA", "#AF52DE", "#FF2D55", "#64D2FF", "#30D158",
+      "#0b6bcb", "#0f8a6a", "#c27a00", "#8e3b8f", "#2c7a7b"
     ];
 
-    /**
-     * Нормализует текстовое значение суммы к числу.
-     * @param {string|number} raw
-     * @returns {number|null}
-     */
     function normalizeAmount(raw) {
       if (typeof raw === "number" && Number.isFinite(raw)) return raw;
       if (raw == null) return null;
@@ -535,11 +627,16 @@
       return Number.isFinite(n) ? n : null;
     }
 
-    /**
-     * Определяет разделитель CSV/TSV по первой непустой строке.
-     * @param {string} text
-     * @returns {string}
-     */
+    /** Нормализация табельного: только цифры, pad до 20. */
+    function normalizeEmpId(raw) {
+      if (raw == null) return null;
+      const digits = String(raw).replace(/\D/g, "");
+      if (!digits) return null;
+      const len = APP_CONFIG.tnPadLength || 20;
+      if (digits.length >= len) return digits.slice(-len);
+      return digits.padStart(len, "0");
+    }
+
     function detectDelimiter(text) {
       const line = text.split(/\r?\n/).find((l) => l.trim().length > 0) || "";
       let best = ";";
@@ -554,12 +651,6 @@
       return best;
     }
 
-    /**
-     * Разбирает строку CSV с учётом кавычек.
-     * @param {string} line
-     * @param {string} delimiter
-     * @returns {string[]}
-     */
     function splitCsvLine(line, delimiter) {
       const out = [];
       let cur = "";
@@ -584,11 +675,6 @@
       return out;
     }
 
-    /**
-     * Нормализует имя столбца для сопоставления.
-     * @param {string} name
-     * @returns {string}
-     */
     function normalizeHeader(name) {
       return String(name || "")
         .trim()
@@ -598,127 +684,135 @@
     }
 
     /**
-     * Ищет индекс столбца по списку алиасов.
+     * Индекс колонки: приоритет по порядку алиасов, затем точное совпадение, иначе includes.
      * @param {string[]} headers
      * @param {string[]} aliases
      * @returns {number}
      */
     function findColumnIndex(headers, aliases) {
       const normalized = headers.map(normalizeHeader);
-      for (let i = 0; i < normalized.length; i += 1) {
-        const h = normalized[i];
-        if (aliases.some((a) => h === a || h.includes(a))) return i;
+      for (let ai = 0; ai < aliases.length; ai += 1) {
+        const a = normalizeHeader(aliases[ai]);
+        for (let i = 0; i < normalized.length; i += 1) {
+          if (normalized[i] === a) return i;
+        }
+      }
+      for (let ai = 0; ai < aliases.length; ai += 1) {
+        const a = normalizeHeader(aliases[ai]);
+        for (let i = 0; i < normalized.length; i += 1) {
+          if (normalized[i].includes(a)) return i;
+        }
       }
       return -1;
     }
 
     /**
-     * Парсит текст таблицы в массив строк данных.
-     * @param {string} text
-     * @returns {{ rows: DataRow[], meta: { delimiter: string, totalLines: number, skipped: number } }}
+     * Агрегация по ТН: SUM(сумма), атрибуты — первое непустое.
+     * @param {DataRow[]} rows
+     * @returns {DataRow[]}
      */
+    function aggregateByTn(rows) {
+      /** @type {Map<string, DataRow>} */
+      const map = new Map();
+      for (const row of rows) {
+        const tn = row.tn;
+        const prev = map.get(tn);
+        if (!prev) {
+          map.set(tn, {
+            tn,
+            amount: row.amount,
+            tb: row.tb || "",
+            gosb: row.gosb || "",
+            cluster: row.cluster || ""
+          });
+          continue;
+        }
+        prev.amount += row.amount;
+        if (!prev.tb && row.tb) prev.tb = row.tb;
+        if (!prev.gosb && row.gosb) prev.gosb = row.gosb;
+        if (!prev.cluster && row.cluster) prev.cluster = row.cluster;
+      }
+      return [...map.values()];
+    }
+
     function parseTableText(text) {
       const cleaned = String(text || "").replace(/^\uFEFF/, "").trim();
-      if (!cleaned) {
-        throw new Error("Пустой ввод: вставьте таблицу или выберите CSV-файл.");
-      }
+      if (!cleaned) throw new Error("Пустой ввод: вставьте таблицу или выберите CSV-файл.");
 
       const delimiter = detectDelimiter(cleaned);
       const lines = cleaned.split(/\r?\n/).filter((l) => l.trim().length > 0);
-      if (lines.length < 2) {
-        throw new Error("Нужна строка заголовков и хотя бы одна строка данных.");
-      }
+      if (lines.length < 2) throw new Error("Нужна строка заголовков и хотя бы одна строка данных.");
 
       const headers = splitCsvLine(lines[0], delimiter);
-      let tbIdx = findColumnIndex(headers, APP_CONFIG.tbColumnAliases);
-      let gosbIdx = findColumnIndex(headers, APP_CONFIG.gosbColumnAliases);
-      let amountIdx = findColumnIndex(headers, APP_CONFIG.amountColumnAliases);
+      const tnIdx = findColumnIndex(headers, APP_CONFIG.tnColumnAliases);
+      const amountIdx = findColumnIndex(headers, APP_CONFIG.amountColumnAliases);
+      const tbIdx = findColumnIndex(headers, APP_CONFIG.tbColumnAliases);
+      const gosbIdx = findColumnIndex(headers, APP_CONFIG.gosbColumnAliases);
+      const clusterIdx = findColumnIndex(headers, APP_CONFIG.clusterColumnAliases);
 
-      // Если заголовков нет — пробуем угадать по позициям 0,1,2
-      let start = 1;
-      if (tbIdx < 0 || gosbIdx < 0 || amountIdx < 0) {
-        if (headers.length >= 3) {
-          const maybeAmount = normalizeAmount(headers[2]);
-          if (maybeAmount != null) {
-            tbIdx = 0;
-            gosbIdx = 1;
-            amountIdx = 2;
-            start = 0;
-          }
-        }
-      }
-
-      if (tbIdx < 0 || gosbIdx < 0 || amountIdx < 0) {
-        throw new Error(
-          "Не найдены столбцы ТБ / ГОСБ / сумма. Проверьте заголовки первой строки."
-        );
+      if (tnIdx < 0 || amountIdx < 0) {
+        throw new Error("Не найдены обязательные столбцы ТН и сумма. Проверьте заголовки.");
       }
 
       /** @type {DataRow[]} */
       const rows = [];
       let skipped = 0;
-      for (let i = start; i < lines.length; i += 1) {
+      for (let i = 1; i < lines.length; i += 1) {
         const cells = splitCsvLine(lines[i], delimiter);
         const amount = normalizeAmount(cells[amountIdx]);
-        const tb = String(cells[tbIdx] || "").trim();
-        const gosb = String(cells[gosbIdx] || "").trim();
-        if (amount == null || !tb || !gosb) {
+        const tn = normalizeEmpId(cells[tnIdx]);
+        if (amount == null || !tn) {
           skipped += 1;
           continue;
         }
-        rows.push({ tb, gosb, amount });
+        rows.push({
+          tn,
+          amount,
+          tb: tbIdx >= 0 ? String(cells[tbIdx] || "").trim() : "",
+          gosb: gosbIdx >= 0 ? String(cells[gosbIdx] || "").trim() : "",
+          cluster: clusterIdx >= 0 ? String(cells[clusterIdx] || "").trim() : ""
+        });
       }
 
-      if (!rows.length) {
-        throw new Error("Не удалось прочитать ни одной валидной строки.");
-      }
+      if (!rows.length) throw new Error("Не удалось прочитать ни одной валидной строки (нужны ТН и сумма).");
 
       return {
         rows,
-        meta: { delimiter, totalLines: lines.length - start, skipped }
+        meta: {
+          delimiter,
+          totalLines: lines.length - 1,
+          skipped,
+          hasTb: tbIdx >= 0,
+          hasGosb: gosbIdx >= 0,
+          hasCluster: clusterIdx >= 0
+        }
       };
     }
 
-    /**
-     * Строит границы интервалов.
-     * @param {number[]} amounts
-     * @param {{ mode: string, count: number, width: number|null, origin: number|null, min: number|null, max: number|null, customEdges: number[] }} opts
-     * @returns {number[]}
-     */
     function buildBins(amounts, opts) {
       if (!amounts.length) throw new Error("Нет сумм для построения интервалов.");
-
       const dataMin = Math.min(...amounts);
       const dataMax = Math.max(...amounts);
 
       if (opts.mode === "custom") {
-        const edges = [...opts.customEdges].filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
-        const unique = edges.filter((v, i, arr) => i === 0 || v !== arr[i - 1]);
-        if (unique.length < 2) {
-          throw new Error("Для ручных границ укажите минимум 2 числа.");
-        }
-        return unique;
+        const edges = [...opts.customEdges].filter((n) => Number.isFinite(n));
+        if (edges.length < 2) throw new Error("Задайте хотя бы одну подвижную границу (итого ≥ 3 точек с min/max).");
+        return edges;
       }
 
       let min = opts.min == null || !Number.isFinite(opts.min) ? dataMin : opts.min;
       let max = opts.max == null || !Number.isFinite(opts.max) ? dataMax : opts.max;
       if (max < min) {
-        const t = min;
-        min = max;
-        max = t;
+        const t = min; min = max; max = t;
       }
-      if (max === min) {
-        max = min + (Math.abs(min) || 1);
-      }
+      if (max === min) max = min + (Math.abs(min) || 1);
 
       if (opts.mode === "width") {
         const width = opts.width;
         if (!(width > 0)) throw new Error("Ширина интервала должна быть больше 0.");
         const origin = opts.origin == null || !Number.isFinite(opts.origin) ? min : opts.origin;
-        /** @type {number[]} */
         const edges = [origin];
         let cur = origin;
-        // Гарантируем покрытие max
         while (cur < max && edges.length < 2000) {
           cur = Number((cur + width).toPrecision(12));
           edges.push(cur);
@@ -728,10 +822,8 @@
         return edges;
       }
 
-      // count
       const count = Math.max(1, Math.floor(opts.count || 1));
       const width = (max - min) / count;
-      /** @type {number[]} */
       const edges = [];
       for (let i = 0; i <= count; i += 1) {
         edges.push(Number((min + width * i).toPrecision(12)));
@@ -740,67 +832,35 @@
       return edges;
     }
 
-    /**
-     * Форматирует подпись интервала.
-     * @param {number} a
-     * @param {number} b
-     * @param {boolean} last
-     * @returns {string}
-     */
-    function formatBinLabel(a, b, last) {
-      const fa = formatNumber(a);
-      const fb = formatNumber(b);
-      return last ? `[${fa} … ${fb}]` : `[${fa} … ${fb})`;
-    }
-
-    /**
-     * @param {number} n
-     * @returns {string}
-     */
     function formatNumber(n) {
       return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(n);
     }
 
-    /**
-     * Вычисляет гистограмму по сериям.
-     * @param {DataRow[]} rows
-     * @param {number[]} edges
-     * @param {"all"|"tb"|"gosb"|"tb_gosb"} sliceMode
-     * @returns {{ edges: number[], labels: string[], series: { name: string, counts: number[] }[], total: number, below: number, above: number }}
-     */
+    function formatBinLabel(a, b, last) {
+      return last ? `[${formatNumber(a)} … ${formatNumber(b)}]` : `[${formatNumber(a)} … ${formatNumber(b)})`;
+    }
+
     function computeHistogram(rows, edges, sliceMode) {
-      /** @type {Map<string, number[]>} */
       const seriesMap = new Map();
       let below = 0;
       let above = 0;
       const binCount = edges.length - 1;
 
-      /**
-       * @param {DataRow} row
-       * @returns {string}
-       */
       function seriesName(row) {
-        if (sliceMode === "tb") return row.tb;
-        if (sliceMode === "gosb") return row.gosb;
-        if (sliceMode === "tb_gosb") return `${row.tb} / ${row.gosb}`;
+        if (sliceMode === "tb") return row.tb || "(без ТБ)";
+        if (sliceMode === "gosb") return row.gosb || "(без ГОСБ)";
+        if (sliceMode === "tb_gosb") return `${row.tb || "—"} / ${row.gosb || "—"}`;
+        if (sliceMode === "cluster") return row.cluster || "(без кластера)";
         return "Вся выборка";
       }
 
       for (const row of rows) {
         const name = seriesName(row);
-        if (!seriesMap.has(name)) {
-          seriesMap.set(name, Array(binCount).fill(0));
-        }
+        if (!seriesMap.has(name)) seriesMap.set(name, Array(binCount).fill(0));
         const counts = seriesMap.get(name);
         const x = row.amount;
-        if (x < edges[0]) {
-          below += 1;
-          continue;
-        }
-        if (x > edges[edges.length - 1]) {
-          above += 1;
-          continue;
-        }
+        if (x < edges[0]) { below += 1; continue; }
+        if (x > edges[edges.length - 1]) { above += 1; continue; }
         let placed = false;
         for (let i = 0; i < binCount; i += 1) {
           const left = edges[i];
@@ -824,67 +884,79 @@
         labels.push(formatBinLabel(edges[i], edges[i + 1], i === binCount - 1));
       }
 
-      return {
-        edges,
-        labels,
-        series,
-        total: rows.length,
-        below,
-        above
-      };
+      return { edges, labels, series, total: rows.length, below, above };
     }
 
-    /**
-     * @param {string} msg
-     * @param {"ok"|"err"|""} kind
-     */
     function setLoadStatus(msg, kind) {
       el.loadStatus.textContent = msg;
       el.loadStatus.className = "status" + (kind ? " " + kind : "");
     }
-
-    /**
-     * @param {string} msg
-     * @param {"ok"|"err"|""} kind
-     */
     function setChartStatus(msg, kind) {
       el.chartStatus.textContent = msg;
       el.chartStatus.className = "status" + (kind ? " " + kind : "");
     }
 
-    /**
-     * Применяет загруженные строки к UI.
-     * @param {DataRow[]} rows
-     * @param {string} sourceLabel
-     * @param {{ skipped?: number, totalLines?: number }=} meta
-     */
-    function applyRows(rows, sourceLabel, meta) {
-      allRows = rows;
+    function applyParsed(parsed, sourceLabel) {
+      rawRows = parsed.rows;
+      columnPresence = {
+        hasTb: !!parsed.meta.hasTb,
+        hasGosb: !!parsed.meta.hasGosb,
+        hasCluster: !!parsed.meta.hasCluster
+      };
+      allRows = aggregateByTn(rawRows);
       rebuildFilterOptions();
-      const skipped = meta && meta.skipped ? meta.skipped : 0;
+      syncSliceOptions();
+      const skipped = parsed.meta.skipped || 0;
       setLoadStatus(
-        `Загружено ${rows.length} строк из «${sourceLabel}»` +
-          (skipped ? ` (пропущено ${skipped})` : "") + ".",
+        `Сырых строк: ${rawRows.length}; уникальных ТН: ${allRows.length} («${sourceLabel}»)` +
+          (skipped ? `; пропущено ${skipped}` : "") + ".",
         "ok"
       );
+      initEdgeStateFromData(true);
       rebuild();
     }
 
-    /**
-     * Пересобирает чекбоксы фильтров.
-     */
-    function rebuildFilterOptions() {
-      const tbs = [...new Set(allRows.map((r) => r.tb))].sort((a, b) => a.localeCompare(b, "ru"));
-      const gosbs = [...new Set(allRows.map((r) => r.gosb))].sort((a, b) => a.localeCompare(b, "ru"));
-      renderChecks(el.tbChecks, tbs, "tb");
-      renderChecks(el.gosbChecks, gosbs, "gosb");
+    function syncSliceOptions() {
+      const opts = el.sliceMode.options;
+      for (let i = 0; i < opts.length; i += 1) {
+        const v = opts[i].value;
+        let ok = true;
+        if (v === "tb") ok = columnPresence.hasTb;
+        else if (v === "gosb") ok = columnPresence.hasGosb;
+        else if (v === "tb_gosb") ok = columnPresence.hasTb && columnPresence.hasGosb;
+        else if (v === "cluster") ok = columnPresence.hasCluster;
+        opts[i].disabled = !ok;
+      }
+      if (el.sliceMode.selectedOptions[0] && el.sliceMode.selectedOptions[0].disabled) {
+        el.sliceMode.value = "all";
+      }
     }
 
-    /**
-     * @param {HTMLElement} container
-     * @param {string[]} values
-     * @param {string} group
-     */
+    function rebuildFilterOptions() {
+      const showTb = columnPresence.hasTb && allRows.some((r) => r.tb);
+      const showGosb = columnPresence.hasGosb && allRows.some((r) => r.gosb);
+      const showCluster = columnPresence.hasCluster && allRows.some((r) => r.cluster);
+
+      el.tbFilterBlock.classList.toggle("hidden", !showTb);
+      el.gosbFilterBlock.classList.toggle("hidden", !showGosb);
+      el.clusterFilterBlock.classList.toggle("hidden", !showCluster);
+
+      if (showTb) {
+        const tbs = [...new Set(allRows.map((r) => r.tb).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"));
+        renderChecks(el.tbChecks, tbs, "tb");
+      } else el.tbChecks.innerHTML = "";
+
+      if (showGosb) {
+        const gosbs = [...new Set(allRows.map((r) => r.gosb).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"));
+        renderChecks(el.gosbChecks, gosbs, "gosb");
+      } else el.gosbChecks.innerHTML = "";
+
+      if (showCluster) {
+        const clusters = [...new Set(allRows.map((r) => r.cluster).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"));
+        renderChecks(el.clusterChecks, clusters, "cluster");
+      } else el.clusterChecks.innerHTML = "";
+    }
+
     function renderChecks(container, values, group) {
       container.innerHTML = "";
       if (!values.length) {
@@ -892,40 +964,29 @@
         return;
       }
       for (const value of values) {
-        const id = `${group}_${hashId(value)}`;
         const label = document.createElement("label");
         const input = document.createElement("input");
         input.type = "checkbox";
         input.checked = true;
         input.dataset.group = group;
         input.value = value;
-        input.id = id;
         const span = document.createElement("span");
         span.textContent = value;
-        input.addEventListener("change", rebuild);
+        input.addEventListener("change", () => {
+          initEdgeStateFromData(false);
+          rebuild();
+        });
         label.appendChild(input);
         label.appendChild(span);
         container.appendChild(label);
       }
     }
 
-    /**
-     * @param {string} s
-     * @returns {string}
-     */
-    function hashId(s) {
-      let h = 0;
-      for (let i = 0; i < s.length; i += 1) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-      return String(h);
-    }
-
-    /**
-     * @param {"tb"|"gosb"} group
-     * @returns {Set<string>}
-     */
     function selectedValues(group) {
-      const root = group === "tb" ? el.tbChecks : el.gosbChecks;
-      /** @type {Set<string>} */
+      const root =
+        group === "tb" ? el.tbChecks :
+        group === "gosb" ? el.gosbChecks :
+        el.clusterChecks;
       const set = new Set();
       root.querySelectorAll('input[type="checkbox"]').forEach((inp) => {
         if (inp.checked) set.add(inp.value);
@@ -933,18 +994,152 @@
       return set;
     }
 
-    /**
-     * @returns {DataRow[]}
-     */
     function filteredRows() {
-      const tbSet = selectedValues("tb");
-      const gosbSet = selectedValues("gosb");
-      return allRows.filter((r) => tbSet.has(r.tb) && gosbSet.has(r.gosb));
+      let rows = allRows;
+      if (columnPresence.hasTb && !el.tbFilterBlock.classList.contains("hidden")) {
+        const tbSet = selectedValues("tb");
+        rows = rows.filter((r) => !r.tb || tbSet.has(r.tb));
+      }
+      if (columnPresence.hasGosb && !el.gosbFilterBlock.classList.contains("hidden")) {
+        const gosbSet = selectedValues("gosb");
+        rows = rows.filter((r) => !r.gosb || gosbSet.has(r.gosb));
+      }
+      if (columnPresence.hasCluster && !el.clusterFilterBlock.classList.contains("hidden")) {
+        const cSet = selectedValues("cluster");
+        rows = rows.filter((r) => !r.cluster || cSet.has(r.cluster));
+      }
+      return rows;
     }
 
-    /**
-     * Читает настройки интервалов из формы.
-     */
+    function dataMinMax(rows) {
+      const amounts = rows.map((r) => r.amount);
+      if (!amounts.length) return { min: 0, max: 1 };
+      let min = Math.min(...amounts);
+      let max = Math.max(...amounts);
+      if (min === max) max = min + (Math.abs(min) || 1);
+      return { min, max };
+    }
+
+    function cascadeEdges(edges, changedIndex) {
+      const out = edges.slice();
+      for (let i = changedIndex + 1; i < out.length; i += 1) {
+        if (out[i] < out[i - 1]) out[i] = out[i - 1];
+      }
+      for (let i = changedIndex - 1; i >= 0; i -= 1) {
+        if (out[i] > out[i + 1]) out[i] = out[i + 1];
+      }
+      out[0] = edgeState.min;
+      out[out.length - 1] = edgeState.max;
+      return out;
+    }
+
+    function evenlySpacedEdges(min, max, movableCount) {
+      const n = Math.max(1, Math.floor(movableCount));
+      const totalIntervals = n + 1;
+      const step = (max - min) / totalIntervals;
+      const edges = [min];
+      for (let i = 1; i <= n; i += 1) {
+        edges.push(Number((min + step * i).toPrecision(12)));
+      }
+      edges.push(max);
+      return edges;
+    }
+
+    function initEdgeStateFromData(forceReset) {
+      const rows = filteredRows();
+      const { min, max } = dataMinMax(rows);
+      const n = Math.max(1, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges);
+      el.movableEdgeCount.value = String(n);
+      const sameRange = Math.abs(edgeState.min - min) < 1e-9 && Math.abs(edgeState.max - max) < 1e-9;
+      if (forceReset || !edgeState.edges.length || !sameRange || edgeState.edges.length !== n + 2) {
+        edgeState.min = min;
+        edgeState.max = max;
+        edgeState.edges = evenlySpacedEdges(min, max, n);
+      } else {
+        edgeState.min = min;
+        edgeState.max = max;
+        edgeState.edges[0] = min;
+        edgeState.edges[edgeState.edges.length - 1] = max;
+        edgeState.edges = cascadeEdges(edgeState.edges, 0);
+      }
+      renderEdgeRail();
+    }
+
+    function valueToPct(v) {
+      const span = edgeState.max - edgeState.min || 1;
+      return ((v - edgeState.min) / span) * 100;
+    }
+
+    function pctToValue(pct) {
+      const span = edgeState.max - edgeState.min || 1;
+      return edgeState.min + (pct / 100) * span;
+    }
+
+    function renderEdgeRail() {
+      const edges = edgeState.edges;
+      if (!edges.length) {
+        el.edgeRail.innerHTML = "";
+        el.edgeValues.innerHTML = "";
+        return;
+      }
+      el.edgeRail.innerHTML = "";
+      const track = document.createElement("div");
+      track.className = "edge-rail__track";
+      const fill = document.createElement("div");
+      fill.className = "edge-rail__fill";
+      fill.style.left = "0%";
+      fill.style.width = "100%";
+      track.appendChild(fill);
+      el.edgeRail.appendChild(track);
+
+      edges.forEach((val, idx) => {
+        const isFixed = idx === 0 || idx === edges.length - 1;
+        const thumb = document.createElement("div");
+        thumb.className = "edge-rail__thumb" + (isFixed ? " is-fixed" : "");
+        thumb.style.left = valueToPct(val) + "%";
+        thumb.dataset.index = String(idx);
+        thumb.title = formatNumber(val);
+        if (!isFixed) {
+          thumb.addEventListener("pointerdown", onThumbPointerDown);
+        }
+        el.edgeRail.appendChild(thumb);
+      });
+
+      el.edgeValues.innerHTML = edges.map((v, i) => {
+        const tag = i === 0 ? "мин" : (i === edges.length - 1 ? "макс" : "граница " + i);
+        return `<div>${tag}: <strong>${formatNumber(v)}</strong></div>`;
+      }).join("");
+    }
+
+    function onThumbPointerDown(ev) {
+      ev.preventDefault();
+      const idx = Number(ev.currentTarget.dataset.index);
+      edgeState.dragIndex = idx;
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+      const move = (e) => {
+        const rect = el.edgeRail.getBoundingClientRect();
+        let pct = ((e.clientX - rect.left) / rect.width) * 100;
+        pct = Math.max(0, Math.min(100, pct));
+        let val = pctToValue(pct);
+        const left = edgeState.edges[idx - 1];
+        const right = edgeState.edges[idx + 1];
+        if (val < left) val = left;
+        if (val > right) val = right;
+        edgeState.edges[idx] = val;
+        edgeState.edges = cascadeEdges(edgeState.edges, idx);
+        renderEdgeRail();
+        rebuild();
+      };
+      const up = (e) => {
+        edgeState.dragIndex = -1;
+        try { ev.currentTarget.releasePointerCapture(e.pointerId); } catch (_e) { /* ignore */ }
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    }
+
     function readBinOptions() {
       const mode = el.binMode.value;
       const count = Number(el.binCount.value);
@@ -952,13 +1147,6 @@
       const originRaw = el.binOrigin.value.trim();
       const minRaw = el.binMin.value.trim();
       const maxRaw = el.binMax.value.trim();
-      const customEdges = el.binEdges.value
-        .split(/[\s,;]+/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((s) => normalizeAmount(s))
-        .filter((n) => n != null);
-
       return {
         mode,
         count: Number.isFinite(count) ? count : APP_CONFIG.defaultBinCount,
@@ -966,404 +1154,316 @@
         origin: originRaw === "" ? null : Number(originRaw),
         min: minRaw === "" ? null : Number(minRaw),
         max: maxRaw === "" ? null : Number(maxRaw),
-        customEdges
+        customEdges: edgeState.edges.slice()
       };
     }
 
-    /**
-     * Переключает видимость блоков настроек интервалов.
-     */
     function syncBinModeUi() {
       const mode = el.binMode.value;
-      el.binCountRow.style.display = mode === "custom" ? "none" : "flex";
       el.binWidthRow.classList.toggle("visible", mode === "width");
       el.binCustomRow.classList.toggle("visible", mode === "custom");
-      // В режиме width число интервалов не нужно
-      el.binCount.closest("label").style.display = mode === "count" ? "grid" : "none";
+      el.binCountLabel.style.display = mode === "count" ? "grid" : "none";
+      if (mode === "custom") {
+        el.binCountRow.style.display = "none";
+        initEdgeStateFromData(false);
+      } else {
+        el.binCountRow.style.display = "flex";
+      }
     }
 
-    /**
-     * Основной пересчёт и отрисовка.
-     */
     function rebuild() {
       try {
         if (!allRows.length) {
-          clearChart();
           setChartStatus("Нет данных для графика.", "");
           return;
         }
         const rows = filteredRows();
         if (!rows.length) {
-          clearChart();
-          setChartStatus("После фильтров строк не осталось. Выберите ТБ/ГОСБ.", "err");
+          setChartStatus("После фильтров ТН не осталось.", "err");
           return;
         }
-
+        if (el.binMode.value === "custom") {
+          edgeState.min = dataMinMax(rows).min;
+          edgeState.max = dataMinMax(rows).max;
+          if (edgeState.edges.length) {
+            edgeState.edges[0] = edgeState.min;
+            edgeState.edges[edgeState.edges.length - 1] = edgeState.max;
+            edgeState.edges = cascadeEdges(edgeState.edges, 0);
+            renderEdgeRail();
+          }
+        }
         const amounts = rows.map((r) => r.amount);
         const edges = buildBins(amounts, readBinOptions());
-        const hist = computeHistogram(rows, edges, el.sliceMode.value);
+        const slice = el.sliceMode.value;
+        const hist = computeHistogram(rows, edges, slice);
         drawHistogram(hist);
         renderLegend(hist);
         renderStats(rows, hist);
         renderFrequencyTable(hist);
         setChartStatus(
-          `Интервалов: ${edges.length - 1}. Серий: ${hist.series.length}.` +
-            (hist.below || hist.above
-              ? ` Вне диапазона: ниже ${hist.below}, выше ${hist.above}.`
-              : ""),
+          `Интервалов: ${hist.labels.length}; ТН на графике: ${hist.total}` +
+            (hist.below || hist.above ? ` (вне границ: ниже ${hist.below}, выше ${hist.above})` : "") + ".",
           "ok"
         );
       } catch (err) {
-        clearChart();
-        setChartStatus(err && err.message ? err.message : String(err), "err");
+        setChartStatus((err && err.message) ? err.message : String(err), "err");
       }
     }
 
-    function clearChart() {
-      const ctx = el.chart.getContext("2d");
-      const dpr = window.devicePixelRatio || 1;
-      const rect = el.chart.getBoundingClientRect();
-      el.chart.width = Math.max(1, Math.floor(rect.width * dpr));
-      el.chart.height = Math.max(1, Math.floor(rect.height * dpr));
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      el.legend.innerHTML = "";
-      el.stats.innerHTML = "";
-      el.freqHead.innerHTML = "";
-      el.freqBody.innerHTML = "";
-    }
-
-    /**
-     * @param {ReturnType<typeof computeHistogram>} hist
-     */
     function drawHistogram(hist) {
       const canvas = el.chart;
-      const ctx = canvas.getContext("2d");
       const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      const W = rect.width;
-      const H = rect.height;
-      canvas.width = Math.max(1, Math.floor(W * dpr));
-      canvas.height = Math.max(1, Math.floor(H * dpr));
+      const cssW = canvas.clientWidth || 640;
+      const cssH = canvas.clientHeight || 400;
+      canvas.width = Math.floor(cssW * dpr);
+      canvas.height = Math.floor(cssH * dpr);
+      const ctx = canvas.getContext("2d");
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, W, H);
+      ctx.clearRect(0, 0, cssW, cssH);
 
-      const pad = { top: 24, right: 18, bottom: 78, left: 54 };
-      const plotW = W - pad.left - pad.right;
-      const plotH = H - pad.top - pad.bottom;
-
+      const pad = { t: 24, r: 16, b: 58, l: 48 };
+      const plotW = cssW - pad.l - pad.r;
+      const plotH = cssH - pad.t - pad.b;
       const binN = hist.labels.length;
-      const seriesN = Math.max(1, hist.series.length);
-      let yMax = 1;
-      for (const s of hist.series) {
-        for (const c of s.counts) yMax = Math.max(yMax, c);
-      }
-      yMax = niceCeil(yMax);
+      const series = hist.series.slice(0, APP_CONFIG.chart.maxLegendItems);
+      let maxY = 1;
+      for (const s of series) for (const c of s.counts) if (c > maxY) maxY = c;
 
-      // Сетка
-      ctx.strokeStyle = "#d7e2ee";
-      ctx.fillStyle = "#6b7c8f";
+      ctx.strokeStyle = "rgba(29,29,31,0.12)";
       ctx.lineWidth = 1;
-      ctx.font = "12px Segoe UI, sans-serif";
-      const ticks = 5;
-      for (let i = 0; i <= ticks; i += 1) {
-        const y = pad.top + plotH - (plotH * i) / ticks;
-        const val = Math.round((yMax * i) / ticks);
-        ctx.beginPath();
-        ctx.moveTo(pad.left, y);
-        ctx.lineTo(pad.left + plotW, y);
-        ctx.stroke();
-        ctx.textAlign = "right";
-        ctx.textBaseline = "middle";
-        ctx.fillText(String(val), pad.left - 8, y);
-      }
-
-      // Оси
-      ctx.strokeStyle = "#8aa0b5";
       ctx.beginPath();
-      ctx.moveTo(pad.left, pad.top);
-      ctx.lineTo(pad.left, pad.top + plotH);
-      ctx.lineTo(pad.left + plotW, pad.top + plotH);
+      ctx.moveTo(pad.l, pad.t);
+      ctx.lineTo(pad.l, pad.t + plotH);
+      ctx.lineTo(pad.l + plotW, pad.t + plotH);
       ctx.stroke();
+
+      const ticks = 5;
+      ctx.fillStyle = "#6e6e73";
+      ctx.font = "11px sans-serif";
+      ctx.textAlign = "right";
+      for (let i = 0; i <= ticks; i += 1) {
+        const y = pad.t + plotH - (plotH * i) / ticks;
+        const val = Math.round((maxY * i) / ticks);
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(29,29,31,0.06)";
+        ctx.moveTo(pad.l, y);
+        ctx.lineTo(pad.l + plotW, y);
+        ctx.stroke();
+        ctx.fillText(String(val), pad.l - 6, y + 3);
+      }
 
       const groupW = plotW / binN;
       const gap = groupW * APP_CONFIG.chart.barGapRatio;
-      const innerW = Math.max(1, groupW - gap);
+      const innerW = groupW - gap;
+      const seriesN = Math.max(1, series.length);
       const seriesGap = innerW * APP_CONFIG.chart.seriesGapRatio;
-      const barW = Math.max(1, (innerW - seriesGap * (seriesN - 1)) / seriesN);
+      const barW = (innerW - seriesGap * (seriesN - 1)) / seriesN;
 
       for (let bi = 0; bi < binN; bi += 1) {
-        const groupX = pad.left + bi * groupW + gap / 2;
+        const gx = pad.l + bi * groupW + gap / 2;
         for (let si = 0; si < seriesN; si += 1) {
-          const count = hist.series[si] ? hist.series[si].counts[bi] : 0;
-          const h = (count / yMax) * plotH;
-          const x = groupX + si * (barW + seriesGap);
-          const y = pad.top + plotH - h;
+          const count = series[si].counts[bi] || 0;
+          const h = (count / maxY) * plotH;
+          const x = gx + si * (barW + seriesGap);
+          const y = pad.t + plotH - h;
           ctx.fillStyle = SERIES_COLORS[si % SERIES_COLORS.length];
-          roundRect(ctx, x, y, barW, Math.max(h, count > 0 ? 1 : 0), 3);
+          ctx.beginPath();
+          const r = 4;
+          ctx.moveTo(x + r, y);
+          ctx.arcTo(x + barW, y, x + barW, y + h, r);
+          ctx.arcTo(x + barW, y + h, x, y + h, 0);
+          ctx.arcTo(x, y + h, x, y, 0);
+          ctx.arcTo(x, y, x + barW, y, r);
+          ctx.closePath();
           ctx.fill();
         }
-
-        // Подпись интервала
-        ctx.save();
-        ctx.fillStyle = "#4d5f73";
-        ctx.font = "11px Segoe UI, sans-serif";
         const label = hist.labels[bi];
-        const lx = groupX + innerW / 2;
-        const ly = pad.top + plotH + 12;
-        ctx.translate(lx, ly);
-        ctx.rotate(-Math.PI / 4);
+        const short = shortenLabel(label, binN > 12 ? 16 : 26);
+        ctx.save();
+        ctx.translate(gx + innerW / 2, pad.t + plotH + 10);
+        ctx.rotate(-Math.PI / 5);
         ctx.textAlign = "right";
-        ctx.textBaseline = "middle";
-        const short = shortenLabel(label, binN > 12 ? 18 : 28);
+        ctx.fillStyle = "#6e6e73";
+        ctx.font = "10px sans-serif";
         ctx.fillText(short, 0, 0);
         ctx.restore();
       }
-
-      // Подписи осей
-      ctx.fillStyle = "#334155";
-      ctx.font = "12px Segoe UI, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("Интервалы сумм", pad.left + plotW / 2, H - 10);
-      ctx.save();
-      ctx.translate(14, pad.top + plotH / 2);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillText("Число строк", 0, 0);
-      ctx.restore();
     }
 
-    /**
-     * @param {CanvasRenderingContext2D} ctx
-     * @param {number} x
-     * @param {number} y
-     * @param {number} w
-     * @param {number} h
-     * @param {number} r
-     */
-    function roundRect(ctx, x, y, w, h, r) {
-      const rr = Math.min(r, w / 2, h / 2);
-      ctx.beginPath();
-      ctx.moveTo(x + rr, y);
-      ctx.arcTo(x + w, y, x + w, y + h, rr);
-      ctx.arcTo(x + w, y + h, x, y + h, rr);
-      ctx.arcTo(x, y + h, x, y, rr);
-      ctx.arcTo(x, y, x + w, y, rr);
-      ctx.closePath();
+    function shortenLabel(s, max) {
+      if (s.length <= max) return s;
+      return s.slice(0, max - 1) + "…";
     }
 
-    /**
-     * @param {number} n
-     * @returns {number}
-     */
-    function niceCeil(n) {
-      if (n <= 1) return 1;
-      const exp = Math.floor(Math.log10(n));
-      const f = Math.pow(10, exp);
-      const m = Math.ceil(n / f);
-      return m * f;
-    }
-
-    /**
-     * @param {string} label
-     * @param {number} maxLen
-     * @returns {string}
-     */
-    function shortenLabel(label, maxLen) {
-      if (label.length <= maxLen) return label;
-      return label.slice(0, maxLen - 1) + "…";
-    }
-
-    /**
-     * @param {ReturnType<typeof computeHistogram>} hist
-     */
     function renderLegend(hist) {
-      el.legend.innerHTML = "";
-      const max = APP_CONFIG.chart.maxLegendItems;
-      const list = hist.series.slice(0, max);
-      for (let i = 0; i < list.length; i += 1) {
-        const item = document.createElement("div");
-        item.className = "legend-item";
-        item.innerHTML = `<span class="swatch" style="background:${SERIES_COLORS[i % SERIES_COLORS.length]}"></span>`;
-        const span = document.createElement("span");
-        span.textContent = list[i].name;
-        item.appendChild(span);
-        el.legend.appendChild(item);
-      }
-      if (hist.series.length > max) {
-        const more = document.createElement("div");
-        more.className = "legend-item";
-        more.textContent = `… и ещё ${hist.series.length - max}`;
-        el.legend.appendChild(more);
+      const series = hist.series.slice(0, APP_CONFIG.chart.maxLegendItems);
+      el.legend.innerHTML = series.map((s, i) => {
+        const color = SERIES_COLORS[i % SERIES_COLORS.length];
+        return `<span><i style="background:${color}"></i>${escapeHtml(s.name)}</span>`;
+      }).join("");
+      if (hist.series.length > series.length) {
+        el.legend.innerHTML += `<span style="color:#6e6e73">… ещё ${hist.series.length - series.length}</span>`;
       }
     }
 
-    /**
-     * @param {DataRow[]} rows
-     * @param {ReturnType<typeof computeHistogram>} hist
-     */
     function renderStats(rows, hist) {
       const amounts = rows.map((r) => r.amount);
-      const sum = amounts.reduce((a, b) => a + b, 0);
       const min = Math.min(...amounts);
       const max = Math.max(...amounts);
+      const sum = amounts.reduce((a, b) => a + b, 0);
       const avg = sum / amounts.length;
       const items = [
-        ["Строк", formatNumber(rows.length)],
-        ["Серий", formatNumber(hist.series.length)],
+        ["Сырых строк", String(rawRows.length)],
+        ["Уник. ТН", String(allRows.length)],
+        ["ТН на графике", String(hist.total)],
         ["Мин. сумма", formatNumber(min)],
         ["Макс. сумма", formatNumber(max)],
-        ["Средняя", formatNumber(avg)],
+        ["Среднее", formatNumber(avg)],
         ["Сумма всех", formatNumber(sum)]
       ];
-      el.stats.innerHTML = items
-        .map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`)
-        .join("");
+      el.stats.innerHTML = items.map(([k, v]) =>
+        `<div class="stat"><div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v)}</div></div>`
+      ).join("");
     }
 
-    /**
-     * @param {ReturnType<typeof computeHistogram>} hist
-     */
     function renderFrequencyTable(hist) {
-      const showSeries = hist.series.length > 1;
-      if (!showSeries) {
-        el.freqHead.innerHTML = "<tr><th>Интервал</th><th>Число строк</th><th>Доля</th></tr>";
-        const total = hist.series[0].counts.reduce((a, b) => a + b, 0) || 1;
-        el.freqBody.innerHTML = hist.labels
-          .map((label, i) => {
-            const c = hist.series[0].counts[i];
-            const pct = ((c / total) * 100).toFixed(1) + "%";
-            return `<tr><td>${escapeHtml(label)}</td><td>${c}</td><td>${pct}</td></tr>`;
-          })
-          .join("");
-        return;
-      }
-
-      const head = ["<tr><th>Интервал</th>"]
-        .concat(hist.series.map((s) => `<th>${escapeHtml(s.name)}</th>`))
-        .concat(["<th>Итого</th></tr>"])
-        .join("");
+      const series = hist.series;
+      const showN = Math.min(12, series.length);
+      let head = "<tr><th>Интервал</th>";
+      for (let si = 0; si < showN; si += 1) head += `<th>${escapeHtml(series[si].name)}</th>`;
+      if (series.length > showN) head += "<th>…</th>";
+      head += "<th>Итого</th></tr>";
       el.freqHead.innerHTML = head;
 
-      el.freqBody.innerHTML = hist.labels
-        .map((label, i) => {
-          let rowSum = 0;
-          const cells = hist.series.map((s) => {
-            rowSum += s.counts[i];
-            return `<td>${s.counts[i]}</td>`;
-          });
-          return `<tr><td>${escapeHtml(label)}</td>${cells.join("")}<td>${rowSum}</td></tr>`;
-        })
-        .join("");
-    }
-
-    /**
-     * @param {string} s
-     * @returns {string}
-     */
-    function escapeHtml(s) {
-      return String(s)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-    }
-
-    /**
-     * Демонстрационный набор данных.
-     * @returns {string}
-     */
-    function demoCsv() {
-      const tbs = ["Москва", "СЗБ", "Урал", "Сибирь"];
-      const gosbs = {
-        Москва: ["ГОСБ-101", "ГОСБ-102", "ГОСБ-103"],
-        СЗБ: ["ГОСБ-201", "ГОСБ-202"],
-        Урал: ["ГОСБ-301", "ГОСБ-302", "ГОСБ-303"],
-        Сибирь: ["ГОСБ-401", "ГОСБ-402"]
-      };
-      const lines = ["ТБ;ГОСБ;сумма"];
-      for (let i = 0; i < 180; i += 1) {
-        const tb = tbs[i % tbs.length];
-        const list = gosbs[tb];
-        const gosb = list[i % list.length];
-        // Смесь распределений
-        const base = (i % 7) * 35000 + (i % 3) * 12000;
-        const noise = ((i * 17) % 50000);
-        const amount = 15000 + base + noise;
-        lines.push(`${tb};${gosb};${amount}`);
+      let body = "";
+      for (let i = 0; i < hist.labels.length; i += 1) {
+        let rowSum = 0;
+        for (const s of series) rowSum += s.counts[i] || 0;
+        body += `<tr><td>${escapeHtml(hist.labels[i])}</td>`;
+        for (let si = 0; si < showN; si += 1) {
+          body += `<td>${series[si].counts[i] || 0}</td>`;
+        }
+        if (series.length > showN) body += "<td>…</td>";
+        body += `<td>${rowSum}</td></tr>`;
       }
-      return lines.join("\n");
+      el.freqBody.innerHTML = body;
     }
 
-    // --- События ---
+    function escapeHtml(str) {
+      const d = document.createElement("div");
+      d.textContent = str == null ? "" : String(str);
+      return d.innerHTML;
+    }
 
-    el.btnParse.addEventListener("click", () => {
-      try {
-        const parsed = parseTableText(el.pasteArea.value);
-        applyRows(parsed.rows, "окно вставки", parsed.meta);
-      } catch (err) {
-        setLoadStatus(err.message || String(err), "err");
+    /* Tooltip */
+    (function initTips() {
+      const tip = el.glassTip;
+      const OFFSET = 14;
+      function show(text, x, y) {
+        tip.textContent = text;
+        tip.classList.add("show");
+        tip.setAttribute("aria-hidden", "false");
+        const rect = tip.getBoundingClientRect();
+        let left = x + OFFSET;
+        let top = y + OFFSET;
+        if (left + rect.width > window.innerWidth - 8) left = window.innerWidth - rect.width - 8;
+        if (top + rect.height > window.innerHeight - 8) top = y - rect.height - 8;
+        if (left < 8) left = 8;
+        if (top < 8) top = 8;
+        tip.style.left = left + "px";
+        tip.style.top = top + "px";
       }
-    });
+      function hide() {
+        tip.classList.remove("show");
+        tip.setAttribute("aria-hidden", "true");
+      }
+      document.addEventListener("mousemove", (e) => {
+        const node = e.target.closest("[data-tip]");
+        if (!node) { hide(); return; }
+        show(node.getAttribute("data-tip") || "", e.clientX, e.clientY);
+      }, true);
+      document.addEventListener("mouseleave", hide, true);
+    })();
+
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Не удалось прочитать файл."));
+        reader.readAsText(file);
+      });
+    }
 
     el.fileInput.addEventListener("change", async () => {
       const file = el.fileInput.files && el.fileInput.files[0];
       if (!file) return;
       try {
-        const text = await file.text();
+        const text = await readFileAsText(file);
         el.pasteArea.value = text;
-        const parsed = parseTableText(text);
-        applyRows(parsed.rows, file.name, parsed.meta);
+        applyParsed(parseTableText(text), file.name);
       } catch (err) {
-        setLoadStatus(err.message || String(err), "err");
+        setLoadStatus((err && err.message) ? err.message : String(err), "err");
       }
     });
 
-    el.btnDemo.addEventListener("click", () => {
-      if (!APP_CONFIG.demoEnabled) return;
-      const csv = demoCsv();
-      el.pasteArea.value = csv;
-      const parsed = parseTableText(csv);
-      applyRows(parsed.rows, "демо", parsed.meta);
+    el.btnParse.addEventListener("click", () => {
+      try {
+        applyParsed(parseTableText(el.pasteArea.value), "вставка");
+      } catch (err) {
+        setLoadStatus((err && err.message) ? err.message : String(err), "err");
+      }
     });
 
+    el.btnRebuild.addEventListener("click", rebuild);
+
     el.btnClear.addEventListener("click", () => {
+      rawRows = [];
       allRows = [];
+      columnPresence = { hasTb: false, hasGosb: false, hasCluster: false };
       el.pasteArea.value = "";
       el.fileInput.value = "";
       el.tbChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
       el.gosbChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
-      clearChart();
+      el.clusterChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
+      el.legend.innerHTML = "";
+      el.stats.innerHTML = "";
+      el.freqHead.innerHTML = "";
+      el.freqBody.innerHTML = "";
+      edgeState.edges = [];
+      renderEdgeRail();
       setLoadStatus("Данные очищены.", "");
       setChartStatus("", "");
+      const ctx = el.chart.getContext("2d");
+      ctx && ctx.clearRect(0, 0, el.chart.width, el.chart.height);
     });
 
-    el.btnRebuild.addEventListener("click", rebuild);
     el.sliceMode.addEventListener("change", rebuild);
     el.binMode.addEventListener("change", () => {
       syncBinModeUi();
       rebuild();
     });
-
     ["binCount", "binMin", "binMax", "binWidth", "binOrigin"].forEach((id) => {
-      el[id].addEventListener("change", rebuild);
-      el[id].addEventListener("keydown", (e) => {
-        if (e.key === "Enter") rebuild();
-      });
+      const node = document.getElementById(id);
+      node.addEventListener("change", rebuild);
     });
-    el.binEdges.addEventListener("change", rebuild);
+    el.movableEdgeCount.addEventListener("change", () => {
+      initEdgeStateFromData(true);
+      rebuild();
+    });
 
-    document.querySelectorAll("[data-check-all]").forEach((btn) => {
+    document.querySelectorAll("[data-check-all],[data-check-none]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const group = btn.getAttribute("data-check-all");
-        const root = group === "tb" ? el.tbChecks : el.gosbChecks;
-        root.querySelectorAll("input").forEach((inp) => { inp.checked = true; });
-        rebuild();
-      });
-    });
-    document.querySelectorAll("[data-check-none]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const group = btn.getAttribute("data-check-none");
-        const root = group === "tb" ? el.tbChecks : el.gosbChecks;
-        root.querySelectorAll("input").forEach((inp) => { inp.checked = false; });
+        const all = btn.getAttribute("data-check-all");
+        const none = btn.getAttribute("data-check-none");
+        const group = all || none;
+        const root =
+          group === "tb" ? el.tbChecks :
+          group === "gosb" ? el.gosbChecks :
+          el.clusterChecks;
+        root.querySelectorAll('input[type="checkbox"]').forEach((inp) => {
+          inp.checked = !!all;
+        });
+        initEdgeStateFromData(false);
         rebuild();
       });
     });
@@ -1372,20 +1472,23 @@
       if (allRows.length) rebuild();
     });
 
-    // Инициализация
+    document.title = APP_CONFIG.pageTitle;
     el.binCount.value = String(APP_CONFIG.defaultBinCount);
     el.binMode.value = APP_CONFIG.defaultBinMode;
-    el.sliceMode.value = APP_CONFIG.defaultSliceMode;
+    el.movableEdgeCount.value = String(APP_CONFIG.defaultMovableEdges);
     syncBinModeUi();
-    clearChart();
 
-    // Экспорт функций для отладки / тестов в консоли
+    // Экспорт для тестов в Node (если страница открыта как модуль — не используется)
     window.SumDistribution = {
       normalizeAmount,
-      parseTableText,
+      normalizeEmpId,
+      findColumnIndex,
+      aggregateByTn,
+      cascadeEdges,
+      evenlySpacedEdges,
       buildBins,
       computeHistogram,
-      APP_CONFIG
+      parseTableText
     };
   </script>
 </body>

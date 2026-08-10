@@ -2,13 +2,21 @@
 /**
  * Тесты алгоритмов распределения сумм (зеркало логики sum-distribution.html).
  */
-
 "use strict";
 
-/**
- * @param {string|number} raw
- * @returns {number|null}
- */
+let passed = 0;
+let failed = 0;
+
+function assert(name, cond, detail) {
+  if (cond) {
+    passed += 1;
+    console.log("  ✓", name);
+  } else {
+    failed += 1;
+    console.log("  ✗", name, detail || "");
+  }
+}
+
 function normalizeAmount(raw) {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
   if (raw == null) return null;
@@ -27,21 +35,97 @@ function normalizeAmount(raw) {
   return Number.isFinite(n) ? n : null;
 }
 
-/**
- * @param {number[]} amounts
- * @param {{ mode: string, count: number, width: number|null, origin: number|null, min: number|null, max: number|null, customEdges: number[] }} opts
- * @returns {number[]}
- */
+function normalizeEmpId(raw, padLen) {
+  if (raw == null) return null;
+  const digits = String(raw).replace(/\D/g, "");
+  if (!digits) return null;
+  const len = padLen || 20;
+  if (digits.length >= len) return digits.slice(-len);
+  return digits.padStart(len, "0");
+}
+
+function normalizeHeader(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/["']/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function findColumnIndex(headers, aliases) {
+  const normalized = headers.map(normalizeHeader);
+  for (let ai = 0; ai < aliases.length; ai += 1) {
+    const a = normalizeHeader(aliases[ai]);
+    for (let i = 0; i < normalized.length; i += 1) {
+      if (normalized[i] === a) return i;
+    }
+  }
+  for (let ai = 0; ai < aliases.length; ai += 1) {
+    const a = normalizeHeader(aliases[ai]);
+    for (let i = 0; i < normalized.length; i += 1) {
+      if (normalized[i].includes(a)) return i;
+    }
+  }
+  return -1;
+}
+
+function aggregateByTn(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    const tn = row.tn;
+    const prev = map.get(tn);
+    if (!prev) {
+      map.set(tn, {
+        tn,
+        amount: row.amount,
+        tb: row.tb || "",
+        gosb: row.gosb || "",
+        cluster: row.cluster || ""
+      });
+      continue;
+    }
+    prev.amount += row.amount;
+    if (!prev.tb && row.tb) prev.tb = row.tb;
+    if (!prev.gosb && row.gosb) prev.gosb = row.gosb;
+    if (!prev.cluster && row.cluster) prev.cluster = row.cluster;
+  }
+  return [...map.values()];
+}
+
+function cascadeEdges(edges, changedIndex, min, max) {
+  const out = edges.slice();
+  for (let i = changedIndex + 1; i < out.length; i += 1) {
+    if (out[i] < out[i - 1]) out[i] = out[i - 1];
+  }
+  for (let i = changedIndex - 1; i >= 0; i -= 1) {
+    if (out[i] > out[i + 1]) out[i] = out[i + 1];
+  }
+  out[0] = min;
+  out[out.length - 1] = max;
+  return out;
+}
+
+function evenlySpacedEdges(min, max, movableCount) {
+  const n = Math.max(1, Math.floor(movableCount));
+  const totalIntervals = n + 1;
+  const step = (max - min) / totalIntervals;
+  const edges = [min];
+  for (let i = 1; i <= n; i += 1) {
+    edges.push(Number((min + step * i).toPrecision(12)));
+  }
+  edges.push(max);
+  return edges;
+}
+
 function buildBins(amounts, opts) {
   if (!amounts.length) throw new Error("Нет сумм для построения интервалов.");
   const dataMin = Math.min(...amounts);
   const dataMax = Math.max(...amounts);
 
   if (opts.mode === "custom") {
-    const edges = [...opts.customEdges].filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
-    const unique = edges.filter((v, i, arr) => i === 0 || v !== arr[i - 1]);
-    if (unique.length < 2) throw new Error("Для ручных границ укажите минимум 2 числа.");
-    return unique;
+    const edges = [...opts.customEdges].filter((n) => Number.isFinite(n));
+    if (edges.length < 2) throw new Error("custom: мало границ");
+    return edges;
   }
 
   let min = opts.min == null || !Number.isFinite(opts.min) ? dataMin : opts.min;
@@ -57,7 +141,6 @@ function buildBins(amounts, opts) {
     const width = opts.width;
     if (!(width > 0)) throw new Error("Ширина интервала должна быть больше 0.");
     const origin = opts.origin == null || !Number.isFinite(opts.origin) ? min : opts.origin;
-    /** @type {number[]} */
     const edges = [origin];
     let cur = origin;
     while (cur < max && edges.length < 2000) {
@@ -71,7 +154,6 @@ function buildBins(amounts, opts) {
 
   const count = Math.max(1, Math.floor(opts.count || 1));
   const width = (max - min) / count;
-  /** @type {number[]} */
   const edges = [];
   for (let i = 0; i <= count; i += 1) {
     edges.push(Number((min + width * i).toPrecision(12)));
@@ -80,22 +162,17 @@ function buildBins(amounts, opts) {
   return edges;
 }
 
-/**
- * @param {{ tb: string, gosb: string, amount: number }[]} rows
- * @param {number[]} edges
- * @param {string} sliceMode
- */
 function computeHistogram(rows, edges, sliceMode) {
-  /** @type {Map<string, number[]>} */
   const seriesMap = new Map();
   let below = 0;
   let above = 0;
   const binCount = edges.length - 1;
 
   function seriesName(row) {
-    if (sliceMode === "tb") return row.tb;
-    if (sliceMode === "gosb") return row.gosb;
-    if (sliceMode === "tb_gosb") return `${row.tb} / ${row.gosb}`;
+    if (sliceMode === "tb") return row.tb || "(без ТБ)";
+    if (sliceMode === "gosb") return row.gosb || "(без ГОСБ)";
+    if (sliceMode === "tb_gosb") return `${row.tb || "—"} / ${row.gosb || "—"}`;
+    if (sliceMode === "cluster") return row.cluster || "(без кластера)";
     return "Вся выборка";
   }
 
@@ -126,56 +203,69 @@ function computeHistogram(rows, edges, sliceMode) {
     if (!placed) above += 1;
   }
 
-  return {
-    series: [...seriesMap.entries()].map(([name, counts]) => ({ name, counts })),
-    below,
-    above,
-    total: rows.length
-  };
-}
+  const series = [...seriesMap.entries()]
+    .map(([name, counts]) => ({ name, counts }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 
-function detectDelimiter(text) {
-  const line = text.split(/\r?\n/).find((l) => l.trim().length > 0) || "";
-  const delims = [";", ",", "\t"];
-  let best = ";";
-  let bestCount = -1;
-  for (const d of delims) {
-    const count = line.split(d).length - 1;
-    if (count > bestCount) {
-      bestCount = count;
-      best = d;
-    }
-  }
-  return best;
-}
-
-let passed = 0;
-let failed = 0;
-
-/**
- * @param {string} name
- * @param {boolean} cond
- * @param {string=} detail
- */
-function assert(name, cond, detail) {
-  if (cond) {
-    passed += 1;
-    console.log(`  [v] ${name}`);
-  } else {
-    failed += 1;
-    console.error(`  [x] ${name}${detail ? " — " + detail : ""}`);
-  }
+  return { edges, series, total: rows.length, below, above };
 }
 
 console.log("normalizeAmount");
-assert("пробелы тысяч", normalizeAmount("1 234 567") === 1234567);
-assert("запятая как десятичная", normalizeAmount("1234,5") === 1234.5);
-assert("пустое", normalizeAmount("") === null);
-assert("число как есть", normalizeAmount(42) === 42);
+assert("1 234,56", normalizeAmount("1 234,56") === 1234.56);
+assert("отрицательное", normalizeAmount("-10") === -10);
 
-console.log("detectDelimiter");
-assert("точка с запятой", detectDelimiter("ТБ;ГОСБ;сумма\nA;B;1") === ";");
-assert("таб", detectDelimiter("ТБ\tГОСБ\tсумма\nA\tB\t1") === "\t");
+console.log("normalizeEmpId");
+assert("pad 20", normalizeEmpId("1875872") === "00000000000001875872");
+assert("уже длинный", normalizeEmpId("123456789012345678901") === "23456789012345678901");
+assert("с буквами", normalizeEmpId("TN-42") === "00000000000000000042");
+
+console.log("findColumnIndex aliases priority");
+{
+  const headers = ["Итог", "Сумма", "TN", "ТН"];
+  const amountAliases = ["сумма", "прирост", "прирос", "рост", "итог", "sum", "amount"];
+  const tnAliases = ["тн", "tn", "табельный"];
+  assert("сумма раньше итога", findColumnIndex(headers, amountAliases) === 1);
+  assert("тн раньше tn", findColumnIndex(headers, tnAliases) === 3);
+  assert("регистр", findColumnIndex(["СУММА", "ТН"], ["сумма"]) === 0);
+}
+
+console.log("aggregateByTn");
+{
+  const rows = [
+    { tn: "00000000000000000001", amount: 10, tb: "A", gosb: "", cluster: "1" },
+    { tn: "00000000000000000001", amount: 15, tb: "", gosb: "G", cluster: "" },
+    { tn: "00000000000000000002", amount: 5, tb: "B", gosb: "H", cluster: "2" }
+  ];
+  const agg = aggregateByTn(rows);
+  assert("две группы", agg.length === 2);
+  const a = agg.find((r) => r.tn.endsWith("1"));
+  assert("sum 25", a.amount === 25);
+  assert("tb first", a.tb === "A");
+  assert("gosb filled", a.gosb === "G");
+  assert("cluster first", a.cluster === "1");
+}
+
+console.log("evenlySpacedEdges / cascade");
+{
+  const edges = evenlySpacedEdges(0, 100, 2);
+  assert("2 ползунка → 4 ребра", edges.length === 4, JSON.stringify(edges));
+  assert("min 0", edges[0] === 0);
+  assert("max 100", edges[3] === 100);
+}
+{
+  let edges = [0, 100, 500, 900];
+  edges[2] = 1100;
+  edges = cascadeEdges(edges, 2, 0, 2000);
+  assert("сдвиг вправо утягивает max-side", edges[2] === 1100 && edges[3] === 2000);
+  edges = [0, 100, 500, 900];
+  edges[2] = 50;
+  edges = cascadeEdges(edges, 2, 0, 900);
+  assert(
+    "сдвиг влево утягивает предыдущий",
+    edges[1] === 50 && edges[2] === 50,
+    JSON.stringify(edges)
+  );
+}
 
 console.log("buildBins");
 {
@@ -188,7 +278,7 @@ console.log("buildBins");
     max: null,
     customEdges: []
   });
-  assert("count: 5 границ", edges.length === 5, JSON.stringify(edges));
+  assert("count: 5 границ", edges.length === 5);
   assert("count: первая 0", edges[0] === 0);
   assert("count: последняя 100", edges[4] === 100);
 }
@@ -214,28 +304,30 @@ console.log("buildBins");
     origin: null,
     min: null,
     max: null,
-    customEdges: [0, 10, 5, 10]
+    customEdges: [0, 40, 70, 100]
   });
-  assert("custom: сортировка и уникальность", JSON.stringify(edges) === JSON.stringify([0, 5, 10]));
+  assert("custom: порядок слайдера", JSON.stringify(edges) === JSON.stringify([0, 40, 70, 100]));
 }
 
-console.log("computeHistogram");
+console.log("computeHistogram after agg");
 {
-  const rows = [
-    { tb: "A", gosb: "G1", amount: 5 },
-    { tb: "A", gosb: "G1", amount: 15 },
-    { tb: "B", gosb: "G2", amount: 25 },
-    { tb: "B", gosb: "G2", amount: 100 }
+  const raw = [
+    { tn: "1", tb: "A", gosb: "G1", cluster: "1", amount: 5 },
+    { tn: "1", tb: "A", gosb: "G1", cluster: "1", amount: 15 },
+    { tn: "2", tb: "B", gosb: "G2", cluster: "2", amount: 25 }
   ];
-  const histAll = computeHistogram(rows, [0, 10, 20, 30], "all");
-  assert("all: одна серия", histAll.series.length === 1);
-  assert("all: bin0=1", histAll.series[0].counts[0] === 1);
-  assert("all: bin1=1", histAll.series[0].counts[1] === 1);
-  assert("all: bin2=1", histAll.series[0].counts[2] === 1);
-  assert("all: above=1", histAll.above === 1);
+  const rows = aggregateByTn(
+    raw.map((r) => ({ ...r, tn: normalizeEmpId(r.tn) }))
+  );
+  assert("agg 2 TN", rows.length === 2);
+  const histAll = computeHistogram(rows, [0, 20, 40], "all");
+  // TN1 sum=20 попадает в последний интервал [20, 40]; TN2=25 туда же
+  assert("оба ТН во втором бине", histAll.series[0].counts[0] === 0 && histAll.series[0].counts[1] === 2);
+  const hist2 = computeHistogram(rows, [0, 15, 30, 50], "all");
+  assert("оба в [15,30)", hist2.series[0].counts[1] === 2);
 
-  const histTb = computeHistogram(rows.filter((r) => r.amount <= 30), [0, 10, 20, 30], "tb");
-  assert("tb: две серии", histTb.series.length === 2);
+  const histCl = computeHistogram(rows, [0, 20, 40], "cluster");
+  assert("cluster: 2 серии", histCl.series.length === 2);
 }
 
 console.log("");

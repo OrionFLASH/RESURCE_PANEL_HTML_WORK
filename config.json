@@ -1,16 +1,21 @@
 {
-  "pageTitle": "Распределение сумм (ТБ / ГОСБ)",
+  "pageTitle": "Распределение сумм (ТН)",
   "defaultBinCount": 10,
   "defaultBinMode": "count",
   "defaultSliceMode": "all",
+  "defaultMovableEdges": 3,
+  "tnPadLength": 20,
   "csvDelimiters": [";", ",", "\t"],
-  "amountColumnAliases": ["сумма", "sum", "amount", "сумм"],
-  "tbColumnAliases": ["тб", "tb"],
+  "amountColumnAliases": ["сумма", "прирост", "прирос", "рост", "итог", "sum", "amount", "сумм"],
+  "tnColumnAliases": ["тн", "tn", "табельный", "таб.ном", "табельный номер", "emp_id"],
+  "tbColumnAliases": ["тб", "tb", "тербанк", "тер.банк"],
   "gosbColumnAliases": ["госб", "gosb", "гос"],
+  "clusterColumnAliases": ["кластер", "cluster", "cluster_code"],
   "chart": {
     "barGapRatio": 0.12,
     "seriesGapRatio": 0.04,
     "maxLegendItems": 24
   },
-  "demoEnabled": true
+  "demoEnabled": false,
+  "demoSamplePath": "samples/sum-distribution-demo-1800.csv"
 }
