@@ -288,6 +288,7 @@
     .compare-only { display: none !important; }
     body.is-compare .compare-only { display: block !important; }
     body.is-compare .compare-only.field { display: grid !important; }
+    body.is-compare .toolbar-cell.compare-only { display: flex !important; }
     body.is-compare .single-only { display: none !important; }
 
     .file-overview {
@@ -362,13 +363,147 @@
     }
 
     .chart-toolbar {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px 14px;
+      align-items: stretch;
+      margin: 0 0 12px;
+    }
+    body.is-compare .chart-toolbar {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    @media (max-width: 1100px) {
+      .chart-toolbar,
+      body.is-compare .chart-toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 640px) {
+      .chart-toolbar,
+      body.is-compare .chart-toolbar {
+        grid-template-columns: 1fr;
+      }
+    }
+    .toolbar-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+    .toolbar-label {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--glass-text);
+      line-height: 1.2;
+    }
+    .toolbar-cell > select {
+      min-height: 38px;
+      width: 100%;
+    }
+    /* Сегментный переключатель (в духе Apple) */
+    .seg {
+      display: flex;
+      width: 100%;
+      min-height: 38px;
+      padding: 3px;
+      box-sizing: border-box;
+      border-radius: 11px;
+      background: rgba(120, 120, 128, 0.14);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      gap: 2px;
+    }
+    .seg__btn {
+      flex: 1 1 0;
+      min-width: 0;
+      border: 0;
+      margin: 0;
+      padding: 7px 8px;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--glass-text-secondary);
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 650;
+      line-height: 1.15;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .seg__btn.is-on {
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--glass-text);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+    }
+    .seg__btn.is-locked,
+    .seg__btn:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .seg__btn.is-locked.is-on {
+      opacity: 0.55;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .edge-tools {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px 12px;
+      gap: 10px 12px;
       align-items: end;
-      margin: 0 0 10px;
+      margin: 0 0 8px;
     }
-    .chart-toolbar .field { min-width: 140px; flex: 1 1 140px; }
+    .edge-tools .field--edges {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 4.75rem;
+    }
+    .edge-tools .field--edges input {
+      text-align: center;
+      padding-left: 6px;
+      padding-right: 6px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 650;
+    }
+    .edge-tools__btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      flex: 1 1 280px;
+      align-items: stretch;
+    }
+    .edge-tools__btns .btn-with-icon {
+      flex: 1 1 9.5rem;
+      justify-content: center;
+      min-height: 38px;
+      font-size: 0.86rem;
+    }
+    .btn-with-icon.is-edge-equal {
+      color: #0056b3;
+      border-color: rgba(0, 122, 255, 0.38);
+      background: rgba(0, 122, 255, 0.12);
+    }
+    .btn-with-icon.is-edge-ladder {
+      color: #b35a00;
+      border-color: rgba(255, 149, 0, 0.42);
+      background: rgba(255, 149, 0, 0.14);
+    }
+    .btn-with-icon.is-edge-even {
+      color: #3d3a9e;
+      border-color: rgba(88, 86, 214, 0.38);
+      background: rgba(88, 86, 214, 0.12);
+    }
     .charts-dual {
       display: none;
       gap: 12px;
@@ -1084,25 +1219,7 @@
           </p>
         </details>
 
-        <h2 class="section-gap">2. Фильтры и разрез</h2>
-
-        <div class="row">
-          <label class="field" data-tip="Серии гистограммы после агрегации по ТН">
-            <span>Разрез</span>
-            <select id="sliceMode">
-              <option value="all">Вся выборка</option>
-              <option value="tb">В разрезе ТБ</option>
-              <option value="cluster">В разрезе кластера</option>
-            </select>
-          </label>
-          <label class="field" data-tip="Ось X: интервалы сумм или значения разреза (ТБ/кластер). Нужен разрез ≠ «Вся выборка».">
-            <span>Группы на графике</span>
-            <select id="groupLayout">
-              <option value="bin">Интервалы сумм (внутри — разрез)</option>
-              <option value="slice" selected>Значения разреза (внутри — распределение)</option>
-            </select>
-          </label>
-        </div>
+        <h2 class="section-gap">2. Фильтры</h2>
         <div id="filterHint" class="filter-hint" aria-live="polite"></div>
 
         <div class="filter-block" id="orgTreeFilterBlock">
@@ -1140,22 +1257,45 @@
         <div class="chart-sticky">
           <h2 id="chartHeading">Гистограмма</h2>
           <div class="chart-toolbar">
-            <label class="field" data-tip="Гистограмма — дискретные интервалы; линия — форма распределения по центрам интервалов">
-              <span>Вид графика</span>
-              <select id="chartType">
+            <div class="toolbar-cell" data-tip="Гистограмма — дискретные интервалы; линия — форма по центрам. Линия недоступна при «Наложении с перекрытием».">
+              <span class="toolbar-label">Вид графика</span>
+              <div class="seg" id="chartTypeSeg" role="group" aria-label="Вид графика">
+                <button type="button" class="seg__btn is-on" data-value="bars">Гистограмма</button>
+                <button type="button" class="seg__btn" data-value="line">Линия</button>
+              </div>
+              <select id="chartType" class="sr-only" tabindex="-1" aria-hidden="true">
                 <option value="bars" selected>Гистограмма</option>
                 <option value="line">Линия</option>
               </select>
-            </label>
-            <label class="field compare-only" data-tip="Наложение и наложение с перекрытием — один общий график на всю ширину; рядом и друг под другом — два графика один под другим на всю ширину">
-              <span>Компоновка сравнения</span>
+            </div>
+            <div class="toolbar-cell compare-only" data-tip="Наложение и наложение с перекрытием — один график; рядом / друг под другом — два. Перекрытие только с гистограммой.">
+              <span class="toolbar-label">Компоновка</span>
               <select id="compareLayout">
                 <option value="overlay" selected>Наложение</option>
                 <option value="overlap">Наложение с перекрытием</option>
                 <option value="side">Рядом</option>
                 <option value="stack">Друг под другом</option>
               </select>
-            </label>
+            </div>
+            <div class="toolbar-cell" data-tip="Серии гистограммы после агрегации по ТН">
+              <span class="toolbar-label">Разрез</span>
+              <select id="sliceMode">
+                <option value="all">Вся выборка</option>
+                <option value="tb">В разрезе ТБ</option>
+                <option value="cluster">В разрезе кластера</option>
+              </select>
+            </div>
+            <div class="toolbar-cell" data-tip="Ось X: интервалы или значения разреза. «Значения» доступны, когда выбран разрез ТБ/кластер.">
+              <span class="toolbar-label">Группы на графике</span>
+              <div class="seg" id="groupLayoutSeg" role="group" aria-label="Группы на графике">
+                <button type="button" class="seg__btn" data-value="bin">Интервалы</button>
+                <button type="button" class="seg__btn is-on" data-value="slice">Значения</button>
+              </div>
+              <select id="groupLayout" class="sr-only" tabindex="-1" aria-hidden="true">
+                <option value="bin">Интервалы сумм</option>
+                <option value="slice" selected>Значения разреза</option>
+              </select>
+            </div>
           </div>
           <div class="chart-wrap chart-wrap-primary" data-tip="Ось X зависит от режима; ось Y — число ТН">
             <canvas id="chart" aria-label="Гистограмма распределения сумм"></canvas>
@@ -1178,23 +1318,28 @@
         </div>
         <div class="chart-below">
           <div id="binCustomRow">
-            <div class="row" style="align-items:end; gap:10px; flex-wrap:wrap">
-              <label class="field" data-tip="Число подвижных границ между минимумом и максимумом">
-                <span>Число границ (ползунков)</span>
+            <div class="edge-tools">
+              <label class="field field--edges" data-tip="Число подвижных границ между минимумом и максимумом">
+                <span>Границ</span>
                 <input id="movableEdgeCount" type="number" min="1" max="40" step="1" value="2">
               </label>
-              <button class="btn secondary" type="button" id="btnEqualCountEdges"
-                data-tip="Примерно равное число ТН в интервалах — только по текущему периоду. Прошлый период в расчёт не входит.">
-                Равно по числу ТН
-              </button>
-              <button class="btn secondary" type="button" id="btnLadderCountEdges"
-                data-tip="Лесенка K…1 по числу ТН — только по текущему периоду. Прошлый период в расчёт не входит.">
-                Лесенка по числу ТН
-              </button>
-              <button class="btn secondary" type="button" id="btnEvenWidthEdges"
-                data-tip="Равная ширина по шкале сумм (в сравнении шкала охватывает оба периода).">
-                Равные интервалы
-              </button>
+              <div class="edge-tools__btns">
+                <button class="btn secondary btn-with-icon is-edge-equal" type="button" id="btnEqualCountEdges"
+                  data-tip="Примерно равное число ТН в интервалах — только по текущему периоду. Прошлый период в расчёт не входит.">
+                  <span class="btn-ico" aria-hidden="true"></span>
+                  <span>Равно по ТН</span>
+                </button>
+                <button class="btn secondary btn-with-icon is-edge-ladder" type="button" id="btnLadderCountEdges"
+                  data-tip="Лесенка K…1 по числу ТН — только по текущему периоду. Прошлый период в расчёт не входит.">
+                  <span class="btn-ico" aria-hidden="true"></span>
+                  <span>Лесенка</span>
+                </button>
+                <button class="btn secondary btn-with-icon is-edge-even" type="button" id="btnEvenWidthEdges"
+                  data-tip="Равная ширина по шкале сумм (в сравнении шкала охватывает оба периода).">
+                  <span class="btn-ico" aria-hidden="true"></span>
+                  <span>Равные интервалы</span>
+                </button>
+              </div>
             </div>
             <p class="hint">Интервалы общие. «Равно» и «Лесенка» считают границы по текущему периоду; у прошлого — своё попадание в те же интервалы.</p>
             <div class="edge-rail-wrap">
@@ -1302,7 +1447,9 @@
       loadStatus: document.getElementById("loadStatus"),
       sliceMode: document.getElementById("sliceMode"),
       groupLayout: document.getElementById("groupLayout"),
+      groupLayoutSeg: document.getElementById("groupLayoutSeg"),
       chartType: document.getElementById("chartType"),
+      chartTypeSeg: document.getElementById("chartTypeSeg"),
       compareLayout: document.getElementById("compareLayout"),
       chartHeading: document.getElementById("chartHeading"),
       chartsDual: document.getElementById("chartsDual"),
@@ -1964,9 +2111,18 @@
         grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
         sum: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16M4 20h16M6 8l6 4-6 4"/></svg>',
         checkAll: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 12l3.2 3.2L17 8.5"/></svg>',
-        clearAll: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8l8 8M16 8l-8 8"/></svg>'
+        clearAll: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8l8 8M16 8l-8 8"/></svg>',
+        barsEqual: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M5 19V9M10 19V9M15 19V9M20 19V9"/></svg>',
+        barsLadder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M5 19V5M10 19V9M15 19V13M20 19v-2"/></svg>',
+        barsEven: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M4 19h16M6 19V8h3v11M11 19V8h3v11M16 19V8h3v11"/></svg>'
       };
       return icons[name] || icons.file;
+    }
+
+    function fillBtnIcon(btn, iconName) {
+      if (!btn) return;
+      const ico = btn.querySelector(".btn-ico");
+      if (ico) ico.innerHTML = svgIcon(iconName);
     }
 
     function topCounts(rows, field, limit) {
@@ -2061,18 +2217,97 @@
     /** Предыдущий разрез — чтобы при переходе с «все» включить «Значения» по умолчанию. */
     let prevSliceForLayout = null;
 
+    function syncSegFromSelect(segEl, selectEl) {
+      if (!segEl || !selectEl) return;
+      const cur = selectEl.value;
+      segEl.querySelectorAll(".seg__btn").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.getAttribute("data-value") === cur);
+        btn.setAttribute("aria-pressed", btn.getAttribute("data-value") === cur ? "true" : "false");
+      });
+    }
+
+    function setSegBtnLocked(segEl, value, locked, tipWhenLocked) {
+      if (!segEl) return;
+      const btn = segEl.querySelector('.seg__btn[data-value="' + value + '"]');
+      if (!btn) return;
+      btn.classList.toggle("is-locked", !!locked);
+      btn.disabled = !!locked;
+      if (locked && tipWhenLocked) btn.setAttribute("data-tip", tipWhenLocked);
+      else btn.removeAttribute("data-tip");
+    }
+
+    /**
+     * Взаимные ограничения: линия ↔ наложение с перекрытием;
+     * «Значения» групп — только при разрезе ≠ all.
+     */
+    function syncChartModeConstraints() {
+      const chartType = (el.chartType && el.chartType.value) || "bars";
+      const compareLayout = (el.compareLayout && el.compareLayout.value) || "overlay";
+      const slice = (el.sliceMode && el.sliceMode.value) || "all";
+      const overlapOpt = el.compareLayout && el.compareLayout.querySelector('option[value="overlap"]');
+
+      if (viewMode === "compare" && overlapOpt) {
+        const lineBlocksOverlap = chartType === "line";
+        overlapOpt.disabled = lineBlocksOverlap;
+        if (lineBlocksOverlap && compareLayout === "overlap") {
+          el.compareLayout.value = "overlay";
+        }
+      } else if (overlapOpt) {
+        overlapOpt.disabled = false;
+      }
+
+      const overlapBlocksLine = viewMode === "compare" &&
+        ((el.compareLayout && el.compareLayout.value) || "overlay") === "overlap";
+      if (overlapBlocksLine && chartType === "line" && el.chartType) {
+        el.chartType.value = "bars";
+      }
+      setSegBtnLocked(
+        el.chartTypeSeg,
+        "line",
+        overlapBlocksLine,
+        "Недоступно при «Наложении с перекрытием» — сначала смените компоновку"
+      );
+
+      const sliceLocked = slice === "all";
+      if (sliceLocked && el.groupLayout && el.groupLayout.value === "slice") {
+        el.groupLayout.value = "bin";
+      }
+      setSegBtnLocked(
+        el.groupLayoutSeg,
+        "slice",
+        sliceLocked,
+        "Сначала выберите разрез ТБ или кластер"
+      );
+
+      syncSegFromSelect(el.chartTypeSeg, el.chartType);
+      syncSegFromSelect(el.groupLayoutSeg, el.groupLayout);
+    }
+
     function syncGroupLayoutUi() {
       const slice = el.sliceMode.value;
-      const sliceOpt = el.groupLayout.querySelector('option[value="slice"]');
-      if (sliceOpt) sliceOpt.disabled = slice === "all";
       const preferSlice = (APP_CONFIG.defaultGroupLayout || "slice") === "slice";
       if (slice === "all") {
         if (el.groupLayout.value === "slice") el.groupLayout.value = "bin";
       } else if (preferSlice && (prevSliceForLayout === "all" || prevSliceForLayout == null)) {
-        // Разрез только что стал доступен — по умолчанию «Значения разреза»
         el.groupLayout.value = "slice";
       }
       prevSliceForLayout = slice;
+      syncChartModeConstraints();
+    }
+
+    function bindSegmentedControl(segEl, selectEl, afterChange) {
+      if (!segEl || !selectEl) return;
+      segEl.querySelectorAll(".seg__btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (btn.disabled || btn.classList.contains("is-locked")) return;
+          const v = btn.getAttribute("data-value");
+          if (!v || selectEl.value === v) return;
+          selectEl.value = v;
+          syncChartModeConstraints();
+          if (typeof afterChange === "function") afterChange();
+        });
+      });
+      syncSegFromSelect(segEl, selectEl);
     }
 
     /** Состояние фильтров (источник правды; DOM только отображает). */
@@ -3215,11 +3450,10 @@
         el.chartHeading.textContent = viewMode === "compare" ? "Сравнение распределений" : "Гистограмма";
       }
       // Компоновка сравнения — только во вкладке сравнения
-      const cmpField = el.compareLayout && el.compareLayout.closest("label, .field, .compare-only");
-      if (cmpField) cmpField.hidden = viewMode !== "compare";
       if (viewMode !== "compare") {
         document.body.classList.remove("is-compare-split");
       }
+      syncChartModeConstraints();
     }
 
     function drawHistogram(hist, groupLayout, rows, sliceMode, opts) {
@@ -4436,9 +4670,24 @@
       syncGroupLayoutUi();
       rebuild();
     });
-    el.groupLayout.addEventListener("change", rebuild);
-    if (el.chartType) el.chartType.addEventListener("change", rebuild);
-    if (el.compareLayout) el.compareLayout.addEventListener("change", rebuild);
+    el.groupLayout.addEventListener("change", () => {
+      syncChartModeConstraints();
+      rebuild();
+    });
+    if (el.chartType) {
+      el.chartType.addEventListener("change", () => {
+        syncChartModeConstraints();
+        rebuild();
+      });
+    }
+    if (el.compareLayout) {
+      el.compareLayout.addEventListener("change", () => {
+        syncChartModeConstraints();
+        rebuild();
+      });
+    }
+    bindSegmentedControl(el.chartTypeSeg, el.chartType, rebuild);
+    bindSegmentedControl(el.groupLayoutSeg, el.groupLayout, rebuild);
     el.movableEdgeCount.addEventListener("change", () => {
       initEdgeStateFromData(true);
       rebuild();
@@ -4455,15 +4704,16 @@
     }
 
     if (el.btnFilterSelectAll) {
-      const ico = el.btnFilterSelectAll.querySelector(".btn-ico");
-      if (ico) ico.innerHTML = svgIcon("checkAll");
+      fillBtnIcon(el.btnFilterSelectAll, "checkAll");
       el.btnFilterSelectAll.addEventListener("click", () => runBulkFilterSelection(true));
     }
     if (el.btnFilterClearAll) {
-      const ico = el.btnFilterClearAll.querySelector(".btn-ico");
-      if (ico) ico.innerHTML = svgIcon("clearAll");
+      fillBtnIcon(el.btnFilterClearAll, "clearAll");
       el.btnFilterClearAll.addEventListener("click", () => runBulkFilterSelection(false));
     }
+    fillBtnIcon(el.btnEqualCountEdges, "barsEqual");
+    fillBtnIcon(el.btnLadderCountEdges, "barsLadder");
+    fillBtnIcon(el.btnEvenWidthEdges, "barsEven");
 
     window.addEventListener("resize", () => {
       if (allRows.length) rebuild();
@@ -4482,6 +4732,7 @@
     el.movableEdgeCount.max = String(APP_CONFIG.movableEdgesMax || 40);
     syncViewModeUi();
     syncGroupLayoutUi();
+    syncChartModeConstraints();
 
     // Экспорт для тестов в Node (если страница открыта как модуль — не используется)
     window.SumDistribution = {

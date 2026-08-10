@@ -36,6 +36,9 @@
 - [v] Сравнение: наложение | наложение с перекрытием | рядом | друг под другом
 - [v] Общие фильтры и границы в сравнении; серии «Текущий · …» / «Прошлый · …»
 - [v] Панель статистики файла; демо ~21k строк / 1900 ТН для прошлого периода
+- [v] Разрез / группы / вид / компоновка — над графиком, ровная сетка
+- [v] Сегментные переключатели «Вид» и «Группы»; линия ↔ наложение с перекрытием блокируют друг друга
+- [v] Кнопки границ с иконками и цветом; компактное поле «Границ»
 
 ## Модули (внутри sum-distribution.html)
 
@@ -45,7 +48,7 @@
 - `expandSelectionOnCheck` / `pruneOrphansAfterUncheck` / `applyBulkFilterSelection` / `rebuildFilterOptions` / `filteredRows` — каскад фильтров
 - `integerBounds` / `buildBins` / `equalCountEdges` / `ladderCountEdges` / multi-thumb `edgeRail` — целые границы (UI под графиком)
 - `formatAmount` / `formatAmountExact` — суммы с разрядами; точные мин/макс в статистике
-- `computeHistogram` / `buildPeriodOverlayHist` / `drawHistogram` (bars/line, barOverlap) / сравнение overlay|overlap|side|stack / `chartHitBars*` / `renderFrequencyTable` / `renderCompareStats`
+- `computeHistogram` / `buildPeriodOverlayHist` / `drawHistogram` (bars/line, barOverlap) / сравнение overlay|overlap|side|stack / `syncChartModeConstraints` / сегменты `chartTypeSeg`/`groupLayoutSeg` / `chartHitBars*` / `renderFrequencyTable` / `renderCompareStats`
 - `renderFileOverview` — карточки статистики загруженного файла
 - `groupNameForAmount` / `exportRawCsvWithGroup` / `exportUniqueTnCsv` / `exportGroupsText` — выгрузки
 - `tools/build_sum_demo_csv_20k.py`, `tools/build_sum_demo_csv_21k.py` — демо CSV (samples/ в gitignore)
