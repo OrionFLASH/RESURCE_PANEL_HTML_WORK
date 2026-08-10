@@ -31,3 +31,6 @@ node_modules/
 IN/
 JS/IN/
 
+# Демо-CSV для гистограммы (генерируются локально: tools/build_sum_demo_csv*.py)
+samples/
+

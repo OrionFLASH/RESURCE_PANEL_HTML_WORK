@@ -330,6 +330,124 @@ console.log("computeHistogram after agg");
   assert("cluster: 2 серии", histCl.series.length === 2);
 }
 
+const FILTER_DIMS = ["tb", "gosb", "cluster"];
+
+function computeAllowedValues(dim, selections, rows) {
+  let filtered = rows;
+  for (const d of FILTER_DIMS) {
+    if (d === dim) continue;
+    const sel = selections[d];
+    if (!sel || sel.size === 0) continue;
+    filtered = filtered.filter((r) => !r[d] || sel.has(r[d]));
+  }
+  return new Set(filtered.map((r) => r[dim]).filter(Boolean));
+}
+
+function pruneIncompatibleSelections(selections, rows) {
+  const next = {
+    tb: new Set(selections.tb || []),
+    gosb: new Set(selections.gosb || []),
+    cluster: new Set(selections.cluster || [])
+  };
+  const pruned = [];
+  for (let iter = 0; iter < 3; iter += 1) {
+    let changed = false;
+    for (const dim of FILTER_DIMS) {
+      const allowed = computeAllowedValues(dim, next, rows);
+      for (const v of [...next[dim]]) {
+        if (!allowed.has(v)) {
+          next[dim].delete(v);
+          pruned.push(`${dim}:${v}`);
+          changed = true;
+        }
+      }
+    }
+    if (!changed) break;
+  }
+  return { selections: next, pruned };
+}
+
+function orderFilterValues(allValues, allowed, checked) {
+  const a = [];
+  const b = [];
+  const c = [];
+  for (const v of allValues) {
+    const ok = allowed.has(v);
+    const ch = checked.has(v);
+    if (ok && ch) a.push(v);
+    else if (ok) b.push(v);
+    else c.push(v);
+  }
+  const cmp = (x, y) => x.localeCompare(y, "ru");
+  a.sort(cmp);
+  b.sort(cmp);
+  c.sort(cmp);
+  return [...a, ...b, ...c].map((value) => ({
+    value,
+    enabled: allowed.has(value),
+    checked: checked.has(value)
+  }));
+}
+
+/** Порядок групп на оси X: bin = интервалы, slice = серии разреза. */
+function groupAxisLabels(hist, groupLayout) {
+  if (groupLayout === "slice") return hist.series.map((s) => s.name);
+  return hist.labels.slice();
+}
+
+console.log("cascade filters");
+{
+  const rows = [
+    { tn: "1", amount: 1, tb: "TB1", gosb: "G1", cluster: "C1" },
+    { tn: "2", amount: 2, tb: "TB1", gosb: "G2", cluster: "C1" },
+    { tn: "3", amount: 3, tb: "TB2", gosb: "G3", cluster: "C2" }
+  ];
+  const selTb = { tb: new Set(["TB1"]), gosb: new Set(), cluster: new Set() };
+  const allowedG = computeAllowedValues("gosb", selTb, rows);
+  assert("TB1 → G1+G2", allowedG.has("G1") && allowedG.has("G2") && !allowedG.has("G3"));
+  const allowedC = computeAllowedValues("cluster", selTb, rows);
+  assert("TB1 → только C1", allowedC.has("C1") && !allowedC.has("C2"));
+
+  const bad = {
+    tb: new Set(["TB1"]),
+    gosb: new Set(["G1", "G3"]),
+    cluster: new Set(["C1", "C2"])
+  };
+  const { selections, pruned } = pruneIncompatibleSelections(bad, rows);
+  assert("TB1 сохранён", selections.tb.has("TB1"));
+  assert("G1 сохранён, G3 снят", selections.gosb.has("G1") && !selections.gosb.has("G3"));
+  assert("C1 сохранён, C2 снят", selections.cluster.has("C1") && !selections.cluster.has("C2"));
+  assert("prune что-то снял", pruned.length >= 2);
+
+  const ordered = orderFilterValues(
+    ["G3", "G1", "G2"],
+    new Set(["G1", "G2"]),
+    new Set(["G2"])
+  );
+  assert("сначала отмеченные совместимые", ordered[0].value === "G2" && ordered[0].enabled);
+  assert("потом совместимые", ordered[1].value === "G1" && ordered[1].enabled);
+  assert("потом disabled", ordered[2].value === "G3" && !ordered[2].enabled);
+}
+
+console.log("groupLayout axis");
+{
+  const hist = {
+    labels: ["[0;10)", "[10;20]"],
+    series: [
+      { name: "TB1", counts: [1, 2] },
+      { name: "TB2", counts: [0, 3] }
+    ]
+  };
+  assert(
+    "bin: ось = интервалы",
+    JSON.stringify(groupAxisLabels(hist, "bin")) === JSON.stringify(hist.labels)
+  );
+  assert(
+    "slice: ось = ТБ",
+    JSON.stringify(groupAxisLabels(hist, "slice")) === JSON.stringify(["TB1", "TB2"])
+  );
+}
+
 console.log("");
 console.log(`Итого: ${passed} ok, ${failed} fail`);
 process.exit(failed ? 1 : 0);

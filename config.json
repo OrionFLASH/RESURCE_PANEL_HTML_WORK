@@ -17,5 +17,6 @@
     "maxLegendItems": 24
   },
   "demoEnabled": false,
-  "demoSamplePath": "samples/sum-distribution-demo-1800.csv"
+  "demoSamplePath": "samples/sum-distribution-demo-20000.csv",
+  "_demoNote": "Файлы в samples/ не в git. Генерация: python3 tools/build_sum_demo_csv_20k.py (20000 строк / 2000 ТН) или tools/build_sum_demo_csv.py (1800 из IN/)"
 }
