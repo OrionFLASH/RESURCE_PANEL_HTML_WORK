@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Распределение сумм (ТБ / ГОСБ)</title>
+  <style>
+    :root {
+      --bg0: #eef3f8;
+      --bg1: #d9e6f2;
+      --ink: #152033;
+      --muted: #5a6b7d;
+      --card: rgba(255, 255, 255, 0.82);
+      --card-border: rgba(255, 255, 255, 0.65);
+      --line: #c9d6e4;
+      --accent: #0b6bcb;
+      --accent-soft: rgba(11, 107, 203, 0.12);
+      --accent-2: #0f8a6a;
+      --danger: #c0392b;
+      --shadow: 0 10px 30px rgba(21, 32, 51, 0.08);
+      --radius: 16px;
+      --font: "Segoe UI", "PT Sans", "Helvetica Neue", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--font);
+      background:
+        radial-gradient(1200px 500px at 10% -10%, rgba(11, 107, 203, 0.18), transparent 60%),
+        radial-gradient(900px 420px at 90% 0%, rgba(15, 138, 106, 0.14), transparent 55%),
+        linear-gradient(160deg, var(--bg0), var(--bg1));
+    }
+
+    .wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
+
+    header.page-head {
+      margin-bottom: 22px;
+    }
+
+    header.page-head h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.55rem, 2.4vw, 2.1rem);
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+
+    header.page-head p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 62ch;
+      line-height: 1.45;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 1.2fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      padding: 16px 16px 14px;
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 1.05rem;
+    }
+
+    .stack { display: grid; gap: 12px; }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: end;
+    }
+
+    label.field {
+      display: grid;
+      gap: 6px;
+      font-size: 0.86rem;
+      color: var(--muted);
+      min-width: 140px;
+      flex: 1;
+    }
+
+    label.field > span { font-weight: 600; color: var(--ink); }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 11px;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+    }
+
+    textarea {
+      min-height: 150px;
+      resize: vertical;
+      font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+      font-size: 0.86rem;
+      line-height: 1.4;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    .btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn.secondary {
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    .btn.ghost {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .hint {
+      font-size: 0.84rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .status {
+      min-height: 1.25em;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .status.ok { color: var(--accent-2); }
+    .status.err { color: var(--danger); }
+
+    .checks {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 6px 10px;
+      max-height: 180px;
+      overflow: auto;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .checks label {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 0.88rem;
+      color: var(--ink);
+    }
+
+    .checks .empty {
+      color: var(--muted);
+      font-size: 0.88rem;
+      grid-column: 1 / -1;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: min(460px, 58vh);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.95), rgba(245,249,252,0.95));
+      overflow: hidden;
+    }
+
+    canvas#chart {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin-top: 10px;
+      font-size: 0.84rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      margin: 10px 0 0;
+    }
+
+    .stat {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    .stat .k { font-size: 0.78rem; color: var(--muted); }
+    .stat .v { font-size: 1.05rem; font-weight: 700; margin-top: 2px; }
+
+    .table-wrap {
+      margin-top: 12px;
+      overflow: auto;
+      max-height: 280px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #e7eef5;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #f4f8fc;
+      z-index: 1;
+      font-weight: 700;
+    }
+
+    .bin-editor {
+      display: none;
+    }
+    .bin-editor.visible { display: block; }
+
+    .file-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .file-row input[type="file"] {
+      max-width: 100%;
+    }
+
+    details.help {
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.55);
+    }
+
+    details.help summary {
+      cursor: pointer;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <h1>Распределение сумм</h1>
+      <p>
+        Загрузите CSV или вставьте таблицу со столбцами <strong>ТБ</strong>, <strong>ГОСБ</strong> и <strong>сумма</strong>.
+        Страница построит гистограмму: по оси X — интервалы сумм, по оси Y — число строк в интервале.
+      </p>
+    </header>
+
+    <div class="grid">
+      <section class="panel stack">
+        <h2>1. Данные</h2>
+
+        <div class="file-row">
+          <input id="fileInput" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt">
+          <button class="btn secondary" type="button" id="btnDemo">Демо-данные</button>
+          <button class="btn secondary" type="button" id="btnClear">Очистить</button>
+        </div>
+
+        <label class="field">
+          <span>Вставка таблицы (CSV / TSV / из Excel)</span>
+          <textarea id="pasteArea" placeholder="ТБ;ГОСБ;сумма&#10;Москва;ГОСБ-1;125000&#10;Москва;ГОСБ-2;89000&#10;..."></textarea>
+        </label>
+
+        <div class="row">
+          <button class="btn" type="button" id="btnParse">Загрузить из окна</button>
+          <button class="btn ghost" type="button" id="btnRebuild">Обновить график</button>
+        </div>
+
+        <div id="loadStatus" class="status">Данные ещё не загружены.</div>
+
+        <details class="help">
+          <summary>Формат входных данных</summary>
+          <p class="hint" style="margin:8px 0 0">
+            Разделители: <code>;</code>, <code>,</code> или табуляция. Первая строка — заголовки
+            (допускаются варианты: ТБ/TB, ГОСБ/GOSB, сумма/sum/amount). Суммы можно писать с пробелами
+            тысяч и запятой как десятичным разделителем: <code>1 234,56</code>.
+          </p>
+        </details>
+
+        <h2>2. Фильтры и разрез</h2>
+
+        <div class="row">
+          <label class="field">
+            <span>Разрез</span>
+            <select id="sliceMode">
+              <option value="all">Вся выборка</option>
+              <option value="tb">В разрезе ТБ</option>
+              <option value="gosb">В разрезе ГОСБ</option>
+              <option value="tb_gosb">В разрезе ТБ + ГОСБ</option>
+            </select>
+          </label>
+        </div>
+
+        <div>
+          <div class="toolbar">
+            <strong>ТБ</strong>
+            <button class="btn secondary" type="button" data-check-all="tb" style="padding:6px 10px;font-size:0.82rem">Все</button>
+            <button class="btn secondary" type="button" data-check-none="tb" style="padding:6px 10px;font-size:0.82rem">Снять</button>
+          </div>
+          <div id="tbChecks" class="checks"><div class="empty">Загрузите данные</div></div>
+        </div>
+
+        <div>
+          <div class="toolbar">
+            <strong>ГОСБ</strong>
+            <button class="btn secondary" type="button" data-check-all="gosb" style="padding:6px 10px;font-size:0.82rem">Все</button>
+            <button class="btn secondary" type="button" data-check-none="gosb" style="padding:6px 10px;font-size:0.82rem">Снять</button>
+          </div>
+          <div id="gosbChecks" class="checks"><div class="empty">Загрузите данные</div></div>
+        </div>
+
+        <h2>3. Интервалы сумм</h2>
+
+        <div class="row">
+          <label class="field">
+            <span>Режим границ</span>
+            <select id="binMode">
+              <option value="count">Равная ширина (по числу интервалов)</option>
+              <option value="width">Заданная ширина интервала</option>
+              <option value="custom">Ручные границы</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row" id="binCountRow">
+          <label class="field">
+            <span>Число интервалов</span>
+            <input id="binCount" type="number" min="1" max="200" step="1" value="10">
+          </label>
+          <label class="field">
+            <span>Мин. (пусто = авто)</span>
+            <input id="binMin" type="number" step="any" placeholder="авто">
+          </label>
+          <label class="field">
+            <span>Макс. (пусто = авто)</span>
+            <input id="binMax" type="number" step="any" placeholder="авто">
+          </label>
+        </div>
+
+        <div class="row bin-editor" id="binWidthRow">
+          <label class="field">
+            <span>Ширина интервала</span>
+            <input id="binWidth" type="number" min="0" step="any" placeholder="например 50000">
+          </label>
+          <label class="field">
+            <span>Начало (origin)</span>
+            <input id="binOrigin" type="number" step="any" placeholder="авто = минимум">
+          </label>
+        </div>
+
+        <div class="bin-editor" id="binCustomRow">
+          <label class="field">
+            <span>Границы через запятую или с новой строки</span>
+            <textarea id="binEdges" placeholder="0, 50000, 100000, 200000, 500000"></textarea>
+          </label>
+          <p class="hint">Нужно минимум 2 границы. Интервалы: [a, b), последний — [a, b].</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Гистограмма</h2>
+        <div class="chart-wrap">
+          <canvas id="chart" aria-label="Гистограмма распределения сумм"></canvas>
+        </div>
+        <div id="legend" class="legend"></div>
+        <div id="stats" class="stats"></div>
+        <div class="table-wrap">
+          <table>
+            <thead id="freqHead"></thead>
+            <tbody id="freqBody"></tbody>
+          </table>
+        </div>
+        <div id="chartStatus" class="status" style="margin-top:10px"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * Встроенный конфиг страницы (дублирует config.json для автономной работы).
+     */
+    const APP_CONFIG = {
+      pageTitle: "Распределение сумм (ТБ / ГОСБ)",
+      defaultBinCount: 10,
+      defaultBinMode: "count",
+      defaultSliceMode: "all",
+      csvDelimiters: [";", ",", "\t"],
+      amountColumnAliases: ["сумма", "sum", "amount", "сумм"],
+      tbColumnAliases: ["тб", "tb"],
+      gosbColumnAliases: ["госб", "gosb", "гос"],
+      chart: {
+        barGapRatio: 0.12,
+        seriesGapRatio: 0.04,
+        maxLegendItems: 24
+      },
+      demoEnabled: true
+    };
+
+    /** @typedef {{ tb: string, gosb: string, amount: number }} DataRow */
+
+    /** @type {DataRow[]} */
+    let allRows = [];
+
+    const el = {
+      fileInput: document.getElementById("fileInput"),
+      pasteArea: document.getElementById("pasteArea"),
+      btnParse: document.getElementById("btnParse"),
+      btnRebuild: document.getElementById("btnRebuild"),
+      btnDemo: document.getElementById("btnDemo"),
+      btnClear: document.getElementById("btnClear"),
+      loadStatus: document.getElementById("loadStatus"),
+      sliceMode: document.getElementById("sliceMode"),
+      tbChecks: document.getElementById("tbChecks"),
+      gosbChecks: document.getElementById("gosbChecks"),
+      binMode: document.getElementById("binMode"),
+      binCount: document.getElementById("binCount"),
+      binMin: document.getElementById("binMin"),
+      binMax: document.getElementById("binMax"),
+      binWidth: document.getElementById("binWidth"),
+      binOrigin: document.getElementById("binOrigin"),
+      binEdges: document.getElementById("binEdges"),
+      binCountRow: document.getElementById("binCountRow"),
+      binWidthRow: document.getElementById("binWidthRow"),
+      binCustomRow: document.getElementById("binCustomRow"),
+      chart: document.getElementById("chart"),
+      legend: document.getElementById("legend"),
+      stats: document.getElementById("stats"),
+      freqHead: document.getElementById("freqHead"),
+      freqBody: document.getElementById("freqBody"),
+      chartStatus: document.getElementById("chartStatus")
+    };
+
+    const SERIES_COLORS = [
+      "#0b6bcb", "#0f8a6a", "#c27a00", "#8e3b8f", "#c0392b",
+      "#2c7a7b", "#2b6cb0", "#b7791f", "#805ad5", "#dd6b20",
+      "#319795", "#3182ce", "#d69e2e", "#9f7aea", "#e53e3e",
+      "#38a169", "#4299e1", "#d97706", "#718096", "#ed8936"
+    ];
+
+    /**
+     * Нормализует текстовое значение суммы к числу.
+     * @param {string|number} raw
+     * @returns {number|null}
+     */
+    function normalizeAmount(raw) {
+      if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+      if (raw == null) return null;
+      let s = String(raw).trim();
+      if (!s) return null;
+      s = s.replace(/\u00a0/g, " ").replace(/\s+/g, "");
+      s = s.replace(/₽|руб\.?|RUB|USD|€|\$/gi, "");
+      if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
+        s = s.replace(/\./g, "").replace(",", ".");
+      } else if (s.includes(",") && !s.includes(".")) {
+        s = s.replace(",", ".");
+      } else if (s.includes(",") && s.includes(".")) {
+        s = s.replace(/,/g, "");
+      }
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    /**
+     * Определяет разделитель CSV/TSV по первой непустой строке.
+     * @param {string} text
+     * @returns {string}
+     */
+    function detectDelimiter(text) {
+      const line = text.split(/\r?\n/).find((l) => l.trim().length > 0) || "";
+      let best = ";";
+      let bestCount = -1;
+      for (const d of APP_CONFIG.csvDelimiters) {
+        const count = line.split(d).length - 1;
+        if (count > bestCount) {
+          bestCount = count;
+          best = d;
+        }
+      }
+      return best;
+    }
+
+    /**
+     * Разбирает строку CSV с учётом кавычек.
+     * @param {string} line
+     * @param {string} delimiter
+     * @returns {string[]}
+     */
+    function splitCsvLine(line, delimiter) {
+      const out = [];
+      let cur = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i += 1) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            cur += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === delimiter && !inQuotes) {
+          out.push(cur.trim());
+          cur = "";
+        } else {
+          cur += ch;
+        }
+      }
+      out.push(cur.trim());
+      return out;
+    }
+
+    /**
+     * Нормализует имя столбца для сопоставления.
+     * @param {string} name
+     * @returns {string}
+     */
+    function normalizeHeader(name) {
+      return String(name || "")
+        .trim()
+        .toLowerCase()
+        .replace(/["']/g, "")
+        .replace(/\s+/g, " ");
+    }
+
+    /**
+     * Ищет индекс столбца по списку алиасов.
+     * @param {string[]} headers
+     * @param {string[]} aliases
+     * @returns {number}
+     */
+    function findColumnIndex(headers, aliases) {
+      const normalized = headers.map(normalizeHeader);
+      for (let i = 0; i < normalized.length; i += 1) {
+        const h = normalized[i];
+        if (aliases.some((a) => h === a || h.includes(a))) return i;
+      }
+      return -1;
+    }
+
+    /**
+     * Парсит текст таблицы в массив строк данных.
+     * @param {string} text
+     * @returns {{ rows: DataRow[], meta: { delimiter: string, totalLines: number, skipped: number } }}
+     */
+    function parseTableText(text) {
+      const cleaned = String(text || "").replace(/^\uFEFF/, "").trim();
+      if (!cleaned) {
+        throw new Error("Пустой ввод: вставьте таблицу или выберите CSV-файл.");
+      }
+
+      const delimiter = detectDelimiter(cleaned);
+      const lines = cleaned.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (lines.length < 2) {
+        throw new Error("Нужна строка заголовков и хотя бы одна строка данных.");
+      }
+
+      const headers = splitCsvLine(lines[0], delimiter);
+      let tbIdx = findColumnIndex(headers, APP_CONFIG.tbColumnAliases);
+      let gosbIdx = findColumnIndex(headers, APP_CONFIG.gosbColumnAliases);
+      let amountIdx = findColumnIndex(headers, APP_CONFIG.amountColumnAliases);
+
+      // Если заголовков нет — пробуем угадать по позициям 0,1,2
+      let start = 1;
+      if (tbIdx < 0 || gosbIdx < 0 || amountIdx < 0) {
+        if (headers.length >= 3) {
+          const maybeAmount = normalizeAmount(headers[2]);
+          if (maybeAmount != null) {
+            tbIdx = 0;
+            gosbIdx = 1;
+            amountIdx = 2;
+            start = 0;
+          }
+        }
+      }
+
+      if (tbIdx < 0 || gosbIdx < 0 || amountIdx < 0) {
+        throw new Error(
+          "Не найдены столбцы ТБ / ГОСБ / сумма. Проверьте заголовки первой строки."
+        );
+      }
+
+      /** @type {DataRow[]} */
+      const rows = [];
+      let skipped = 0;
+      for (let i = start; i < lines.length; i += 1) {
+        const cells = splitCsvLine(lines[i], delimiter);
+        const amount = normalizeAmount(cells[amountIdx]);
+        const tb = String(cells[tbIdx] || "").trim();
+        const gosb = String(cells[gosbIdx] || "").trim();
+        if (amount == null || !tb || !gosb) {
+          skipped += 1;
+          continue;
+        }
+        rows.push({ tb, gosb, amount });
+      }
+
+      if (!rows.length) {
+        throw new Error("Не удалось прочитать ни одной валидной строки.");
+      }
+
+      return {
+        rows,
+        meta: { delimiter, totalLines: lines.length - start, skipped }
+      };
+    }
+
+    /**
+     * Строит границы интервалов.
+     * @param {number[]} amounts
+     * @param {{ mode: string, count: number, width: number|null, origin: number|null, min: number|null, max: number|null, customEdges: number[] }} opts
+     * @returns {number[]}
+     */
+    function buildBins(amounts, opts) {
+      if (!amounts.length) throw new Error("Нет сумм для построения интервалов.");
+
+      const dataMin = Math.min(...amounts);
+      const dataMax = Math.max(...amounts);
+
+      if (opts.mode === "custom") {
+        const edges = [...opts.customEdges].filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+        const unique = edges.filter((v, i, arr) => i === 0 || v !== arr[i - 1]);
+        if (unique.length < 2) {
+          throw new Error("Для ручных границ укажите минимум 2 числа.");
+        }
+        return unique;
+      }
+
+      let min = opts.min == null || !Number.isFinite(opts.min) ? dataMin : opts.min;
+      let max = opts.max == null || !Number.isFinite(opts.max) ? dataMax : opts.max;
+      if (max < min) {
+        const t = min;
+        min = max;
+        max = t;
+      }
+      if (max === min) {
+        max = min + (Math.abs(min) || 1);
+      }
+
+      if (opts.mode === "width") {
+        const width = opts.width;
+        if (!(width > 0)) throw new Error("Ширина интервала должна быть больше 0.");
+        const origin = opts.origin == null || !Number.isFinite(opts.origin) ? min : opts.origin;
+        /** @type {number[]} */
+        const edges = [origin];
+        let cur = origin;
+        // Гарантируем покрытие max
+        while (cur < max && edges.length < 2000) {
+          cur = Number((cur + width).toPrecision(12));
+          edges.push(cur);
+        }
+        if (edges[edges.length - 1] < max) edges.push(max);
+        if (edges.length < 2) edges.push(origin + width);
+        return edges;
+      }
+
+      // count
+      const count = Math.max(1, Math.floor(opts.count || 1));
+      const width = (max - min) / count;
+      /** @type {number[]} */
+      const edges = [];
+      for (let i = 0; i <= count; i += 1) {
+        edges.push(Number((min + width * i).toPrecision(12)));
+      }
+      edges[edges.length - 1] = max;
+      return edges;
+    }
+
+    /**
+     * Форматирует подпись интервала.
+     * @param {number} a
+     * @param {number} b
+     * @param {boolean} last
+     * @returns {string}
+     */
+    function formatBinLabel(a, b, last) {
+      const fa = formatNumber(a);
+      const fb = formatNumber(b);
+      return last ? `[${fa} … ${fb}]` : `[${fa} … ${fb})`;
+    }
+
+    /**
+     * @param {number} n
+     * @returns {string}
+     */
+    function formatNumber(n) {
+      return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(n);
+    }
+
+    /**
+     * Вычисляет гистограмму по сериям.
+     * @param {DataRow[]} rows
+     * @param {number[]} edges
+     * @param {"all"|"tb"|"gosb"|"tb_gosb"} sliceMode
+     * @returns {{ edges: number[], labels: string[], series: { name: string, counts: number[] }[], total: number, below: number, above: number }}
+     */
+    function computeHistogram(rows, edges, sliceMode) {
+      /** @type {Map<string, number[]>} */
+      const seriesMap = new Map();
+      let below = 0;
+      let above = 0;
+      const binCount = edges.length - 1;
+
+      /**
+       * @param {DataRow} row
+       * @returns {string}
+       */
+      function seriesName(row) {
+        if (sliceMode === "tb") return row.tb;
+        if (sliceMode === "gosb") return row.gosb;
+        if (sliceMode === "tb_gosb") return `${row.tb} / ${row.gosb}`;
+        return "Вся выборка";
+      }
+
+      for (const row of rows) {
+        const name = seriesName(row);
+        if (!seriesMap.has(name)) {
+          seriesMap.set(name, Array(binCount).fill(0));
+        }
+        const counts = seriesMap.get(name);
+        const x = row.amount;
+        if (x < edges[0]) {
+          below += 1;
+          continue;
+        }
+        if (x > edges[edges.length - 1]) {
+          above += 1;
+          continue;
+        }
+        let placed = false;
+        for (let i = 0; i < binCount; i += 1) {
+          const left = edges[i];
+          const right = edges[i + 1];
+          const isLast = i === binCount - 1;
+          if ((x >= left && x < right) || (isLast && x >= left && x <= right)) {
+            counts[i] += 1;
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) above += 1;
+      }
+
+      const series = [...seriesMap.entries()]
+        .map(([name, counts]) => ({ name, counts }))
+        .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+
+      const labels = [];
+      for (let i = 0; i < binCount; i += 1) {
+        labels.push(formatBinLabel(edges[i], edges[i + 1], i === binCount - 1));
+      }
+
+      return {
+        edges,
+        labels,
+        series,
+        total: rows.length,
+        below,
+        above
+      };
+    }
+
+    /**
+     * @param {string} msg
+     * @param {"ok"|"err"|""} kind
+     */
+    function setLoadStatus(msg, kind) {
+      el.loadStatus.textContent = msg;
+      el.loadStatus.className = "status" + (kind ? " " + kind : "");
+    }
+
+    /**
+     * @param {string} msg
+     * @param {"ok"|"err"|""} kind
+     */
+    function setChartStatus(msg, kind) {
+      el.chartStatus.textContent = msg;
+      el.chartStatus.className = "status" + (kind ? " " + kind : "");
+    }
+
+    /**
+     * Применяет загруженные строки к UI.
+     * @param {DataRow[]} rows
+     * @param {string} sourceLabel
+     * @param {{ skipped?: number, totalLines?: number }=} meta
+     */
+    function applyRows(rows, sourceLabel, meta) {
+      allRows = rows;
+      rebuildFilterOptions();
+      const skipped = meta && meta.skipped ? meta.skipped : 0;
+      setLoadStatus(
+        `Загружено ${rows.length} строк из «${sourceLabel}»` +
+          (skipped ? ` (пропущено ${skipped})` : "") + ".",
+        "ok"
+      );
+      rebuild();
+    }
+
+    /**
+     * Пересобирает чекбоксы фильтров.
+     */
+    function rebuildFilterOptions() {
+      const tbs = [...new Set(allRows.map((r) => r.tb))].sort((a, b) => a.localeCompare(b, "ru"));
+      const gosbs = [...new Set(allRows.map((r) => r.gosb))].sort((a, b) => a.localeCompare(b, "ru"));
+      renderChecks(el.tbChecks, tbs, "tb");
+      renderChecks(el.gosbChecks, gosbs, "gosb");
+    }
+
+    /**
+     * @param {HTMLElement} container
+     * @param {string[]} values
+     * @param {string} group
+     */
+    function renderChecks(container, values, group) {
+      container.innerHTML = "";
+      if (!values.length) {
+        container.innerHTML = '<div class="empty">Нет значений</div>';
+        return;
+      }
+      for (const value of values) {
+        const id = `${group}_${hashId(value)}`;
+        const label = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = true;
+        input.dataset.group = group;
+        input.value = value;
+        input.id = id;
+        const span = document.createElement("span");
+        span.textContent = value;
+        input.addEventListener("change", rebuild);
+        label.appendChild(input);
+        label.appendChild(span);
+        container.appendChild(label);
+      }
+    }
+
+    /**
+     * @param {string} s
+     * @returns {string}
+     */
+    function hashId(s) {
+      let h = 0;
+      for (let i = 0; i < s.length; i += 1) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+      return String(h);
+    }
+
+    /**
+     * @param {"tb"|"gosb"} group
+     * @returns {Set<string>}
+     */
+    function selectedValues(group) {
+      const root = group === "tb" ? el.tbChecks : el.gosbChecks;
+      /** @type {Set<string>} */
+      const set = new Set();
+      root.querySelectorAll('input[type="checkbox"]').forEach((inp) => {
+        if (inp.checked) set.add(inp.value);
+      });
+      return set;
+    }
+
+    /**
+     * @returns {DataRow[]}
+     */
+    function filteredRows() {
+      const tbSet = selectedValues("tb");
+      const gosbSet = selectedValues("gosb");
+      return allRows.filter((r) => tbSet.has(r.tb) && gosbSet.has(r.gosb));
+    }
+
+    /**
+     * Читает настройки интервалов из формы.
+     */
+    function readBinOptions() {
+      const mode = el.binMode.value;
+      const count = Number(el.binCount.value);
+      const widthRaw = el.binWidth.value.trim();
+      const originRaw = el.binOrigin.value.trim();
+      const minRaw = el.binMin.value.trim();
+      const maxRaw = el.binMax.value.trim();
+      const customEdges = el.binEdges.value
+        .split(/[\s,;]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => normalizeAmount(s))
+        .filter((n) => n != null);
+
+      return {
+        mode,
+        count: Number.isFinite(count) ? count : APP_CONFIG.defaultBinCount,
+        width: widthRaw === "" ? null : Number(widthRaw),
+        origin: originRaw === "" ? null : Number(originRaw),
+        min: minRaw === "" ? null : Number(minRaw),
+        max: maxRaw === "" ? null : Number(maxRaw),
+        customEdges
+      };
+    }
+
+    /**
+     * Переключает видимость блоков настроек интервалов.
+     */
+    function syncBinModeUi() {
+      const mode = el.binMode.value;
+      el.binCountRow.style.display = mode === "custom" ? "none" : "flex";
+      el.binWidthRow.classList.toggle("visible", mode === "width");
+      el.binCustomRow.classList.toggle("visible", mode === "custom");
+      // В режиме width число интервалов не нужно
+      el.binCount.closest("label").style.display = mode === "count" ? "grid" : "none";
+    }
+
+    /**
+     * Основной пересчёт и отрисовка.
+     */
+    function rebuild() {
+      try {
+        if (!allRows.length) {
+          clearChart();
+          setChartStatus("Нет данных для графика.", "");
+          return;
+        }
+        const rows = filteredRows();
+        if (!rows.length) {
+          clearChart();
+          setChartStatus("После фильтров строк не осталось. Выберите ТБ/ГОСБ.", "err");
+          return;
+        }
+
+        const amounts = rows.map((r) => r.amount);
+        const edges = buildBins(amounts, readBinOptions());
+        const hist = computeHistogram(rows, edges, el.sliceMode.value);
+        drawHistogram(hist);
+        renderLegend(hist);
+        renderStats(rows, hist);
+        renderFrequencyTable(hist);
+        setChartStatus(
+          `Интервалов: ${edges.length - 1}. Серий: ${hist.series.length}.` +
+            (hist.below || hist.above
+              ? ` Вне диапазона: ниже ${hist.below}, выше ${hist.above}.`
+              : ""),
+          "ok"
+        );
+      } catch (err) {
+        clearChart();
+        setChartStatus(err && err.message ? err.message : String(err), "err");
+      }
+    }
+
+    function clearChart() {
+      const ctx = el.chart.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const rect = el.chart.getBoundingClientRect();
+      el.chart.width = Math.max(1, Math.floor(rect.width * dpr));
+      el.chart.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      el.legend.innerHTML = "";
+      el.stats.innerHTML = "";
+      el.freqHead.innerHTML = "";
+      el.freqBody.innerHTML = "";
+    }
+
+    /**
+     * @param {ReturnType<typeof computeHistogram>} hist
+     */
+    function drawHistogram(hist) {
+      const canvas = el.chart;
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const W = rect.width;
+      const H = rect.height;
+      canvas.width = Math.max(1, Math.floor(W * dpr));
+      canvas.height = Math.max(1, Math.floor(H * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+
+      const pad = { top: 24, right: 18, bottom: 78, left: 54 };
+      const plotW = W - pad.left - pad.right;
+      const plotH = H - pad.top - pad.bottom;
+
+      const binN = hist.labels.length;
+      const seriesN = Math.max(1, hist.series.length);
+      let yMax = 1;
+      for (const s of hist.series) {
+        for (const c of s.counts) yMax = Math.max(yMax, c);
+      }
+      yMax = niceCeil(yMax);
+
+      // Сетка
+      ctx.strokeStyle = "#d7e2ee";
+      ctx.fillStyle = "#6b7c8f";
+      ctx.lineWidth = 1;
+      ctx.font = "12px Segoe UI, sans-serif";
+      const ticks = 5;
+      for (let i = 0; i <= ticks; i += 1) {
+        const y = pad.top + plotH - (plotH * i) / ticks;
+        const val = Math.round((yMax * i) / ticks);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + plotW, y);
+        ctx.stroke();
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(val), pad.left - 8, y);
+      }
+
+      // Оси
+      ctx.strokeStyle = "#8aa0b5";
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + plotH);
+      ctx.lineTo(pad.left + plotW, pad.top + plotH);
+      ctx.stroke();
+
+      const groupW = plotW / binN;
+      const gap = groupW * APP_CONFIG.chart.barGapRatio;
+      const innerW = Math.max(1, groupW - gap);
+      const seriesGap = innerW * APP_CONFIG.chart.seriesGapRatio;
+      const barW = Math.max(1, (innerW - seriesGap * (seriesN - 1)) / seriesN);
+
+      for (let bi = 0; bi < binN; bi += 1) {
+        const groupX = pad.left + bi * groupW + gap / 2;
+        for (let si = 0; si < seriesN; si += 1) {
+          const count = hist.series[si] ? hist.series[si].counts[bi] : 0;
+          const h = (count / yMax) * plotH;
+          const x = groupX + si * (barW + seriesGap);
+          const y = pad.top + plotH - h;
+          ctx.fillStyle = SERIES_COLORS[si % SERIES_COLORS.length];
+          roundRect(ctx, x, y, barW, Math.max(h, count > 0 ? 1 : 0), 3);
+          ctx.fill();
+        }
+
+        // Подпись интервала
+        ctx.save();
+        ctx.fillStyle = "#4d5f73";
+        ctx.font = "11px Segoe UI, sans-serif";
+        const label = hist.labels[bi];
+        const lx = groupX + innerW / 2;
+        const ly = pad.top + plotH + 12;
+        ctx.translate(lx, ly);
+        ctx.rotate(-Math.PI / 4);
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        const short = shortenLabel(label, binN > 12 ? 18 : 28);
+        ctx.fillText(short, 0, 0);
+        ctx.restore();
+      }
+
+      // Подписи осей
+      ctx.fillStyle = "#334155";
+      ctx.font = "12px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Интервалы сумм", pad.left + plotW / 2, H - 10);
+      ctx.save();
+      ctx.translate(14, pad.top + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText("Число строк", 0, 0);
+      ctx.restore();
+    }
+
+    /**
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {number} x
+     * @param {number} y
+     * @param {number} w
+     * @param {number} h
+     * @param {number} r
+     */
+    function roundRect(ctx, x, y, w, h, r) {
+      const rr = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+    }
+
+    /**
+     * @param {number} n
+     * @returns {number}
+     */
+    function niceCeil(n) {
+      if (n <= 1) return 1;
+      const exp = Math.floor(Math.log10(n));
+      const f = Math.pow(10, exp);
+      const m = Math.ceil(n / f);
+      return m * f;
+    }
+
+    /**
+     * @param {string} label
+     * @param {number} maxLen
+     * @returns {string}
+     */
+    function shortenLabel(label, maxLen) {
+      if (label.length <= maxLen) return label;
+      return label.slice(0, maxLen - 1) + "…";
+    }
+
+    /**
+     * @param {ReturnType<typeof computeHistogram>} hist
+     */
+    function renderLegend(hist) {
+      el.legend.innerHTML = "";
+      const max = APP_CONFIG.chart.maxLegendItems;
+      const list = hist.series.slice(0, max);
+      for (let i = 0; i < list.length; i += 1) {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        item.innerHTML = `<span class="swatch" style="background:${SERIES_COLORS[i % SERIES_COLORS.length]}"></span>`;
+        const span = document.createElement("span");
+        span.textContent = list[i].name;
+        item.appendChild(span);
+        el.legend.appendChild(item);
+      }
+      if (hist.series.length > max) {
+        const more = document.createElement("div");
+        more.className = "legend-item";
+        more.textContent = `… и ещё ${hist.series.length - max}`;
+        el.legend.appendChild(more);
+      }
+    }
+
+    /**
+     * @param {DataRow[]} rows
+     * @param {ReturnType<typeof computeHistogram>} hist
+     */
+    function renderStats(rows, hist) {
+      const amounts = rows.map((r) => r.amount);
+      const sum = amounts.reduce((a, b) => a + b, 0);
+      const min = Math.min(...amounts);
+      const max = Math.max(...amounts);
+      const avg = sum / amounts.length;
+      const items = [
+        ["Строк", formatNumber(rows.length)],
+        ["Серий", formatNumber(hist.series.length)],
+        ["Мин. сумма", formatNumber(min)],
+        ["Макс. сумма", formatNumber(max)],
+        ["Средняя", formatNumber(avg)],
+        ["Сумма всех", formatNumber(sum)]
+      ];
+      el.stats.innerHTML = items
+        .map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`)
+        .join("");
+    }
+
+    /**
+     * @param {ReturnType<typeof computeHistogram>} hist
+     */
+    function renderFrequencyTable(hist) {
+      const showSeries = hist.series.length > 1;
+      if (!showSeries) {
+        el.freqHead.innerHTML = "<tr><th>Интервал</th><th>Число строк</th><th>Доля</th></tr>";
+        const total = hist.series[0].counts.reduce((a, b) => a + b, 0) || 1;
+        el.freqBody.innerHTML = hist.labels
+          .map((label, i) => {
+            const c = hist.series[0].counts[i];
+            const pct = ((c / total) * 100).toFixed(1) + "%";
+            return `<tr><td>${escapeHtml(label)}</td><td>${c}</td><td>${pct}</td></tr>`;
+          })
+          .join("");
+        return;
+      }
+
+      const head = ["<tr><th>Интервал</th>"]
+        .concat(hist.series.map((s) => `<th>${escapeHtml(s.name)}</th>`))
+        .concat(["<th>Итого</th></tr>"])
+        .join("");
+      el.freqHead.innerHTML = head;
+
+      el.freqBody.innerHTML = hist.labels
+        .map((label, i) => {
+          let rowSum = 0;
+          const cells = hist.series.map((s) => {
+            rowSum += s.counts[i];
+            return `<td>${s.counts[i]}</td>`;
+          });
+          return `<tr><td>${escapeHtml(label)}</td>${cells.join("")}<td>${rowSum}</td></tr>`;
+        })
+        .join("");
+    }
+
+    /**
+     * @param {string} s
+     * @returns {string}
+     */
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    /**
+     * Демонстрационный набор данных.
+     * @returns {string}
+     */
+    function demoCsv() {
+      const tbs = ["Москва", "СЗБ", "Урал", "Сибирь"];
+      const gosbs = {
+        Москва: ["ГОСБ-101", "ГОСБ-102", "ГОСБ-103"],
+        СЗБ: ["ГОСБ-201", "ГОСБ-202"],
+        Урал: ["ГОСБ-301", "ГОСБ-302", "ГОСБ-303"],
+        Сибирь: ["ГОСБ-401", "ГОСБ-402"]
+      };
+      const lines = ["ТБ;ГОСБ;сумма"];
+      for (let i = 0; i < 180; i += 1) {
+        const tb = tbs[i % tbs.length];
+        const list = gosbs[tb];
+        const gosb = list[i % list.length];
+        // Смесь распределений
+        const base = (i % 7) * 35000 + (i % 3) * 12000;
+        const noise = ((i * 17) % 50000);
+        const amount = 15000 + base + noise;
+        lines.push(`${tb};${gosb};${amount}`);
+      }
+      return lines.join("\n");
+    }
+
+    // --- События ---
+
+    el.btnParse.addEventListener("click", () => {
+      try {
+        const parsed = parseTableText(el.pasteArea.value);
+        applyRows(parsed.rows, "окно вставки", parsed.meta);
+      } catch (err) {
+        setLoadStatus(err.message || String(err), "err");
+      }
+    });
+
+    el.fileInput.addEventListener("change", async () => {
+      const file = el.fileInput.files && el.fileInput.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        el.pasteArea.value = text;
+        const parsed = parseTableText(text);
+        applyRows(parsed.rows, file.name, parsed.meta);
+      } catch (err) {
+        setLoadStatus(err.message || String(err), "err");
+      }
+    });
+
+    el.btnDemo.addEventListener("click", () => {
+      if (!APP_CONFIG.demoEnabled) return;
+      const csv = demoCsv();
+      el.pasteArea.value = csv;
+      const parsed = parseTableText(csv);
+      applyRows(parsed.rows, "демо", parsed.meta);
+    });
+
+    el.btnClear.addEventListener("click", () => {
+      allRows = [];
+      el.pasteArea.value = "";
+      el.fileInput.value = "";
+      el.tbChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
+      el.gosbChecks.innerHTML = '<div class="empty">Загрузите данные</div>';
+      clearChart();
+      setLoadStatus("Данные очищены.", "");
+      setChartStatus("", "");
+    });
+
+    el.btnRebuild.addEventListener("click", rebuild);
+    el.sliceMode.addEventListener("change", rebuild);
+    el.binMode.addEventListener("change", () => {
+      syncBinModeUi();
+      rebuild();
+    });
+
+    ["binCount", "binMin", "binMax", "binWidth", "binOrigin"].forEach((id) => {
+      el[id].addEventListener("change", rebuild);
+      el[id].addEventListener("keydown", (e) => {
+        if (e.key === "Enter") rebuild();
+      });
+    });
+    el.binEdges.addEventListener("change", rebuild);
+
+    document.querySelectorAll("[data-check-all]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const group = btn.getAttribute("data-check-all");
+        const root = group === "tb" ? el.tbChecks : el.gosbChecks;
+        root.querySelectorAll("input").forEach((inp) => { inp.checked = true; });
+        rebuild();
+      });
+    });
+    document.querySelectorAll("[data-check-none]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const group = btn.getAttribute("data-check-none");
+        const root = group === "tb" ? el.tbChecks : el.gosbChecks;
+        root.querySelectorAll("input").forEach((inp) => { inp.checked = false; });
+        rebuild();
+      });
+    });
+
+    window.addEventListener("resize", () => {
+      if (allRows.length) rebuild();
+    });
+
+    // Инициализация
+    el.binCount.value = String(APP_CONFIG.defaultBinCount);
+    el.binMode.value = APP_CONFIG.defaultBinMode;
+    el.sliceMode.value = APP_CONFIG.defaultSliceMode;
+    syncBinModeUi();
+    clearChart();
+
+    // Экспорт функций для отладки / тестов в консоли
+    window.SumDistribution = {
+      normalizeAmount,
+      parseTableText,
+      buildBins,
+      computeHistogram,
+      APP_CONFIG
+    };
+  </script>
+</body>
+</html>
