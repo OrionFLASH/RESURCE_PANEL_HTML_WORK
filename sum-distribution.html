@@ -510,11 +510,21 @@
       width: 100%;
       min-width: 0;
     }
-    /* Два графика всегда друг под другом на всю ширину */
-    .charts-dual.is-side,
+    /* Два графика: «рядом» — две колонки; «друг под другом» — одна */
+    .charts-dual.is-side {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
     .charts-dual.is-stack {
       display: grid;
       grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 980px) {
+      .charts-dual.is-side {
+        grid-template-columns: 1fr;
+      }
     }
     .charts-dual > .chart-pane {
       min-width: 0;
@@ -1627,7 +1637,15 @@
       const chartType = opts.chartType || "bars";
       const si = opts.seriesIndex || 0;
       const bi = opts.binIndex || 0;
+      if (typeof opts.forcedColorIndex === "number") {
+        return comparePaletteColor(opts.forcedColorIndex);
+      }
       if (opts.compareMode || (opts.hist && isPeriodCompareHist(opts.hist))) {
+        // В наложении: цвет по периоду (A/B), а не по порядковому индексу пары
+        const name = opts.seriesName || (opts.hist && opts.hist.series && opts.hist.series[si] && opts.hist.series[si].name);
+        const code = periodCodeFromSeriesName(name);
+        if (code === "A") return comparePaletteColor(0);
+        if (code === "B") return comparePaletteColor(1);
         return comparePaletteColor(si);
       }
       if (layout === "bin") return seriesPaletteColor(si);
@@ -3547,9 +3565,43 @@
 
           if (split) {
             const layoutCmp = el.groupLayout.value === "slice" && slice !== "all" ? "slice" : "bin";
-            drawHistogram(histA, layoutCmp, rowsA, slice, { canvas: el.chartA, chartType, hitTarget: "a", clearPrimaryHits: true });
-            drawHistogram(histB, layoutCmp, rowsB, slice, { canvas: el.chartB, chartType, hitTarget: "b", clearPrimaryHits: false });
-            renderLegend(histA, layoutCmp, chartType);
+            // Общая шкала Y для честного сравнения «рядом» / «друг под другом»
+            let sharedMaxY = 1;
+            for (const h of [histA, histB]) {
+              for (const s of h.series || []) {
+                for (const c of s.counts || []) if (c > sharedMaxY) sharedMaxY = c;
+              }
+            }
+            const drawSplitCharts = () => {
+              if (el.chartsDual) void el.chartsDual.offsetWidth;
+              drawHistogram(histA, layoutCmp, rowsA, slice, {
+                canvas: el.chartA,
+                chartType,
+                hitTarget: "a",
+                clearPrimaryHits: true,
+                forcedColorIndex: 0,
+                forcedMaxY: sharedMaxY
+              });
+              drawHistogram(histB, layoutCmp, rowsB, slice, {
+                canvas: el.chartB,
+                chartType,
+                hitTarget: "b",
+                clearPrimaryHits: false,
+                forcedColorIndex: 1,
+                forcedMaxY: sharedMaxY
+              });
+            };
+            drawSplitCharts();
+            if (el.chartA && el.chartA.clientWidth < 40) {
+              requestAnimationFrame(drawSplitCharts);
+            }
+            if (chartType === "line" || layoutCmp === "bin") {
+              el.legend.innerHTML =
+                `<span><i style="background:${comparePaletteColor(0)}"></i>${escapeHtml(PERIOD_CUR.label)}</span>` +
+                `<span><i style="background:${comparePaletteColor(1)}"></i>${escapeHtml(PERIOD_PREV.label)}</span>`;
+            } else {
+              renderLegend(histA, layoutCmp, chartType);
+            }
             renderCompareStats(rowsA, rowsB, histA, histB, edges);
             renderFrequencyTableCompare(histA, histB, rowsA, rowsB, slice);
             lastChartState.layout = layoutCmp;
@@ -3698,8 +3750,9 @@
       const chartType = chartTypeRaw === "line" ? "line" : "bars";
       const hitTarget = opts.hitTarget || "primary";
       const dpr = window.devicePixelRatio || 1;
-      const cssW = canvas.clientWidth || 640;
-      const cssH = canvas.clientHeight || 400;
+      const parentW = canvas.parentElement ? canvas.parentElement.clientWidth : 0;
+      const cssW = Math.max(1, canvas.clientWidth || parentW || 640);
+      const cssH = Math.max(1, canvas.clientHeight || 400);
       canvas.width = Math.floor(cssW * dpr);
       canvas.height = Math.floor(cssH * dpr);
       const ctx = canvas.getContext("2d");
@@ -3715,14 +3768,47 @@
       const seriesN = Math.max(1, series.length);
       let maxY = 1;
       for (const s of series) for (const c of s.counts) if (c > maxY) maxY = c;
+      if (Number.isFinite(opts.forcedMaxY) && opts.forcedMaxY > 0) {
+        maxY = Math.max(maxY, opts.forcedMaxY);
+      }
 
       const edgesRef = hist.edges && hist.edges.length ? hist.edges : [];
       const compareOverlay = opts.compareOverlay || null;
+      const compareMode = !!(opts.compareOverlay || isPeriodCompareHist(hist));
       const binRowsForAxis = compareOverlay
         ? [].concat(compareOverlay.rowsA || [], compareOverlay.rowsB || [])
         : (rows || []);
       const binUniques = collectBinUniques(binRowsForAxis, edgesRef);
       const cellCache = new Map();
+
+      /** Пары Текущий/Прошлый по значению разреза — для линии в наложении. */
+      function buildLineCompareSliceGroups(seriesArr) {
+        const groups = [];
+        const seen = new Map();
+        for (let si = 0; si < seriesArr.length; si += 1) {
+          const name = seriesArr[si].name;
+          const code = periodCodeFromSeriesName(name);
+          const rest = code
+            ? String(name).replace(/^(Текущий|Прошлый|A|B)\s*·\s*/, "").trim()
+            : name;
+          const key = rest || name;
+          if (!seen.has(key)) {
+            seen.set(key, groups.length);
+            groups.push({ key, items: [] });
+          }
+          groups[seen.get(key)].items.push({
+            si,
+            name,
+            code,
+            counts: seriesArr[si].counts
+          });
+        }
+        return groups;
+      }
+
+      const lineCompareSliceGroups = (chartType === "line" && compareMode && layout === "slice")
+        ? buildLineCompareSliceGroups(series)
+        : null;
 
       function rowsForSeriesName(seriesName) {
         const name = String(seriesName || "");
@@ -3845,7 +3931,9 @@
         };
       }
 
-      const groupCount = layout === "slice" ? seriesN : binN;
+      const groupCount = layout === "slice"
+        ? (lineCompareSliceGroups ? lineCompareSliceGroups.length : seriesN)
+        : binN;
       const barsPerGroup = layout === "slice" ? binN : seriesN;
       let groupW = plotW / Math.max(1, groupCount);
 
@@ -3853,6 +3941,15 @@
       const axisPartsList = [];
       if (layout === "bin") {
         for (let bi = 0; bi < binN; bi += 1) axisPartsList.push(axisPartsForBin(bi));
+      } else if (lineCompareSliceGroups) {
+        for (const g of lineCompareSliceGroups) {
+          axisPartsList.push({
+            full: g.key,
+            primary: g.key,
+            compact: g.key,
+            secondary: ""
+          });
+        }
       } else {
         for (let si = 0; si < seriesN; si += 1) axisPartsList.push(axisPartsForSeries(si));
       }
@@ -4179,42 +4276,40 @@
 
       const lineW = Number(APP_CONFIG.chart.lineWidth) || 2.5;
       const pointR = Number(APP_CONFIG.chart.pointRadius) || 3.5;
-      const compareMode = !!(opts.compareOverlay || isPeriodCompareHist(hist));
       const barOverlap = !!opts.barOverlap && chartType === "bars" && layout === "bin";
       const overlapRatio = Math.max(0.15, Math.min(0.7, Number(APP_CONFIG.chart.barOverlapRatio) || 0.42));
       const overlapAlpha = Math.max(0.45, Math.min(0.9, Number(APP_CONFIG.chart.barOverlapAlpha) || 0.7));
 
-      function seriesColor(si, bi) {
+      function seriesColor(si, bi, seriesName) {
         return chartColor({
           layout,
           chartType,
           seriesIndex: si,
           binIndex: bi,
+          seriesName: seriesName || (series[si] && series[si].name),
           hist,
-          compareMode
+          compareMode,
+          forcedColorIndex: opts.forcedColorIndex
         });
       }
 
       function drawLineChart() {
-        // Точки в центрах групп/интервалов — форма распределения
-        const drawOne = (counts, color, seriesName) => {
+        /**
+         * Точки в центрах интервалов/групп.
+         * В сравнении на одном canvas: линии текущего и прошлого на общей оси X.
+         * Для «Значения» + сравнение — пары периодов в одной колонке значения разреза.
+         */
+        const drawOne = (counts, color, seriesName, x0, spanW, dash) => {
           const pts = [];
-          const nGroups = layout === "bin" ? binN : seriesN;
-          for (let gi = 0; gi < nGroups; gi += 1) {
-            let count = 0;
-            let bi = gi;
-            if (layout === "bin") {
-              count = counts[gi] || 0;
-              bi = gi;
-            } else {
-              count = counts[gi] || 0;
-              bi = gi;
-            }
-            const cx = pad.l + gi * groupW + groupW / 2;
+          const nPts = counts.length;
+          for (let i = 0; i < nPts; i += 1) {
+            const count = counts[i] || 0;
+            const cx = x0 + (i + 0.5) * (spanW / Math.max(1, nPts));
             const cy = pad.t + plotH - (count / maxY) * plotH;
-            pts.push({ cx, cy, count, bi });
-            const u = cellUniques(seriesName, bi);
-            registerHitBar(cx - 8, cy, 16, Math.max(pad.t + plotH - cy, 8), formatBarHoverTip(hist.labels[bi], seriesName, u));
+            pts.push({ cx, cy, count, bi: i });
+            const u = cellUniques(seriesName, layout === "bin" ? i : i);
+            const tipLabel = layout === "bin" ? hist.labels[i] : hist.labels[i];
+            registerHitBar(cx - 8, cy, 16, Math.max(pad.t + plotH - cy, 8), formatBarHoverTip(tipLabel, seriesName, u));
           }
           ctx.beginPath();
           pts.forEach((p, i) => {
@@ -4225,7 +4320,9 @@
           ctx.lineWidth = lineW;
           ctx.lineJoin = "round";
           ctx.lineCap = "round";
+          ctx.setLineDash(dash && dash.length ? dash : []);
           ctx.stroke();
+          ctx.setLineDash([]);
           for (const p of pts) {
             ctx.beginPath();
             ctx.arc(p.cx, p.cy, pointR, 0, Math.PI * 2);
@@ -4241,38 +4338,41 @@
         };
 
         if (layout === "bin") {
+          // Ось X = интервалы; все серии (в т.ч. Текущий/Прошлый) на одних X
           for (let si = 0; si < seriesN; si += 1) {
-            drawOne(series[si].counts, seriesColor(si, 0), series[si].name);
+            const name = series[si].name;
+            const code = periodCodeFromSeriesName(name);
+            const dash = code === "B" ? [6, 4] : [];
+            drawOne(series[si].counts, seriesColor(si, 0, name), name, pad.l, plotW, dash);
           }
           for (let bi = 0; bi < binN; bi += 1) {
             drawXLabel(axisPartsList[bi], pad.l + bi * groupW + groupW / 2, groupW);
           }
-        } else {
-          for (let si = 0; si < seriesN; si += 1) {
-            const color = seriesColor(si, 0);
-            const pts = [];
-            for (let bi = 0; bi < binN; bi += 1) {
-              const count = series[si].counts[bi] || 0;
-              const gx = pad.l + si * groupW + gap / 2;
-              const cx = gx + (bi + 0.5) * (innerW / Math.max(1, binN));
-              const cy = pad.t + plotH - (count / maxY) * plotH;
-              pts.push({ cx, cy, count, bi });
-              const u = cellUniques(series[si].name, bi);
-              registerHitBar(cx - 6, cy, 12, Math.max(8, pad.t + plotH - cy), formatBarHoverTip(hist.labels[bi], series[si].name, u));
+          return;
+        }
+
+        // layout === slice
+        if (lineCompareSliceGroups) {
+          const gN = Math.max(1, lineCompareSliceGroups.length);
+          const gW = plotW / gN;
+          lineCompareSliceGroups.forEach((g, gi) => {
+            const x0 = pad.l + gi * gW + gap / 2;
+            const span = Math.max(8, gW - gap);
+            for (const it of g.items) {
+              const dash = it.code === "B" ? [6, 4] : [];
+              drawOne(it.counts, seriesColor(it.si, 0, it.name), it.name, x0, span, dash);
             }
-            ctx.beginPath();
-            pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.cx, p.cy) : ctx.lineTo(p.cx, p.cy));
-            ctx.strokeStyle = color;
-            ctx.lineWidth = lineW;
-            ctx.stroke();
-            pts.forEach((p) => {
-              ctx.beginPath();
-              ctx.arc(p.cx, p.cy, pointR * 0.85, 0, Math.PI * 2);
-              ctx.fillStyle = color;
-              ctx.fill();
-            });
-            drawXLabel(axisPartsList[si], pad.l + si * groupW + groupW / 2, groupW);
-          }
+            drawXLabel(axisPartsList[gi], pad.l + gi * gW + gW / 2, gW);
+          });
+          return;
+        }
+
+        // Один период, разрез: мини-линия по интервалам внутри колонки значения
+        for (let si = 0; si < seriesN; si += 1) {
+          const color = seriesColor(si, 0, series[si].name);
+          const gx = pad.l + si * groupW + gap / 2;
+          drawOne(series[si].counts, color, series[si].name, gx, Math.max(8, innerW), []);
+          drawXLabel(axisPartsList[si], pad.l + si * groupW + groupW / 2, groupW);
         }
       }
 
@@ -4302,7 +4402,7 @@
               const h = (count / maxY) * plotH;
               const x = pairBase + (isPrev ? step : 0);
               const y = pad.t + plotH - h;
-              const color = seriesColor(si, bi);
+              const color = seriesColor(si, bi, series[si].name);
               fillBar(x, y, ovBarW, Math.max(h, 0), color, overlapAlpha);
               const u = cellUniques(series[si].name, bi);
               registerHitBar(
@@ -4330,7 +4430,7 @@
             const h = (count / maxY) * plotH;
             const x = gx + si * (barW + seriesGap);
             const y = pad.t + plotH - h;
-            const color = seriesColor(si, bi);
+            const color = seriesColor(si, bi, series[si].name);
             fillBar(x, y, barW, Math.max(h, 0), color);
             const u = cellUniques(series[si].name, bi);
             registerHitBar(
@@ -4351,7 +4451,7 @@
             const h = (count / maxY) * plotH;
             const x = gx + bi * (barW + seriesGap);
             const y = pad.t + plotH - h;
-            const color = seriesColor(si, bi);
+            const color = seriesColor(si, bi, series[si].name);
             fillBar(x, y, barW, Math.max(h, 0), color);
             const u = cellUniques(series[si].name, bi);
             registerHitBar(
@@ -4387,6 +4487,7 @@
             chartType: type,
             seriesIndex: i,
             binIndex: 0,
+            seriesName: s.name,
             hist,
             compareMode
           });
