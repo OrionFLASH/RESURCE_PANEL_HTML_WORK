@@ -733,7 +733,7 @@
       min-height: 1.2em;
     }
 
-    /* ТБ/ГОСБ — два столбца под блоками периодов */
+    /* ТБ/ГОСБ — преимущественно 3 колонки, адаптив по ширине */
     .filter-tree {
       height: min(280px, 32vh);
       max-height: min(280px, 32vh);
@@ -744,9 +744,14 @@
       background: rgba(255, 255, 255, 0.45);
       border: 1px solid var(--glass-white-border-light);
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 6px 16px;
       align-content: start;
+    }
+    @media (max-width: 1280px) {
+      .filter-tree {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
     .filter-tree > .empty {
       grid-column: 1 / -1;
@@ -809,6 +814,14 @@
       cursor: pointer;
       color: var(--glass-text);
       padding: 3px 2px;
+    }
+    .filter-tree__row span {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.25;
+      min-width: 0;
+      flex: 1 1 auto;
     }
     .filter-tree__row--tb {
       font-weight: 650;
@@ -937,6 +950,12 @@
       cursor: grab;
       z-index: 2;
     }
+    .edge-rail__thumb.is-selected-main {
+      border-color: #0a84ff;
+      box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.24), 0 6px 16px rgba(10, 132, 255, 0.34);
+      transform: scale(1.06);
+      z-index: 4;
+    }
     .edge-rail__thumb:active { cursor: grabbing; transform: scale(1.06); }
     .edge-rail__thumb.is-fixed {
       border-color: rgba(29,29,31,0.35);
@@ -948,36 +967,55 @@
       margin: -7px 0 0 -7px;
       z-index: 1;
     }
-    /* Номер группы над бегунком (верхняя граница группы N) */
+    /* Номер группы внутри бегунка (верхняя граница группы N) */
     .edge-rail__badge {
       position: absolute;
       left: 50%;
-      bottom: calc(100% + 5px);
-      transform: translateX(-50%);
-      min-width: 16px;
-      height: 16px;
-      padding: 0 4px;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      min-width: 12px;
+      height: 12px;
+      padding: 0 2px;
       border-radius: 999px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 10px;
+      font-size: 8px;
       font-weight: 700;
       font-variant-numeric: tabular-nums;
       line-height: 1;
       color: #fff;
       background: linear-gradient(145deg, #0a84ff, #5e5ce6);
-      box-shadow: 0 2px 6px rgba(10, 132, 255, 0.35);
+      box-shadow: 0 1px 3px rgba(10, 132, 255, 0.32);
       pointer-events: none;
       white-space: nowrap;
     }
     .edge-rail__thumb.is-fixed .edge-rail__badge {
       background: linear-gradient(145deg, #8e8e93, #636366);
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-      min-width: 14px;
-      height: 14px;
-      font-size: 9px;
-      bottom: calc(100% + 4px);
+      min-width: 10px;
+      height: 10px;
+      font-size: 7px;
+    }
+    /* Текущее значение выбранной границы под основным бегунком */
+    .edge-rail__current {
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 8px);
+      transform: translateX(-50%);
+      min-width: 48px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      line-height: 1.2;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #0056b3;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(0, 122, 255, 0.28);
+      box-shadow: 0 1px 4px rgba(0, 122, 255, 0.14);
+      white-space: nowrap;
+      pointer-events: none;
     }
     .edge-values {
       display: grid;
@@ -1023,7 +1061,7 @@
       opacity: 0.85;
       background: rgba(242, 242, 247, 0.9);
     }
-    /* Увеличенная «лупа» для тонкой настройки, когда бегунки слишком близко */
+    /* Тонкая настройка выбранной границы (мини-шкала в стиле основной) */
     .edge-fine {
       margin-top: 8px;
       padding: 8px 10px;
@@ -1038,21 +1076,105 @@
     }
     .edge-fine__head {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 8px;
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       font-weight: 600;
       color: var(--glass-text-secondary);
+    }
+    .edge-fine__left {
+      display: grid;
+      gap: 2px;
     }
     .edge-fine__title {
       color: var(--glass-text);
       font-weight: 700;
     }
-    .edge-fine__range {
+    .edge-fine__switch {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      max-width: 60%;
+    }
+    .edge-fine__chip {
+      border: 1px solid rgba(0, 122, 255, 0.28);
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--glass-text);
+      border-radius: 999px;
+      font-size: 0.7rem;
+      line-height: 1;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .edge-fine__chip.is-active {
+      background: rgba(0, 122, 255, 0.18);
+      border-color: rgba(0, 122, 255, 0.45);
+      color: #0056b3;
+    }
+    .edge-fine__chip.is-crowded::after {
+      content: " •";
+      color: #ff9500;
+    }
+    .edge-fine__rail {
+      position: relative;
       width: 100%;
-      accent-color: var(--glass-blue);
-      cursor: ew-resize;
+      height: 36px;
+      user-select: none;
+      touch-action: none;
+      margin-top: 2px;
+    }
+    .edge-fine__track {
+      position: absolute;
+      left: 0; right: 0; top: 50%;
+      height: 8px;
+      margin-top: -4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(0,122,255,0.18), rgba(88,86,214,0.22));
+      border: 1px solid rgba(255,255,255,0.65);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .edge-fine__fill {
+      position: absolute;
+      top: 0; bottom: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--glass-blue), var(--glass-purple));
+      opacity: 0.55;
+    }
+    .edge-fine__thumb {
+      position: absolute;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      margin: -9px 0 0 -9px;
+      border-radius: 50%;
+      border: 2px solid rgba(29, 29, 31, 0.35);
+      background: #f2f2f7;
+      box-shadow: none;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .edge-fine__thumb.is-selected {
+      width: 22px;
+      height: 22px;
+      margin: -11px 0 0 -11px;
+      border-color: var(--glass-blue);
+      background: #fff;
+      box-shadow: 0 4px 14px rgba(0, 122, 255, 0.28);
+      cursor: grab;
+      pointer-events: auto;
+      z-index: 3;
+    }
+    .edge-fine__thumb.is-selected:active {
+      cursor: grabbing;
+      transform: scale(1.05);
+    }
+    .edge-fine__hint {
+      font-size: 0.71rem;
+      color: var(--glass-text-secondary);
+      margin-top: 1px;
     }
     .edge-fine__meta {
       display: flex;
@@ -3309,10 +3431,92 @@
       edgeState.fineIndex = idx;
     }
 
+    function getMovableEdgeIndices() {
+      const out = [];
+      for (let i = 1; i < edgeState.edges.length - 1; i += 1) out.push(i);
+      return out;
+    }
+
+    function ensureFineIndex() {
+      if (edgeState.fineIndex > 0 && edgeState.fineIndex < edgeState.edges.length - 1) return;
+      const movable = getMovableEdgeIndices();
+      edgeState.fineIndex = movable.length ? movable[0] : -1;
+    }
+
+    function finePctForValue(v, left, right) {
+      const span = right - left || 1;
+      return ((v - left) / span) * 100;
+    }
+
+    function applyEdgeValueLive(idx, rawVal) {
+      if (idx <= 0 || idx >= edgeState.edges.length - 1) return;
+      let val = typeof rawVal === "number" ? rawVal : parseEdgeInt(rawVal);
+      if (!Number.isFinite(val)) return;
+      val = toIntegerEdge(val);
+      const left = edgeState.edges[idx - 1];
+      const right = edgeState.edges[idx + 1];
+      if (val < left) val = left;
+      if (val > right) val = right;
+      edgeState.edges[idx] = val;
+      edgeState.edges = cascadeEdges(edgeState.edges, idx);
+      setFineIndex(idx);
+      syncEdgeUiFromState();
+      rebuild();
+    }
+
+    function onFineThumbPointerDown(ev) {
+      ev.preventDefault();
+      const idx = Number(ev.currentTarget.dataset.fineSelectedIndex);
+      if (!Number.isFinite(idx)) return;
+      setFineIndex(idx);
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+      const move = (e) => {
+        const track = el.edgeFineTune.querySelector(".edge-fine__track");
+        if (!track) return;
+        const rect = track.getBoundingClientRect();
+        let pct = ((e.clientX - rect.left) / rect.width) * 100;
+        pct = Math.max(0, Math.min(100, pct));
+        const left = edgeState.edges[idx - 1];
+        const right = edgeState.edges[idx + 1];
+        const span = right - left || 1;
+        const val = toIntegerEdge(left + (pct / 100) * span);
+        applyEdgeValueLive(idx, val);
+      };
+      const up = (e) => {
+        try { ev.currentTarget.releasePointerCapture(e.pointerId); } catch (_e) { /* ignore */ }
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        renderFineTuneRail();
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    }
+
+    function updateFineTuneUiFromState() {
+      if (!el.edgeFineTune || el.edgeFineTune.classList.contains("hidden")) return;
+      const idx = edgeState.fineIndex;
+      if (idx <= 0 || idx >= edgeState.edges.length - 1) return;
+      const left = edgeState.edges[idx - 1];
+      const right = edgeState.edges[idx + 1];
+      const cur = edgeState.edges[idx];
+      const sel = el.edgeFineTune.querySelector(".edge-fine__thumb.is-selected");
+      if (sel) sel.style.left = finePctForValue(cur, left, right) + "%";
+      const valNode = el.edgeFineTune.querySelector('[data-fine-current-val="1"]');
+      if (valNode) valNode.textContent = formatEdgeInt(cur);
+      const rangeNode = el.edgeFineTune.querySelector('[data-fine-range="1"]');
+      if (rangeNode) rangeNode.textContent = `${formatEdgeInt(left)}…${formatEdgeInt(right)}`;
+      const allChips = el.edgeFineTune.querySelectorAll(".edge-fine__chip");
+      allChips.forEach((chip) => {
+        const ci = Number(chip.dataset.fineIndex);
+        chip.classList.toggle("is-active", ci === idx);
+      });
+    }
+
     function renderFineTuneRail() {
       if (!el.edgeFineTune) return;
+      ensureFineIndex();
       const idx = edgeState.fineIndex;
-      if (!edgeState.edges.length || idx <= 0 || idx >= edgeState.edges.length - 1 || !isEdgeCrowded(idx)) {
+      if (!edgeState.edges.length || idx <= 0 || idx >= edgeState.edges.length - 1) {
         el.edgeFineTune.classList.add("hidden");
         el.edgeFineTune.innerHTML = "";
         return;
@@ -3320,24 +3524,62 @@
       const left = edgeState.edges[idx - 1];
       const cur = edgeState.edges[idx];
       const right = edgeState.edges[idx + 1];
+      const leftIdx = idx - 1;
+      const rightIdx = idx + 1;
+      const leftLabel = leftIdx === 0 ? "мин" : ("гр. " + leftIdx);
+      const rightLabel = rightIdx === edgeState.edges.length - 1 ? "макс" : ("гр. " + rightIdx);
+      const leftOuter = leftIdx > 0 ? ` · мин ${formatEdgeInt(edgeState.edges[0])}` : "";
+      const rightOuter = rightIdx < edgeState.edges.length - 1 ? ` · макс ${formatEdgeInt(edgeState.edges[edgeState.edges.length - 1])}` : "";
+      const chips = getMovableEdgeIndices().map((i) => {
+        const cls = [
+          "edge-fine__chip",
+          i === idx ? "is-active" : "",
+          isEdgeCrowded(i) ? "is-crowded" : ""
+        ].filter(Boolean).join(" ");
+        return `<button type="button" class="${cls}" data-fine-index="${i}">Граница ${i}</button>`;
+      }).join("");
+      const selectedPct = finePctForValue(cur, left, right);
       const html =
         `<div class="edge-fine__head">` +
-          `<span class="edge-fine__title">Точная настройка · Граница группы ${idx}</span>` +
-          `<span>диапазон ${formatEdgeInt(left)}…${formatEdgeInt(right)}</span>` +
+          `<div class="edge-fine__left">` +
+            `<span class="edge-fine__title">Точная настройка · Граница группы ${idx}</span>` +
+            `<span class="edge-fine__hint">диапазон <span data-fine-range="1">${formatEdgeInt(left)}…${formatEdgeInt(right)}</span></span>` +
+          `</div>` +
+          `<div class="edge-fine__switch">${chips}</div>` +
         `</div>` +
-        `<input class="edge-fine__range" type="range" min="${left}" max="${right}" step="1" value="${cur}" data-fine-edge-index="${idx}" aria-label="Точная настройка границы группы ${idx}">` +
-        `<div class="edge-fine__meta"><span>слева: ${formatEdgeInt(left)}</span><span>текущее: ${formatEdgeInt(cur)}</span><span>справа: ${formatEdgeInt(right)}</span></div>`;
+        `<div class="edge-fine__rail">` +
+          `<div class="edge-fine__track">` +
+            `<div class="edge-fine__fill" style="left:0%;width:100%;"></div>` +
+          `</div>` +
+          `<div class="edge-fine__thumb" style="left:0%;" title="${leftLabel}: ${formatEdgeInt(left)}"></div>` +
+          `<div class="edge-fine__thumb is-selected" style="left:${selectedPct}%;" data-fine-selected-index="${idx}" title="Граница ${idx}: ${formatEdgeInt(cur)}"></div>` +
+          `<div class="edge-fine__thumb" style="left:100%;" title="${rightLabel}: ${formatEdgeInt(right)}"></div>` +
+        `</div>` +
+        `<div class="edge-fine__meta"><span>${leftLabel}: ${formatEdgeInt(left)}${leftOuter}</span><span>текущее: <span data-fine-current-val="1">${formatEdgeInt(cur)}</span></span><span>${rightLabel}: ${formatEdgeInt(right)}${rightOuter}</span></div>`;
       el.edgeFineTune.innerHTML = html;
       el.edgeFineTune.classList.remove("hidden");
-      const slider = el.edgeFineTune.querySelector("input[data-fine-edge-index]");
-      if (slider) {
-        slider.addEventListener("input", (ev) => {
-          const i = Number(ev.currentTarget.dataset.fineEdgeIndex);
-          const nextVal = Number(ev.currentTarget.value);
-          applyEdgeValue(i, nextVal);
-          setFineIndex(i);
+      const selectedThumb = el.edgeFineTune.querySelector(".edge-fine__thumb.is-selected");
+      if (selectedThumb) selectedThumb.addEventListener("pointerdown", onFineThumbPointerDown);
+      const track = el.edgeFineTune.querySelector(".edge-fine__track");
+      if (track) {
+        track.addEventListener("pointerdown", (ev) => {
+          const rect = track.getBoundingClientRect();
+          let pct = ((ev.clientX - rect.left) / rect.width) * 100;
+          pct = Math.max(0, Math.min(100, pct));
+          const span = right - left || 1;
+          const val = toIntegerEdge(left + (pct / 100) * span);
+          applyEdgeValueLive(idx, val);
+          renderFineTuneRail();
         });
       }
+      el.edgeFineTune.querySelectorAll(".edge-fine__chip").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const next = Number(btn.dataset.fineIndex);
+          if (!Number.isFinite(next)) return;
+          setFineIndex(next);
+          renderFineTuneRail();
+        });
+      });
     }
 
     function pctToValue(pct) {
@@ -3454,7 +3696,8 @@
       edges.forEach((val, idx) => {
         const isFixed = idx === 0 || idx === edges.length - 1;
         const thumb = document.createElement("div");
-        thumb.className = "edge-rail__thumb" + (isFixed ? " is-fixed" : "");
+        thumb.className = "edge-rail__thumb" + (isFixed ? " is-fixed" : "") +
+          ((!isFixed && idx === edgeState.fineIndex) ? " is-selected-main" : "");
         thumb.style.left = valueToPct(val) + "%";
         thumb.dataset.index = String(idx);
         // Номер группы только на подвижных бегунках (не на мин и не на макс)
@@ -3466,6 +3709,13 @@
           badge.textContent = String(groupNum);
           badge.setAttribute("aria-hidden", "true");
           thumb.appendChild(badge);
+        }
+        if (idx === edgeState.fineIndex && !isFixed) {
+          const current = document.createElement("span");
+          current.className = "edge-rail__current";
+          current.dataset.currentIndex = String(idx);
+          current.textContent = formatEdgeInt(val);
+          thumb.appendChild(current);
         }
         thumb.title = (groupNum > 0 ? ("Группа " + groupNum + ": ") : "") + formatAmount(val);
         thumb.setAttribute("aria-label", groupNum > 0
@@ -3539,6 +3789,8 @@
         thumb.style.left = valueToPct(edgeState.edges[idx]) + "%";
         const groupNum = (idx > 0 && idx < edgeState.edges.length - 1) ? idx : 0;
         thumb.title = (groupNum > 0 ? ("Группа " + groupNum + ": ") : "") + formatAmount(edgeState.edges[idx]);
+        const current = thumb.querySelector(".edge-rail__current");
+        if (current) current.textContent = formatEdgeInt(edgeState.edges[idx]);
       });
       el.edgeValues.querySelectorAll("input[data-edge-index]").forEach((input) => {
         const idx = Number(input.dataset.edgeIndex);
@@ -3547,7 +3799,7 @@
         input.value = formatEdgeInt(edgeState.edges[idx]);
       });
       updateEdgeSegmentLabels();
-      renderFineTuneRail();
+      updateFineTuneUiFromState();
     }
 
     function applyEdgeValue(idx, rawVal) {

@@ -45,14 +45,17 @@
 - [v] Убран нижний статусный блок графика
 - [v] Порядок периодов в наложении: прошлый слева, текущий справа; уменьшено перекрытие столбиков
 - [v] Тонкая настройка близких границ: дополнительная увеличенная шкала (авто-показ)
+- [v] Тонкая настройка всегда доступна для выбранной границы + переключение между границами
+- [v] На основной шкале: номер группы внутри бегунка, активный бегунок выделен, под ним показ текущего значения
+- [v] Дерево ТБ/ГОСБ: 3 колонки (адаптив 2/1), длинные названия переносятся
 
 ## Модули (внутри sum-distribution.html)
 
 - `#app-config` (JSON в `<head>`) — все изменяемые параметры страницы
 - `parseTableText` / `findColumnIndex` — разбор и алиасы
 - `normalizeEmpId` / `aggregateByTn` — нормализация ТН и SUM
-- `activeRowsPool` / `buildFilterUniverse` / `mergeUniverseIntoSelections` / `expandSelectionOnCheck` / `pruneOrphansAfterUncheck` / `applyBulkFilterSelection` / `rebuildFilterOptions` / `filteredRows` — каскад фильтров
-- `integerBounds` / `buildBins` / `equalCountEdges` / `ladderCountEdges` / multi-thumb `edgeRail` / `formatEdgeInt` / `parseEdgeInt` / `renderFineTuneRail` — целые границы и тонкая настройка (UI под графиком)
+- `activeRowsPool` / `buildFilterUniverse` / `mergeUniverseIntoSelections` / `expandSelectionOnCheck` / `pruneOrphansAfterUncheck` / `applyBulkFilterSelection` / `rebuildFilterOptions` / `filteredRows` / CSS grid `filter-tree` — каскад фильтров и layout дерева
+- `integerBounds` / `buildBins` / `equalCountEdges` / `ladderCountEdges` / multi-thumb `edgeRail` / `formatEdgeInt` / `parseEdgeInt` / `renderFineTuneRail` / `updateFineTuneUiFromState` — целые границы и тонкая настройка (UI под графиком)
 - `formatAmount` / `formatAmountExact` — суммы с разрядами; точные мин/макс в статистике
 - `computeHistogram` / `buildPeriodOverlayHist` / `drawHistogram` (bars/line, barOverlap) / сравнение overlay|overlap|side|stack / `syncChartModeConstraints` / сегменты `chartTypeSeg`/`groupLayoutSeg` / `chartHitBars*` / `renderFrequencyTable` / `renderCompareStats`
 - `renderFileOverview` — карточки статистики загруженного файла
