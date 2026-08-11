@@ -36,7 +36,7 @@
     "maxLegendItems": 24,
     "lineWidth": 2.5,
     "pointRadius": 3.5,
-    "barOverlapRatio": 0.42,
+    "barOverlapRatio": 0.28,
     "barOverlapAlpha": 0.7
   },
   "compareColors": ["#007AFF", "#FF9500"],
@@ -1023,6 +1023,45 @@
       opacity: 0.85;
       background: rgba(242, 242, 247, 0.9);
     }
+    /* Увеличенная «лупа» для тонкой настройки, когда бегунки слишком близко */
+    .edge-fine {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 122, 255, 0.22);
+      background: rgba(0, 122, 255, 0.08);
+      display: grid;
+      gap: 6px;
+    }
+    .edge-fine.hidden {
+      display: none;
+    }
+    .edge-fine__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--glass-text-secondary);
+    }
+    .edge-fine__title {
+      color: var(--glass-text);
+      font-weight: 700;
+    }
+    .edge-fine__range {
+      width: 100%;
+      accent-color: var(--glass-blue);
+      cursor: ew-resize;
+    }
+    .edge-fine__meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.74rem;
+      color: var(--glass-text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
 
     .export-panel {
       margin-top: 14px;
@@ -1430,6 +1469,7 @@
             <p class="hint">Интервалы общие. «Равно» и «Лесенка» считают границы по текущему периоду; у прошлого — своё попадание в те же интервалы.</p>
             <div class="edge-rail-wrap">
               <div id="edgeRail" class="edge-rail" aria-label="Шкала границ интервалов"></div>
+              <div id="edgeFineTune" class="edge-fine hidden" aria-live="polite"></div>
               <div id="edgeValues" class="edge-values"></div>
             </div>
           </div>
@@ -1522,7 +1562,9 @@
       max: 1,
       /** @type {number[]} полные рёбра включая min/max */
       edges: [],
-      dragIndex: -1
+      dragIndex: -1,
+      /** Индекс активной подвижной границы для увеличенной тонкой настройки */
+      fineIndex: -1
     };
 
     /** Последний расчёт для экспорта */
@@ -1572,6 +1614,7 @@
       btnEvenWidthEdges: document.getElementById("btnEvenWidthEdges"),
       binCustomRow: document.getElementById("binCustomRow"),
       edgeRail: document.getElementById("edgeRail"),
+      edgeFineTune: document.getElementById("edgeFineTune"),
       edgeValues: document.getElementById("edgeValues"),
       chart: document.getElementById("chart"),
       legend: document.getElementById("legend"),
@@ -3240,6 +3283,63 @@
       return ((v - edgeState.min) / span) * 100;
     }
 
+    function edgePxAtIndex(idx) {
+      if (!el.edgeRail || !edgeState.edges.length) return 0;
+      const w = el.edgeRail.clientWidth || 1;
+      return (valueToPct(edgeState.edges[idx]) / 100) * w;
+    }
+
+    /** Считать границу «близкой» по пикселям на текущей шкале. */
+    function isEdgeCrowded(idx) {
+      if (idx <= 0 || idx >= edgeState.edges.length - 1) return false;
+      const leftGap = Math.abs(edgePxAtIndex(idx) - edgePxAtIndex(idx - 1));
+      const rightGap = Math.abs(edgePxAtIndex(idx + 1) - edgePxAtIndex(idx));
+      return leftGap < 26 || rightGap < 26;
+    }
+
+    function setFineIndex(idx) {
+      if (!Number.isFinite(idx)) {
+        edgeState.fineIndex = -1;
+        return;
+      }
+      if (idx <= 0 || idx >= edgeState.edges.length - 1) {
+        edgeState.fineIndex = -1;
+        return;
+      }
+      edgeState.fineIndex = idx;
+    }
+
+    function renderFineTuneRail() {
+      if (!el.edgeFineTune) return;
+      const idx = edgeState.fineIndex;
+      if (!edgeState.edges.length || idx <= 0 || idx >= edgeState.edges.length - 1 || !isEdgeCrowded(idx)) {
+        el.edgeFineTune.classList.add("hidden");
+        el.edgeFineTune.innerHTML = "";
+        return;
+      }
+      const left = edgeState.edges[idx - 1];
+      const cur = edgeState.edges[idx];
+      const right = edgeState.edges[idx + 1];
+      const html =
+        `<div class="edge-fine__head">` +
+          `<span class="edge-fine__title">Точная настройка · Граница группы ${idx}</span>` +
+          `<span>диапазон ${formatEdgeInt(left)}…${formatEdgeInt(right)}</span>` +
+        `</div>` +
+        `<input class="edge-fine__range" type="range" min="${left}" max="${right}" step="1" value="${cur}" data-fine-edge-index="${idx}" aria-label="Точная настройка границы группы ${idx}">` +
+        `<div class="edge-fine__meta"><span>слева: ${formatEdgeInt(left)}</span><span>текущее: ${formatEdgeInt(cur)}</span><span>справа: ${formatEdgeInt(right)}</span></div>`;
+      el.edgeFineTune.innerHTML = html;
+      el.edgeFineTune.classList.remove("hidden");
+      const slider = el.edgeFineTune.querySelector("input[data-fine-edge-index]");
+      if (slider) {
+        slider.addEventListener("input", (ev) => {
+          const i = Number(ev.currentTarget.dataset.fineEdgeIndex);
+          const nextVal = Number(ev.currentTarget.value);
+          applyEdgeValue(i, nextVal);
+          setFineIndex(i);
+        });
+      }
+    }
+
     function pctToValue(pct) {
       const span = edgeState.max - edgeState.min || 1;
       return edgeState.min + (pct / 100) * span;
@@ -3324,6 +3424,10 @@
       const edges = edgeState.edges;
       if (!edges.length) {
         el.edgeRail.innerHTML = "";
+        if (el.edgeFineTune) {
+          el.edgeFineTune.innerHTML = "";
+          el.edgeFineTune.classList.add("hidden");
+        }
         el.edgeValues.innerHTML = "";
         el.edgeValues.style.removeProperty("--edge-count");
         return;
@@ -3368,7 +3472,10 @@
           ? ("Граница группы " + groupNum + ", " + formatAmount(val))
           : (isMax ? ("Максимум " + formatAmount(val)) : ("Минимум " + formatAmount(val))));
         if (!isFixed) {
-          thumb.addEventListener("pointerdown", onThumbPointerDown);
+          thumb.addEventListener("pointerdown", (ev) => {
+            setFineIndex(idx);
+            onThumbPointerDown(ev);
+          });
         }
         el.edgeRail.appendChild(thumb);
       });
@@ -3393,6 +3500,10 @@
         input.disabled = isFixed;
         input.setAttribute("aria-label", tag);
         if (!isFixed) {
+          input.addEventListener("focus", () => {
+            setFineIndex(i);
+            renderFineTuneRail();
+          });
           input.addEventListener("change", onEdgeInputChange);
           input.addEventListener("keydown", (ev) => {
             if (ev.key === "Enter") {
@@ -3417,6 +3528,7 @@
           } catch (_e) { /* ignore */ }
         }
       }
+      renderFineTuneRail();
     }
 
     function syncEdgeUiFromState() {
@@ -3435,6 +3547,7 @@
         input.value = formatEdgeInt(edgeState.edges[idx]);
       });
       updateEdgeSegmentLabels();
+      renderFineTuneRail();
     }
 
     function applyEdgeValue(idx, rawVal) {
@@ -3451,6 +3564,7 @@
       if (val > right) val = right;
       edgeState.edges[idx] = val;
       edgeState.edges = cascadeEdges(edgeState.edges, idx);
+      setFineIndex(idx);
       renderEdgeRail();
       rebuild();
     }
@@ -3464,6 +3578,7 @@
       ev.preventDefault();
       const idx = Number(ev.currentTarget.dataset.index);
       edgeState.dragIndex = idx;
+      setFineIndex(idx);
       ev.currentTarget.setPointerCapture(ev.pointerId);
       const move = (e) => {
         const rect = el.edgeRail.getBoundingClientRect();
@@ -3476,6 +3591,7 @@
         if (val > right) val = right;
         edgeState.edges[idx] = val;
         edgeState.edges = cascadeEdges(edgeState.edges, idx);
+        setFineIndex(idx);
         syncEdgeUiFromState();
         rebuild();
       };
@@ -3663,8 +3779,9 @@
 
     /**
      * Наложение текущего/прошлого на общие интервалы.
-     * slice=all → две серии «Текущий · файл» / «Прошлый · файл».
-     * slice=tb|cluster → пары «Текущий · значение» / «Прошлый · значение».
+     * Порядок серий: сначала прошлый (слева), затем текущий (справа).
+     * slice=all → две серии «Прошлый · файл» / «Текущий · файл».
+     * slice=tb|cluster → пары «Прошлый · значение» / «Текущий · значение».
      */
     function buildPeriodOverlayHist(histA, histB, nameA, nameB, sliceMode) {
       const labels = histA.labels.slice();
@@ -3682,8 +3799,8 @@
       let series;
       if (!sliceMode || sliceMode === "all") {
         series = [
-          { name: PERIOD_CUR.prefix + (nameA || PERIOD_CUR.label), counts: sumAll(histA) },
-          { name: PERIOD_PREV.prefix + (nameB || PERIOD_PREV.label), counts: sumAll(histB) }
+          { name: PERIOD_PREV.prefix + (nameB || PERIOD_PREV.label), counts: sumAll(histB) },
+          { name: PERIOD_CUR.prefix + (nameA || PERIOD_CUR.label), counts: sumAll(histA) }
         ];
       } else {
         const nameSet = new Set();
@@ -3692,13 +3809,13 @@
         const names = [...nameSet].sort((a, b) => a.localeCompare(b, "ru"));
         series = [];
         for (const nm of names) {
-          series.push({ name: PERIOD_CUR.prefix + nm, counts: countsOf(histA, nm) });
           series.push({ name: PERIOD_PREV.prefix + nm, counts: countsOf(histB, nm) });
+          series.push({ name: PERIOD_CUR.prefix + nm, counts: countsOf(histA, nm) });
         }
         if (!series.length) {
           series = [
-            { name: PERIOD_CUR.prefix + (nameA || PERIOD_CUR.label), counts: zeros() },
-            { name: PERIOD_PREV.prefix + (nameB || PERIOD_PREV.label), counts: zeros() }
+            { name: PERIOD_PREV.prefix + (nameB || PERIOD_PREV.label), counts: zeros() },
+            { name: PERIOD_CUR.prefix + (nameA || PERIOD_CUR.label), counts: zeros() }
           ];
         }
       }
@@ -4277,7 +4394,7 @@
       const lineW = Number(APP_CONFIG.chart.lineWidth) || 2.5;
       const pointR = Number(APP_CONFIG.chart.pointRadius) || 3.5;
       const barOverlap = !!opts.barOverlap && chartType === "bars" && layout === "bin";
-      const overlapRatio = Math.max(0.15, Math.min(0.7, Number(APP_CONFIG.chart.barOverlapRatio) || 0.42));
+      const overlapRatio = Math.max(0.15, Math.min(0.7, Number(APP_CONFIG.chart.barOverlapRatio) || 0.28));
       const overlapAlpha = Math.max(0.45, Math.min(0.9, Number(APP_CONFIG.chart.barOverlapAlpha) || 0.7));
 
       function seriesColor(si, bi, seriesName) {
@@ -4377,8 +4494,8 @@
       }
 
       /**
-       * Столбики текущего и прошлого слегка наезжают друг на друга;
-       * полупрозрачная заливка + контур — зона перекрытия читается как смесь цветов.
+       * Столбики прошлого (слева) и текущего (справа) слегка наезжают друг на друга;
+       * полупрозрачная заливка — зона перекрытия читается как смесь цветов.
        */
       function drawOverlappingBars() {
         const pairCount = Math.ceil(seriesN / 2);
@@ -4391,16 +4508,17 @@
           const gx = pad.l + bi * groupW + gap / 2;
           for (let pi = 0; pi < pairCount; pi += 1) {
             const pairBase = gx + pi * (pairSlot + pairGap) + Math.max(0, (pairSlot - (ovBarW + step)) / 2);
-            const siCur = 2 * pi;
-            const siPrev = 2 * pi + 1;
-            // Сначала прошлый (правее), затем текущий сверху — перекрытие видно
+            // Порядок серий в overlayHist: прошлый, текущий
+            const siPrev = 2 * pi;
+            const siCur = 2 * pi + 1;
+            // Сначала прошлый (слева / сзади), затем текущий справа сверху
             const drawOrder = [siPrev, siCur].filter((si) => si < seriesN);
             for (const si of drawOrder) {
               const code = periodCodeFromSeriesName(series[si].name);
-              const isPrev = code === "B" || (code == null && (si % 2) === 1);
+              const isPrev = code === "B" || (code == null && (si % 2) === 0);
               const count = series[si].counts[bi] || 0;
               const h = (count / maxY) * plotH;
-              const x = pairBase + (isPrev ? step : 0);
+              const x = pairBase + (isPrev ? 0 : step);
               const y = pad.t + plotH - h;
               const color = seriesColor(si, bi, series[si].name);
               fillBar(x, y, ovBarW, Math.max(h, 0), color, overlapAlpha);

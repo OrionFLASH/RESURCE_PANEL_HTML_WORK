@@ -43,6 +43,8 @@
 - [v] Поля границ под шкалой: равные колонки, целые с разделителем разрядов
 - [v] Экспорт в сравнении включает оба периода; панель скачивания внизу с иконками
 - [v] Убран нижний статусный блок графика
+- [v] Порядок периодов в наложении: прошлый слева, текущий справа; уменьшено перекрытие столбиков
+- [v] Тонкая настройка близких границ: дополнительная увеличенная шкала (авто-показ)
 
 ## Модули (внутри sum-distribution.html)
 
@@ -50,7 +52,7 @@
 - `parseTableText` / `findColumnIndex` — разбор и алиасы
 - `normalizeEmpId` / `aggregateByTn` — нормализация ТН и SUM
 - `activeRowsPool` / `buildFilterUniverse` / `mergeUniverseIntoSelections` / `expandSelectionOnCheck` / `pruneOrphansAfterUncheck` / `applyBulkFilterSelection` / `rebuildFilterOptions` / `filteredRows` — каскад фильтров
-- `integerBounds` / `buildBins` / `equalCountEdges` / `ladderCountEdges` / multi-thumb `edgeRail` / `formatEdgeInt` / `parseEdgeInt` — целые границы (UI под графиком)
+- `integerBounds` / `buildBins` / `equalCountEdges` / `ladderCountEdges` / multi-thumb `edgeRail` / `formatEdgeInt` / `parseEdgeInt` / `renderFineTuneRail` — целые границы и тонкая настройка (UI под графиком)
 - `formatAmount` / `formatAmountExact` — суммы с разрядами; точные мин/макс в статистике
 - `computeHistogram` / `buildPeriodOverlayHist` / `drawHistogram` (bars/line, barOverlap) / сравнение overlay|overlap|side|stack / `syncChartModeConstraints` / сегменты `chartTypeSeg`/`groupLayoutSeg` / `chartHitBars*` / `renderFrequencyTable` / `renderCompareStats`
 - `renderFileOverview` — карточки статистики загруженного файла
@@ -63,6 +65,8 @@
 2. Сгенерировать демо: `python3 tools/build_sum_demo_csv_20k.py` и `python3 tools/build_sum_demo_csv_21k.py`.
 3. Один период: загрузить 20k → панель файла, виды гистограмма / линия; разрез ТБ или кластер.
 4. Вкладка «Сравнение»: текущий=20k, прошлый=21k → наложение / наложение с перекрытием / рядом / друг под другом; общие ползунки и фильтры; в фильтрах видны ГОСБ/ТБ/кластеры из обоих файлов.
-5. «Выбрать всё» / «Снять всё» — синхронно ТБ, ГОСБ и кластеры; порядок списков не прыгает.
-6. Таблица интервалов; экспорт (в сравнении — оба периода); кнопки границ (считают по текущему периоду).
-7. `node src/Tests/test_histogram_bins.js`
+5. Для overlay проверить порядок периодов: прошлый слева, текущий справа; в режиме перекрытия столбики перекрываются мягче.
+6. Сдвинуть близкие бегунки: появляется блок «Точная настройка», изменения синхронны с основной шкалой.
+7. «Выбрать всё» / «Снять всё» — синхронно ТБ, ГОСБ и кластеры; порядок списков не прыгает.
+8. Таблица интервалов; экспорт (в сравнении — оба периода); кнопки границ (считают по текущему периоду).
+9. `node src/Tests/test_histogram_bins.js`
