@@ -46,4 +46,21 @@ generator_hints — как семплировать ближе к проду
 3. Знак суммы — по `share_pos` / `share_neg` / `share_zero` группы или из `totals`.
 4. Величину — из `amount_quantiles` или `min`/`median`/`max` выбранной группы.
 
+Готовый генератор (размножение строк, агрегация по ТН ≈ прод):
+
+```bash
+python3 tools/build_sum_demo_from_file_stats.py \
+  --stats "Docs/пром стата/sum_file_stats_….json" \
+  --out samples/sum-distribution-demo-prod-stalo.csv \
+  --seed 20260811
+
+python3 tools/build_sum_demo_from_file_stats.py \
+  --stats "Docs/пром стата/sum_file_stats_… (было).json" \
+  --out samples/sum-distribution-demo-prod-bylo.csv \
+  --seed 20260812
+```
+
+Результат: ≥ ~25k сырых строк (± jitter), уникальные ТН и оргсвязи как в профиле;
+после SUM по ТН — те же знаки / median / avg / sum_all. CSV в `samples/` (gitignore).
+
 Пустые значения в исходных колонках кодируются как `"(пусто)"`.
