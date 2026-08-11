@@ -62,6 +62,7 @@
 - [v] 2.4.22: тяжёлый renderAnalysis только на вкладке «Статистика и анализ» (dirty + после paint)
 - [v] 2.4.23: оптимизация drag (O(n²) якорь, кэш фильтров, light UI) + метрики ТЗ (score, top/%/шишки, boxplot/heatmap)
 - [v] Документация аналитики: `Docs/ANALYSIS_METRICS.md` (метрики, графики 1–12, таблицы A–L)
+- [v] 2.4.24: экспорт «Статистика по файлу» — JSON-профиль ТБ/ГОСБ/кластер + связи для генерации демо
 
 ## Модули (внутри sum-distribution.html)
 
@@ -73,7 +74,7 @@
 - `formatAmount` / `formatAmountExact` — суммы с разрядами; точные мин/макс в статистике
 - `computeHistogram` / `buildPeriodOverlayHist` / `drawHistogram` (bars/line, barOverlap) / сравнение overlay|overlap|side|stack / `syncChartModeConstraints` / сегменты `chartTypeSeg`/`groupLayoutSeg` / `chartHitBars*` / `renderFrequencyTable` / `renderCompareStats`
 - `renderFileOverview` — карточки статистики загруженного файла
-- `groupNameForAmount` / `exportRawCsvWithGroup` / `exportUniqueTnCsv` / `exportGroupsText` — выгрузки (в сравнении оба периода)
+- `groupNameForAmount` / `exportRawCsvWithGroup` / `exportUniqueTnCsv` / `exportGroupsText` / `exportFileStats` (`sum-distribution-file-stats/v1`) — выгрузки
 - `tools/build_sum_demo_csv_20k.py`, `tools/build_sum_demo_csv_21k.py` — демо CSV (samples/ в gitignore)
 
 ## Как проверить

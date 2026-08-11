@@ -287,8 +287,7 @@
     body.is-analysis .chart-toolbar,
     body.is-analysis #legend,
     body.is-analysis #stats,
-    body.is-analysis #freqDetail,
-    body.is-analysis .export-panel {
+    body.is-analysis #freqDetail {
       display: none !important;
     }
     .analysis-panel {
@@ -1375,6 +1374,11 @@
       border-color: rgba(175, 82, 222, 0.36);
       background: rgba(175, 82, 222, 0.11);
     }
+    .btn-with-icon.is-export-filestats {
+      color: #8a5a00;
+      border-color: rgba(255, 149, 0, 0.40);
+      background: rgba(255, 149, 0, 0.12);
+    }
     @media (max-width: 720px) {
       .export-panel__btns .btn-with-icon {
         flex: 1 1 100%;
@@ -1791,6 +1795,11 @@
                 <span class="btn-ico" aria-hidden="true"></span>
                 <span>TXT группы</span>
               </button>
+              <button class="btn secondary btn-with-icon is-export-filestats" type="button" id="btnExportFileStats"
+                data-tip="JSON-профиль текущего файла (без фильтров): ТН по ТБ/ГОСБ/кластеру, min/max/median, знаки, суммы, связи оргструктуры — для генерации тестовых данных">
+                <span class="btn-ico" aria-hidden="true"></span>
+                <span>Статистика по файлу</span>
+              </button>
             </div>
           </div>
           <section id="analysisPanel" class="analysis-panel" aria-label="Аналитика по текущему периоду">
@@ -2135,6 +2144,7 @@
       btnExportRaw: document.getElementById("btnExportRaw"),
       btnExportTn: document.getElementById("btnExportTn"),
       btnExportGroups: document.getElementById("btnExportGroups"),
+      btnExportFileStats: document.getElementById("btnExportFileStats"),
       exportPanelSub: document.getElementById("exportPanelSub")
     };
 
@@ -2706,6 +2716,245 @@
       }
     }
 
+    /**
+     * Профиль одного разреза (ТБ / ГОСБ / кластер) по списку ТН.
+     * Нужен для генерации тестовых данных, близких к проду.
+     */
+    function buildFileDimStats(rows, field) {
+      const buckets = new Map();
+      for (let i = 0; i < rows.length; i += 1) {
+        const r = rows[i];
+        const key = ((r[field] || "(пусто)") + "").trim() || "(пусто)";
+        if (!buckets.has(key)) buckets.set(key, []);
+        buckets.get(key).push(Number(r.amount) || 0);
+      }
+      const totalTn = Math.max(1, rows.length);
+      const out = [];
+      for (const [name, vals] of buckets.entries()) {
+        const n = vals.length;
+        let sumAll = 0;
+        let sumPos = 0;
+        let sumNeg = 0;
+        let countPos = 0;
+        let countNeg = 0;
+        let countZero = 0;
+        let min = Infinity;
+        let max = -Infinity;
+        for (let i = 0; i < n; i += 1) {
+          const v = vals[i];
+          sumAll += v;
+          if (v > 0) { countPos += 1; sumPos += v; }
+          else if (v < 0) { countNeg += 1; sumNeg += v; }
+          else countZero += 1;
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+        if (!Number.isFinite(min)) { min = 0; max = 0; }
+        const sorted = vals.slice().sort((a, b) => a - b);
+        out.push({
+          name,
+          tn_count: n,
+          tn_share: n / totalTn,
+          min,
+          max,
+          median: quantile(sorted, 0.5),
+          avg: n ? sumAll / n : 0,
+          sum_all: sumAll,
+          sum_pos: sumPos,
+          sum_neg: sumNeg,
+          count_pos: countPos,
+          count_neg: countNeg,
+          count_zero: countZero,
+          share_pos: n ? countPos / n : 0,
+          share_neg: n ? countNeg / n : 0,
+          share_zero: n ? countZero / n : 0
+        });
+      }
+      out.sort((a, b) => b.tn_count - a.tn_count || String(a.name).localeCompare(String(b.name), "ru"));
+      return out;
+    }
+
+    /** Связи оргструктуры, встречающиеся в файле (для генерации связной демо-выборки). */
+    function buildFileOrgLinks(rows) {
+      const triple = new Map();
+      const tbGosb = new Map();
+      const tbCluster = new Map();
+      const gosbCluster = new Map();
+
+      function bump(map, key, amount) {
+        let rec = map.get(key);
+        if (!rec) {
+          rec = { tn_count: 0, sum_all: 0 };
+          map.set(key, rec);
+        }
+        rec.tn_count += 1;
+        rec.sum_all += amount;
+      }
+
+      for (let i = 0; i < rows.length; i += 1) {
+        const r = rows[i];
+        const tb = ((r.tb || "(пусто)") + "").trim() || "(пусто)";
+        const gosb = ((r.gosb || "(пусто)") + "").trim() || "(пусто)";
+        const cluster = ((r.cluster || "(пусто)") + "").trim() || "(пусто)";
+        const amt = Number(r.amount) || 0;
+        bump(triple, tb + "\0" + gosb + "\0" + cluster, amt);
+        bump(tbGosb, tb + "\0" + gosb, amt);
+        bump(tbCluster, tb + "\0" + cluster, amt);
+        bump(gosbCluster, gosb + "\0" + cluster, amt);
+      }
+
+      function toList(map, parts) {
+        return Array.from(map.entries()).map(([key, rec]) => {
+          const bits = key.split("\0");
+          const row = { tn_count: rec.tn_count, sum_all: rec.sum_all };
+          for (let i = 0; i < parts.length; i += 1) row[parts[i]] = bits[i];
+          return row;
+        }).sort((a, b) => b.tn_count - a.tn_count);
+      }
+
+      return {
+        tb_gosb_cluster: toList(triple, ["tb", "gosb", "cluster"]),
+        tb_gosb: toList(tbGosb, ["tb", "gosb"]),
+        tb_cluster: toList(tbCluster, ["tb", "cluster"]),
+        gosb_cluster: toList(gosbCluster, ["gosb", "cluster"])
+      };
+    }
+
+    /** Полный JSON-профиль текущего файла (без фильтров). */
+    function buildFileStatsPayload(rows, meta) {
+      const n = rows.length;
+      let sumAll = 0;
+      let sumPos = 0;
+      let sumNeg = 0;
+      let countPos = 0;
+      let countNeg = 0;
+      let countZero = 0;
+      const amounts = new Array(n);
+      for (let i = 0; i < n; i += 1) {
+        const v = Number(rows[i].amount) || 0;
+        amounts[i] = v;
+        sumAll += v;
+        if (v > 0) { countPos += 1; sumPos += v; }
+        else if (v < 0) { countNeg += 1; sumNeg += v; }
+        else countZero += 1;
+      }
+      const sorted = amounts.slice().sort((a, b) => a - b);
+      const byTb = buildFileDimStats(rows, "tb");
+      const byGosb = buildFileDimStats(rows, "gosb");
+      const byCluster = buildFileDimStats(rows, "cluster");
+      return {
+        schema: "sum-distribution-file-stats/v1",
+        purpose: "Профиль текущего файла для анализа и генерации тестовых CSV, близких к проду",
+        generated_at: new Date().toISOString(),
+        source: {
+          file_name: (meta && meta.fileName) || "",
+          period: "current",
+          filters_applied: false,
+          tn_count: n,
+          unique_tb: byTb.length,
+          unique_gosb: byGosb.length,
+          unique_cluster: byCluster.length,
+          has_tb: byTb.some((x) => x.name !== "(пусто)"),
+          has_gosb: byGosb.some((x) => x.name !== "(пусто)"),
+          has_cluster: byCluster.some((x) => x.name !== "(пусто)")
+        },
+        totals: {
+          tn_count: n,
+          sum_all: sumAll,
+          sum_pos: sumPos,
+          sum_neg: sumNeg,
+          avg: n ? sumAll / n : 0,
+          median: quantile(sorted, 0.5),
+          min: sorted.length ? sorted[0] : 0,
+          max: sorted.length ? sorted[sorted.length - 1] : 0,
+          count_pos: countPos,
+          count_neg: countNeg,
+          count_zero: countZero,
+          share_pos: n ? countPos / n : 0,
+          share_neg: n ? countNeg / n : 0,
+          share_zero: n ? countZero / n : 0
+        },
+        amount_quantiles: {
+          p10: quantile(sorted, 0.1),
+          p25: quantile(sorted, 0.25),
+          p50: quantile(sorted, 0.5),
+          p75: quantile(sorted, 0.75),
+          p90: quantile(sorted, 0.9),
+          p95: quantile(sorted, 0.95),
+          p99: quantile(sorted, 0.99)
+        },
+        by_tb: byTb,
+        by_gosb: byGosb,
+        by_cluster: byCluster,
+        links: buildFileOrgLinks(rows),
+        generator_hints: {
+          sample_by: "tn_share within by_tb / by_gosb / by_cluster",
+          keep_links: "sample (tb,gosb,cluster) from links.tb_gosb_cluster weighted by tn_count",
+          amount_model: "mix sign shares + draw magnitude from amount_quantiles / per-group min-max-median",
+          empty_label: "(пусто)"
+        }
+      };
+    }
+
+    /** Плоский CSV по группам разреза (удобно смотреть в Excel). */
+    function fileStatsGroupsToCsv(payload) {
+      const header = [
+        "разрез", "имя", "tn_count", "tn_share", "min", "max", "median", "avg",
+        "sum_all", "sum_pos", "sum_neg",
+        "count_pos", "count_neg", "count_zero",
+        "share_pos", "share_neg", "share_zero"
+      ].join(";");
+      const lines = [header];
+      function pushDim(dim, arr) {
+        for (const x of arr) {
+          lines.push([
+            dim,
+            csvEscape(x.name),
+            x.tn_count,
+            (x.tn_share * 100).toFixed(4),
+            x.min, x.max, x.median, x.avg,
+            x.sum_all, x.sum_pos, x.sum_neg,
+            x.count_pos, x.count_neg, x.count_zero,
+            (x.share_pos * 100).toFixed(4),
+            (x.share_neg * 100).toFixed(4),
+            (x.share_zero * 100).toFixed(4)
+          ].join(";"));
+        }
+      }
+      pushDim("tb", payload.by_tb || []);
+      pushDim("gosb", payload.by_gosb || []);
+      pushDim("cluster", payload.by_cluster || []);
+      return lines.join("\n");
+    }
+
+    function exportFileStats() {
+      try {
+        if (!allRows.length) throw new Error("Сначала загрузите текущий файл.");
+        const payload = buildFileStatsPayload(allRows, { fileName: fileNameA || "" });
+        const base = "sum_file_stats_" + stamp();
+        downloadTextFile(
+          base + ".json",
+          JSON.stringify(payload, null, 2),
+          "application/json;charset=utf-8"
+        );
+        // Дополнительно плоский CSV по группам — для быстрого просмотра
+        downloadTextFile(
+          base + "_groups.csv",
+          fileStatsGroupsToCsv(payload),
+          "text/csv;charset=utf-8"
+        );
+        setChartStatus(
+          "Статистика по файлу: JSON + CSV групп (ТН=" + allRows.length
+            + ", ТБ=" + payload.source.unique_tb
+            + ", ГОСБ=" + payload.source.unique_gosb
+            + ", кластеров=" + payload.source.unique_cluster + ").",
+          "ok"
+        );
+      } catch (err) {
+        setChartStatus((err && err.message) ? err.message : String(err), "err");
+      }
+    }
+
     /** Суммы для UI: разделитель разрядов, не более N знаков после запятой. */
     function formatAmount(n) {
       if (!Number.isFinite(n)) return "—";
@@ -2952,7 +3201,8 @@
         barsEven: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M4 19h16M6 19V8h3v11M11 19V8h3v11M16 19V8h3v11"/></svg>',
         download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>',
         downloadCsv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>',
-        downloadList: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/><path d="M17 14v5"/><path d="M14.5 16.5L17 19l2.5-2.5"/></svg>'
+        downloadList: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/><path d="M17 14v5"/><path d="M14.5 16.5L17 19l2.5-2.5"/></svg>',
+        downloadStats: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M4 19V9M9 19V5M14 19v-7M19 19V11"/><path d="M3 19h18"/></svg>'
       };
       return icons[name] || icons.file;
     }
@@ -7094,6 +7344,7 @@
     if (el.btnExportRaw) el.btnExportRaw.addEventListener("click", exportRawCsvWithGroup);
     if (el.btnExportTn) el.btnExportTn.addEventListener("click", exportUniqueTnCsv);
     if (el.btnExportGroups) el.btnExportGroups.addEventListener("click", exportGroupsText);
+    if (el.btnExportFileStats) el.btnExportFileStats.addEventListener("click", exportFileStats);
 
     function clearPeriodB() {
       rawRowsB = [];
@@ -7224,6 +7475,7 @@
     fillBtnIcon(el.btnExportRaw, "downloadCsv");
     fillBtnIcon(el.btnExportTn, "download");
     fillBtnIcon(el.btnExportGroups, "downloadList");
+    fillBtnIcon(el.btnExportFileStats, "downloadStats");
 
     window.addEventListener("resize", () => {
       if (allRows.length) rebuild();
