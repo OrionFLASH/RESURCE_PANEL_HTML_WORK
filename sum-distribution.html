@@ -40,6 +40,8 @@
     "barOverlapRatio": 0.28,
     "barOverlapAlpha": 0.7
   },
+  "analysisScoreWeights": { "avg": 0.5, "median": 0.3, "sharePos": 0.2 },
+  "analysisBillion": 1000000000,
   "compareColors": ["#007AFF", "#FF9500"],
   "seriesColors": [
     "#007AFF", "#34C759", "#FF9500", "#5856D6", "#FF3B30",
@@ -272,6 +274,14 @@
       border-color: transparent;
     }
 
+    body.is-edge-dragging .panel,
+    body.is-edge-dragging .chart-wrap {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    body.is-edge-dragging .edge-rail__seg {
+      visibility: hidden;
+    }
     body.is-analysis .chart-wrap-primary,
     body.is-analysis .charts-dual,
     body.is-analysis .chart-toolbar,
@@ -299,7 +309,7 @@
     }
     .analysis-controls {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 8px;
     }
     .analysis-controls .toolbar-cell {
@@ -1790,81 +1800,107 @@
               Рекомендуется избегать интервалов с очень малым числом ТН и проверять концентрацию по ТБ/ГОСБ/кластеру.
             </div>
             <div class="analysis-controls">
-              <div class="toolbar-cell" data-tip="Базовый разрез для top/bottom, таблиц G/J/L и структурных графиков">
+              <div class="toolbar-cell" data-tip="Базовый разрез: ТБ / ГОСБ / кластер / ТН (табельные)">
                 <span class="toolbar-label">Разрез аналитики</span>
                 <select id="analysisDim">
                   <option value="tb" selected>ТБ</option>
                   <option value="gosb">ГОСБ</option>
                   <option value="cluster">Кластер</option>
+                  <option value="tn">ТН</option>
                 </select>
               </div>
-              <div class="toolbar-cell" data-tip="Метрика для рейтингов и структуры категорий">
+              <div class="toolbar-cell" data-tip="Метрика ранжирования: N, Σ, средняя, медиана, доля >0, композитный score">
                 <span class="toolbar-label">Метрика</span>
-                <div class="seg" id="analysisMetricSeg" role="group" aria-label="Метрика аналитики">
-                  <button type="button" class="seg__btn is-on" data-value="count">ТН</button>
-                  <button type="button" class="seg__btn" data-value="sum">Σ сумма</button>
-                  <button type="button" class="seg__btn" data-value="avg">Средняя</button>
-                </div>
-                <select id="analysisMetric" class="sr-only" tabindex="-1" aria-hidden="true">
-                  <option value="count" selected>ТН</option>
-                  <option value="sum">Сумма</option>
-                  <option value="avg">Средняя сумма</option>
+                <select id="analysisMetric">
+                  <option value="count">N (ТН)</option>
+                  <option value="sum" selected>Σ сумма</option>
+                  <option value="avg">Средняя</option>
+                  <option value="median">Медиана</option>
+                  <option value="share_pos">Доля >0</option>
+                  <option value="score">Score</option>
                 </select>
               </div>
-              <div class="toolbar-cell" data-tip="Сколько категорий показывать в top/bottom и в таблицах">
-                <span class="toolbar-label">Top/Bottom</span>
+              <div class="toolbar-cell" data-tip="Режим отбора лучших: Top-N, Top-X% или «шишки» (выбросы)">
+                <span class="toolbar-label">Режим лучших</span>
+                <select id="analysisRankMode">
+                  <option value="top_n" selected>Top-N</option>
+                  <option value="top_pct">Top-X%</option>
+                  <option value="outliers">Шишки</option>
+                </select>
+              </div>
+              <div class="toolbar-cell" data-tip="Размер Top-N / порог % / порог шишек (зависит от режима)">
+                <span class="toolbar-label">N / % / порог</span>
                 <div class="seg" id="analysisTopNSeg" role="group" aria-label="Размер top выборки">
                   <button type="button" class="seg__btn is-on" data-value="5">5</button>
                   <button type="button" class="seg__btn" data-value="10">10</button>
                   <button type="button" class="seg__btn" data-value="20">20</button>
+                  <button type="button" class="seg__btn" data-value="50">50</button>
                 </div>
                 <select id="analysisTopN" class="sr-only" tabindex="-1" aria-hidden="true">
                   <option value="5" selected>5</option>
                   <option value="10">10</option>
                   <option value="20">20</option>
+                  <option value="50">50</option>
+                </select>
+              </div>
+              <div class="toolbar-cell" data-tip="Тип «шишек»: процентиль / z-score / абсолютный порог средней (млрд)">
+                <span class="toolbar-label">Тип шишек</span>
+                <select id="analysisOutlierType">
+                  <option value="percentile" selected>Процентиль</option>
+                  <option value="zscore">Z-score</option>
+                  <option value="abs">Abs (млрд)</option>
                 </select>
               </div>
             </div>
+            <div id="analysisRankHint" class="analysis-guide" style="margin-top:-4px"></div>
             <div class="analysis-grid">
               <div class="analysis-card" data-tip="Распределение ТН по текущим интервалам">
                 <h4>1) Распределение по интервалам</h4>
                 <canvas id="anChartBins"></canvas>
               </div>
               <div class="analysis-card" data-tip="Накопленная доля ТН: помогает выставлять границы по целевым процентам">
-                <h4>2) Кумулятивная доля ТН</h4>
+                <h4>2) Кумулятивная доля ТН (CDF)</h4>
                 <canvas id="anChartCdf"></canvas>
               </div>
-              <div class="analysis-card" data-tip="Топ ТБ по числу ТН после фильтров">
+              <div class="analysis-card" data-tip="Топ ТБ по выбранной метрике">
                 <h4>3) Топ ТБ</h4>
                 <canvas id="anChartTb"></canvas>
               </div>
-              <div class="analysis-card" data-tip="Топ ГОСБ по числу ТН после фильтров">
+              <div class="analysis-card" data-tip="Топ ГОСБ по выбранной метрике">
                 <h4>4) Топ ГОСБ</h4>
                 <canvas id="anChartGosb"></canvas>
               </div>
-              <div class="analysis-card" data-tip="Топ кластеров по числу ТН после фильтров">
+              <div class="analysis-card" data-tip="Топ кластеров по выбранной метрике">
                 <h4>5) Топ кластеров</h4>
                 <canvas id="anChartCluster"></canvas>
               </div>
-              <div class="analysis-card" data-tip="Децили сумм: профиль распределения и устойчивость границ">
+              <div class="analysis-card" data-tip="Децили сумм: профиль распределения">
                 <h4>6) Децили сумм</h4>
                 <canvas id="anChartDeciles"></canvas>
               </div>
-              <div class="analysis-card" data-tip="Top категорий по выбранной метрике">
-                <h4>7) Top категорий (выбранный разрез)</h4>
+              <div class="analysis-card" data-tip="Рейтинг отобранных лучших по метрике (sorted bar)">
+                <h4>7) Рейтинг лучших</h4>
                 <canvas id="anChartTop"></canvas>
               </div>
-              <div class="analysis-card" data-tip="Bottom категорий по выбранной метрике">
-                <h4>8) Bottom категорий (выбранный разрез)</h4>
+              <div class="analysis-card" data-tip="Худшие по выбранной метрике">
+                <h4>8) Bottom (худшие)</h4>
                 <canvas id="anChartBottom"></canvas>
               </div>
-              <div class="analysis-card" data-tip="Доли top-категорий в общей структуре">
-                <h4>9) Структура top (круговая)</h4>
+              <div class="analysis-card" data-tip="Доли лучших по Σ сумме">
+                <h4>9) Структура лучших (круговая по Σ)</h4>
                 <canvas id="anChartPie"></canvas>
               </div>
-              <div class="analysis-card" data-tip="P10/P50/P90 по top-категориям: вариативность внутри разреза">
-                <h4>10) Вариативность категорий (P10/P50/P90)</h4>
+              <div class="analysis-card" data-tip="Boxplot: Q1/медиана/Q3 и усы 1.5×IQR по категориям разреза">
+                <h4>10) Boxplot по разрезу</h4>
                 <canvas id="anChartBand"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="Средние (или выбранная метрика) по категориям — bar chart">
+                <h4>11) Средние / медианы (bar)</h4>
+                <canvas id="anChartAvgBar"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="Тепловая карта avg по пересечению ТБ × ГОСБ (top ключи)">
+                <h4>12) Heatmap avg: ТБ × ГОСБ</h4>
+                <canvas id="anChartHeat"></canvas>
               </div>
             </div>
             <div class="analysis-tables">
@@ -1872,8 +1908,8 @@
                 <h3>Таблица A: интервальный профиль</h3>
                 <div id="analysisTableIntervals" class="table-wrap"></div>
               </div>
-              <div class="freq-block" data-tip="Концентрация по выбранному разрезу (top по метрике)">
-                <h3>Таблица B: концентрация категорий</h3>
+              <div class="freq-block analysis-span-2" data-tip="Полные метрики ТЗ по выбранному разрезу: N, Σ, avg, median, std, Q1/Q3/IQR, доли знака, score">
+                <h3>Таблица B: метрики категорий (полный профиль)</h3>
                 <div id="analysisTableCategories" class="table-wrap"></div>
               </div>
               <div class="freq-block" data-tip="Процентили и сводные коэффициенты">
@@ -1888,8 +1924,8 @@
                 <h3>Таблица E: матрица ТБ × кластер</h3>
                 <div id="analysisTableTbClusterMatrix" class="table-wrap"></div>
               </div>
-              <div class="freq-block" data-tip="Стабильность категорий выбранного разреза: min/median/max и CV">
-                <h3>Таблица F: стабильность категорий</h3>
+              <div class="freq-block analysis-span-2" data-tip="Стабильность + score: min/Q1/median/Q3/max, IQR, CV, score">
+                <h3>Таблица F: стабильность и score</h3>
                 <div id="analysisTableStability" class="table-wrap"></div>
               </div>
               <div class="freq-block analysis-span-2" data-tip="Состав каждого интервала по выбранному разрезу: топ категорий внутри столбика">
@@ -2065,7 +2101,9 @@
       analysisPanel: document.getElementById("analysisPanel"),
       analysisDim: document.getElementById("analysisDim"),
       analysisMetric: document.getElementById("analysisMetric"),
-      analysisMetricSeg: document.getElementById("analysisMetricSeg"),
+      analysisRankMode: document.getElementById("analysisRankMode"),
+      analysisOutlierType: document.getElementById("analysisOutlierType"),
+      analysisRankHint: document.getElementById("analysisRankHint"),
       analysisTopN: document.getElementById("analysisTopN"),
       analysisTopNSeg: document.getElementById("analysisTopNSeg"),
       anChartBins: document.getElementById("anChartBins"),
@@ -2078,6 +2116,8 @@
       anChartBottom: document.getElementById("anChartBottom"),
       anChartPie: document.getElementById("anChartPie"),
       anChartBand: document.getElementById("anChartBand"),
+      anChartAvgBar: document.getElementById("anChartAvgBar"),
+      anChartHeat: document.getElementById("anChartHeat"),
       analysisTableIntervals: document.getElementById("analysisTableIntervals"),
       analysisTableCategories: document.getElementById("analysisTableCategories"),
       analysisTablePercentiles: document.getElementById("analysisTablePercentiles"),
@@ -2393,11 +2433,7 @@
     }
 
     function buildBins(amounts, opts) {
-      if (!amounts.length) throw new Error("Нет сумм для построения интервалов.");
-      const dataMin = Math.min(...amounts);
-      const dataMax = Math.max(...amounts);
-      const scale = integerBounds(dataMin, dataMax);
-
+      // Custom-границы: не трогаем amounts (критично для drag — без O(n) min/max)
       if (opts.mode === "custom") {
         const edges = [...opts.customEdges]
           .filter((n) => Number.isFinite(n))
@@ -2405,6 +2441,15 @@
         if (edges.length < 2) throw new Error("Задайте хотя бы одну подвижную границу (итого ≥ 3 точек с min/max).");
         return edges;
       }
+      if (!amounts.length) throw new Error("Нет сумм для построения интервалов.");
+      let dataMin = Infinity;
+      let dataMax = -Infinity;
+      for (let i = 0; i < amounts.length; i += 1) {
+        const v = amounts[i];
+        if (v < dataMin) dataMin = v;
+        if (v > dataMax) dataMax = v;
+      }
+      const scale = integerBounds(dataMin, dataMax);
 
       let min = opts.min == null || !Number.isFinite(opts.min) ? scale.min : Math.floor(opts.min);
       let max = opts.max == null || !Number.isFinite(opts.max) ? scale.max : Math.ceil(opts.max);
@@ -2688,11 +2733,11 @@
     }
 
     /**
-     * Колонка «≤ 0» только при активном якоре positive-режима.
-     * В «Все значения» граница может случайно быть 0 — это обычный интервал среди всех.
+     * Колонка «≤ 0» только при якоре positive-режима (геометрия границ).
+     * Без повторного filteredRows — иначе O(n²) в computeHistogram/binIndex.
      */
     function hasNonPositiveAnchorBin(edges) {
-      if (!shouldAnchorZeroEdge(rowsForZeroAnchorCheck())) return false;
+      if (!includePositiveOnlyForAutoEdges()) return false;
       return Array.isArray(edges) && edges.length > 2 && edges[0] < 0 && edges[1] === 0;
     }
 
@@ -3536,34 +3581,68 @@
       let rows = sourceRows;
       const showOrg = el.orgTreeFilterBlock && !el.orgTreeFilterBlock.classList.contains("hidden");
       const showCluster = !el.clusterFilterBlock.classList.contains("hidden");
+      const selTb = (showOrg && columnPresence.hasTb && filterSelections.tb.size > 0)
+        ? filterSelections.tb : null;
+      const selGosb = (showOrg && columnPresence.hasGosb && filterSelections.gosb.size > 0)
+        ? filterSelections.gosb : null;
+      const selCluster = (showCluster && columnPresence.hasCluster && filterSelections.cluster.size > 0)
+        ? filterSelections.cluster : null;
+      if (!selTb && !selGosb && !selCluster) return rows;
+      const out = [];
+      for (let i = 0; i < rows.length; i += 1) {
+        const r = rows[i];
+        if (selTb && r.tb && !selTb.has(r.tb)) continue;
+        if (selGosb && r.gosb && !selGosb.has(r.gosb)) continue;
+        if (selCluster && r.cluster && !selCluster.has(r.cluster)) continue;
+        out.push(r);
+      }
+      return out;
+    }
 
-      if (showOrg && columnPresence.hasTb) {
-        const sel = filterSelections.tb;
-        if (sel.size > 0) rows = rows.filter((r) => !r.tb || sel.has(r.tb));
+    /** Кэш фильтров на один кадр rebuild/drag — без повторных проходов. */
+    let frameFilterSnap = null;
+
+    function clearFrameFilterSnap() {
+      frameFilterSnap = null;
+    }
+
+    function getFrameFilterSnap() {
+      if (frameFilterSnap) return frameFilterSnap;
+      const rowsA = filteredRowsFrom(allRows);
+      const rowsB = filteredRowsFrom(allRowsB);
+      const edgeRows = (viewMode === "compare" && allRowsB.length)
+        ? rowsA.concat(rowsB)
+        : rowsA;
+      const checkRows = edgeRows.length ? edgeRows : allRows;
+      let scale = { min: 0, max: 1 };
+      if (checkRows.length) {
+        let mn = Infinity;
+        let mx = -Infinity;
+        for (let i = 0; i < checkRows.length; i += 1) {
+          const v = Number(checkRows[i].amount) || 0;
+          if (v < mn) mn = v;
+          if (v > mx) mx = v;
+        }
+        scale = integerBounds(mn, mx);
       }
-      if (showOrg && columnPresence.hasGosb) {
-        const sel = filterSelections.gosb;
-        if (sel.size > 0) rows = rows.filter((r) => !r.gosb || sel.has(r.gosb));
-      }
-      if (showCluster && columnPresence.hasCluster) {
-        const sel = filterSelections.cluster;
-        if (sel.size > 0) rows = rows.filter((r) => !r.cluster || sel.has(r.cluster));
-      }
-      return rows;
+      const zeroAnchor = includePositiveOnlyForAutoEdges()
+        && checkRows.length > 0
+        && scale.min < 0
+        && scale.max > 0;
+      frameFilterSnap = { rowsA, rowsB, edgeRows, checkRows, scale, zeroAnchor };
+      return frameFilterSnap;
     }
 
     function filteredRows() {
-      return filteredRowsFrom(allRows);
+      return getFrameFilterSnap().rowsA;
     }
 
     function filteredRowsB() {
-      return filteredRowsFrom(allRowsB);
+      return getFrameFilterSnap().rowsB;
     }
 
     function edgeSourceRows() {
-      const a = filteredRows();
-      if (viewMode === "compare" && allRowsB.length) return a.concat(filteredRowsB());
-      return a;
+      return getFrameFilterSnap().edgeRows;
     }
 
     function currentEdgeCalcMode() {
@@ -3583,10 +3662,14 @@
 
     /** Точные мин/макс по суммам ТН (без floor/ceil). */
     function dataMinMax(rows) {
-      const amounts = rows.map((r) => r.amount);
-      if (!amounts.length) return { min: 0, max: 1 };
-      const min = Math.min(...amounts);
-      const max = Math.max(...amounts);
+      if (!rows.length) return { min: 0, max: 1 };
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = 0; i < rows.length; i += 1) {
+        const v = rows[i].amount;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
       return { min, max };
     }
 
@@ -3605,13 +3688,18 @@
     }
 
     function rowsForZeroAnchorCheck() {
-      const rows = edgeSourceRows();
-      return rows.length ? rows : allRows;
+      const snap = getFrameFilterSnap();
+      return snap.checkRows;
+    }
+
+    /** Быстрый флаг якоря 0 из кадра (без повторного скана). */
+    function isZeroAnchoredNow() {
+      return getFrameFilterSnap().zeroAnchor;
     }
 
     /** Индекс 1 — фиксированная граница 0 в positive-режиме. */
     function isZeroAnchorIndex(idx) {
-      return idx === 1 && shouldAnchorZeroEdge(rowsForZeroAnchorCheck());
+      return idx === 1 && isZeroAnchoredNow();
     }
 
     /**
@@ -3680,7 +3768,7 @@
         if (out[i] > out[i + 1]) out[i] = out[i + 1];
       }
       // В positive-режиме граница 0 (индекс 1) всегда зафиксирована.
-      if (shouldAnchorZeroEdge(rowsForZeroAnchorCheck()) && out.length > 2) {
+      if (isZeroAnchoredNow() && out.length > 2) {
         out[1] = 0;
         for (let i = 2; i < out.length; i += 1) {
           if (out[i] < out[i - 1]) out[i] = out[i - 1];
@@ -4058,7 +4146,7 @@
       const left = edgeState.edges[idx - 1];
       const right = edgeState.edges[idx + 1];
       // Нельзя зайти левее зафиксированного нуля
-      const minAllowed = (shouldAnchorZeroEdge(rowsForZeroAnchorCheck()) && idx > 1)
+      const minAllowed = (isZeroAnchoredNow() && idx > 1)
         ? Math.max(left, 0)
         : left;
       if (val < minAllowed) val = minAllowed;
@@ -4066,7 +4154,7 @@
       edgeState.edges[idx] = val;
       edgeState.edges = cascadeEdges(edgeState.edges, idx);
       setFineIndex(idx);
-      syncEdgeUiFromState();
+      syncEdgeUiFromState({ light: true });
       requestRebuildEdge();
     }
 
@@ -4076,6 +4164,9 @@
       if (!Number.isFinite(idx)) return;
       setFineIndex(idx);
       edgeState.dragIndex = idx; // light-rebuild на время перетаскивания
+      document.body.classList.add("is-edge-dragging");
+      clearFrameFilterSnap();
+      getFrameFilterSnap();
       ev.currentTarget.setPointerCapture(ev.pointerId);
       const move = (e) => {
         const track = el.edgeFineTune.querySelector(".edge-fine__track");
@@ -4091,6 +4182,8 @@
       };
       const up = (e) => {
         edgeState.dragIndex = -1;
+        document.body.classList.remove("is-edge-dragging");
+        clearFrameFilterSnap();
         try { ev.currentTarget.releasePointerCapture(e.pointerId); } catch (_e) { /* ignore */ }
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
@@ -4403,7 +4496,8 @@
       renderFineTuneRail();
     }
 
-    function syncEdgeUiFromState() {
+    function syncEdgeUiFromState(opts) {
+      const skipHeavy = !!(opts && opts.light);
       const thumbs = el.edgeRail.querySelectorAll(".edge-rail__thumb");
       thumbs.forEach((thumb) => {
         const idx = Number(thumb.dataset.index);
@@ -4414,13 +4508,15 @@
         const current = thumb.querySelector(".edge-rail__current");
         if (current) current.textContent = formatEdgeInt(edgeState.edges[idx]);
       });
-      el.edgeValues.querySelectorAll("input[data-edge-index]").forEach((input) => {
-        const idx = Number(input.dataset.edgeIndex);
-        if (!Number.isFinite(idx)) return;
-        if (document.activeElement === input) return;
-        input.value = formatEdgeInt(edgeState.edges[idx]);
-      });
-      updateEdgeSegmentLabels();
+      if (!skipHeavy) {
+        el.edgeValues.querySelectorAll("input[data-edge-index]").forEach((input) => {
+          const idx = Number(input.dataset.edgeIndex);
+          if (!Number.isFinite(idx)) return;
+          if (document.activeElement === input) return;
+          input.value = formatEdgeInt(edgeState.edges[idx]);
+        });
+        updateEdgeSegmentLabels();
+      }
       updateFineTuneUiFromState();
     }
 
@@ -4438,7 +4534,7 @@
       val = toIntegerEdge(val);
       const left = edgeState.edges[idx - 1];
       const right = edgeState.edges[idx + 1];
-      const minAllowed = (shouldAnchorZeroEdge(rowsForZeroAnchorCheck()) && idx > 1)
+      const minAllowed = (isZeroAnchoredNow() && idx > 1)
         ? Math.max(left, 0)
         : left;
       if (val < minAllowed) val = minAllowed;
@@ -4461,6 +4557,9 @@
       if (isZeroAnchorIndex(idx)) return;
       edgeState.dragIndex = idx;
       setFineIndex(idx);
+      document.body.classList.add("is-edge-dragging");
+      clearFrameFilterSnap();
+      getFrameFilterSnap();
       ev.currentTarget.setPointerCapture(ev.pointerId);
       const move = (e) => {
         const rect = el.edgeRail.getBoundingClientRect();
@@ -4469,7 +4568,7 @@
         let val = toIntegerEdge(pctToValue(pct));
         const left = edgeState.edges[idx - 1];
         const right = edgeState.edges[idx + 1];
-        const minAllowed = (shouldAnchorZeroEdge(rowsForZeroAnchorCheck()) && idx > 1)
+        const minAllowed = (isZeroAnchoredNow() && idx > 1)
           ? Math.max(left, 0)
           : left;
         if (val < minAllowed) val = minAllowed;
@@ -4477,11 +4576,13 @@
         edgeState.edges[idx] = val;
         edgeState.edges = cascadeEdges(edgeState.edges, idx);
         setFineIndex(idx);
-        syncEdgeUiFromState();
+        syncEdgeUiFromState({ light: true });
         requestRebuildEdge();
       };
       const up = (e) => {
         edgeState.dragIndex = -1;
+        document.body.classList.remove("is-edge-dragging");
+        clearFrameFilterSnap();
         try { ev.currentTarget.releasePointerCapture(e.pointerId); } catch (_e) { /* ignore */ }
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
@@ -4502,7 +4603,8 @@
     function rebuild(opts) {
       const light = !!(opts && opts.light);
       try {
-        syncViewModeUi();
+        clearFrameFilterSnap();
+        if (!light) syncViewModeUi();
         if (!allRows.length) {
           setChartStatus("Нет данных для графика.", "err");
           return;
@@ -4512,30 +4614,77 @@
           setChartStatus("В сравнении загрузите оба периода (текущий и прошлый).", "err");
           return;
         }
-        // Анализ и один период работают только по текущему файлу (allRows / rowsA)
-        const rowsA = filteredRows();
-        const rowsB = viewMode === "compare" ? filteredRowsB() : [];
-        const edgeRows = (viewMode === "compare")
-          ? edgeSourceRows()
-          : rowsA;
+        const snap = getFrameFilterSnap();
+        const rowsA = snap.rowsA;
+        const rowsB = viewMode === "compare" ? snap.rowsB : [];
+        const edgeRows = (viewMode === "compare") ? snap.edgeRows : rowsA;
         if (!edgeRows.length) {
           setChartStatus("После фильтров ТН не осталось.", "err");
           return;
         }
-        const scale = edgeScaleMinMax(edgeRows);
+
+        // Light-drag: не трогаем шкалу/DOM рельсы — только гистограмма по текущим edges
+        if (light && edgeState.edges.length >= 2) {
+          if (viewMode === "analysis") return;
+          const edges = edgeState.edges.slice();
+          const slice = el.sliceMode.value;
+          const chartType = resolveChartType();
+          const compareLayout = (el.compareLayout && el.compareLayout.value) || "overlay";
+          if (viewMode === "compare") {
+            const histA = computeHistogram(rowsA, edges, slice);
+            const histB = computeHistogram(rowsB, edges, slice);
+            const split = compareLayout === "side" || compareLayout === "stack";
+            const useOverlapBars = compareLayout === "overlap" && chartType === "bars";
+            if (split) {
+              const layoutCmp = el.groupLayout.value === "slice" && slice !== "all" ? "slice" : "bin";
+              let sharedMaxY = 1;
+              for (const h of [histA, histB]) {
+                for (const s of h.series || []) {
+                  for (const c of s.counts || []) if (c > sharedMaxY) sharedMaxY = c;
+                }
+              }
+              drawHistogram(histA, layoutCmp, rowsA, slice, {
+                canvas: el.chartA, chartType, hitTarget: "a", clearPrimaryHits: true,
+                forcedMaxY: sharedMaxY, light: true
+              });
+              drawHistogram(histB, layoutCmp, rowsB, slice, {
+                canvas: el.chartB, chartType, hitTarget: "b", clearPrimaryHits: false,
+                forcedMaxY: sharedMaxY, light: true
+              });
+            } else {
+              const overlayHist = buildPeriodOverlayHist(histA, histB, fileNameA || "A", fileNameB || "B", slice);
+              const layoutCmp = el.groupLayout.value === "slice" && slice !== "all" ? "slice" : "bin";
+              const overlapNow = useOverlapBars && layoutCmp === "bin";
+              drawHistogram(overlayHist, layoutCmp, rowsA, slice, {
+                canvas: el.chart, chartType, hitTarget: "primary", clearPrimaryHits: true,
+                barOverlap: overlapNow,
+                compareOverlay: { histA, histB, rowsA, rowsB, sliceMode: slice },
+                light: true
+              });
+            }
+            return;
+          }
+          const hist = computeHistogram(rowsA, edges, slice);
+          const layout = el.groupLayout.value === "slice" && slice !== "all" ? "slice" : "bin";
+          drawHistogram(hist, layout, rowsA, slice, {
+            canvas: el.chart, chartType, hitTarget: "primary", clearPrimaryHits: true, light: true
+          });
+          return;
+        }
+
+        const scale = snap.scale;
         edgeState.min = scale.min;
         edgeState.max = scale.max;
         if (edgeState.edges.length) {
           edgeState.edges[0] = edgeState.min;
           edgeState.edges[edgeState.edges.length - 1] = edgeState.max;
           edgeState.edges = cascadeEdges(edgeState.edges, 0);
-          if (edgeState.dragIndex >= 0) syncEdgeUiFromState();
+          if (edgeState.dragIndex >= 0) syncEdgeUiFromState({ light: true });
           else renderEdgeRail();
         } else {
           initEdgeStateFromData(true);
         }
-        const amounts = edgeRows.map((r) => r.amount);
-        const edges = buildBins(amounts, readBinOptions());
+        const edges = buildBins([], readBinOptions());
         const slice = el.sliceMode.value;
         syncGroupLayoutUi();
         const chartType = resolveChartType();
@@ -4814,8 +4963,14 @@
       const parentW = canvas.parentElement ? canvas.parentElement.clientWidth : 0;
       const cssW = Math.max(1, canvas.clientWidth || parentW || 640);
       const cssH = Math.max(1, canvas.clientHeight || 400);
-      canvas.width = Math.floor(cssW * dpr);
-      canvas.height = Math.floor(cssH * dpr);
+      const lightDraw = !!opts.light;
+      const needW = Math.floor(cssW * dpr);
+      const needH = Math.floor(cssH * dpr);
+      // Во время drag не сбрасываем буфер canvas (дорого)
+      if (!lightDraw || canvas.width !== needW || canvas.height !== needH) {
+        canvas.width = needW;
+        canvas.height = needH;
+      }
       const ctx = canvas.getContext("2d");
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, cssW, cssH);
@@ -4836,7 +4991,6 @@
       const edgesRef = hist.edges && hist.edges.length ? hist.edges : [];
       const compareOverlay = opts.compareOverlay || null;
       const compareMode = !!(opts.compareOverlay || isPeriodCompareHist(hist));
-      const lightDraw = !!opts.light;
       const binRowsForAxis = compareOverlay
         ? [].concat(compareOverlay.rowsA || [], compareOverlay.rowsB || [])
         : (rows || []);
@@ -6090,38 +6244,297 @@
       ctx.stroke();
     }
 
+    function sampleStd(vals, mean) {
+      const n = vals.length;
+      if (n < 2) return 0;
+      let acc = 0;
+      for (let i = 0; i < n; i += 1) {
+        const d = vals[i] - mean;
+        acc += d * d;
+      }
+      return Math.sqrt(acc / (n - 1));
+    }
+
+    function meanOf(nums) {
+      if (!nums.length) return 0;
+      let s = 0;
+      for (let i = 0; i < nums.length; i += 1) s += nums[i];
+      return s / nums.length;
+    }
+
+    /** Полные метрики ТЗ по группе (growth_sum → amount). */
     function groupStats(rows, field) {
       const m = new Map();
       for (const r of rows) {
-        const k = (r[field] || "(пусто)").trim() || "(пусто)";
+        const k = rowDimKey(r, field);
         if (!m.has(k)) m.set(k, []);
         m.get(k).push(Number(r.amount) || 0);
       }
       return Array.from(m.entries()).map(([name, vals]) => {
         const count = vals.length;
-        const sum = vals.reduce((a, b) => a + b, 0);
+        let sum = 0;
+        let countPos = 0;
+        let countNeg = 0;
+        let countZero = 0;
+        for (let i = 0; i < count; i += 1) {
+          const v = vals[i];
+          sum += v;
+          if (v > 0) countPos += 1;
+          else if (v < 0) countNeg += 1;
+          else countZero += 1;
+        }
         const avg = count ? sum / count : 0;
         const sorted = vals.slice().sort((a, b) => a - b);
+        const q1 = quantile(sorted, 0.25);
+        const q3 = quantile(sorted, 0.75);
+        const p50 = quantile(sorted, 0.5);
         return {
-          name, count, sum, avg,
+          name,
+          count,
+          sum,
+          avg,
+          median: p50,
           p10: quantile(sorted, 0.1),
-          p50: quantile(sorted, 0.5),
+          p50,
           p90: quantile(sorted, 0.9),
           min: sorted[0] || 0,
-          max: sorted[sorted.length - 1] || 0
+          max: sorted[sorted.length - 1] || 0,
+          std: sampleStd(vals, avg),
+          q1,
+          q3,
+          iqr: q3 - q1,
+          countPos,
+          countNeg,
+          countZero,
+          sharePos: count ? countPos / count : 0,
+          shareNeg: count ? countNeg / count : 0,
+          shareZero: count ? countZero / count : 0,
+          score: 0
         };
       });
+    }
+
+    function attachCompositeScores(groups) {
+      const w = (APP_CONFIG.analysisScoreWeights) || { avg: 0.5, median: 0.3, sharePos: 0.2 };
+      const avgs = groups.map((g) => g.avg);
+      const meds = groups.map((g) => g.median);
+      const shares = groups.map((g) => g.sharePos);
+      const muA = meanOf(avgs);
+      const muM = meanOf(meds);
+      const muS = meanOf(shares);
+      const sgA = sampleStd(avgs, muA);
+      const sgM = sampleStd(meds, muM);
+      const sgS = sampleStd(shares, muS);
+      for (const g of groups) {
+        const zA = sgA ? (g.avg - muA) / sgA : 0;
+        const zM = sgM ? (g.median - muM) / sgM : 0;
+        const zS = sgS ? (g.sharePos - muS) / sgS : 0;
+        g.score = (Number(w.avg) || 0.5) * zA
+          + (Number(w.median) || 0.3) * zM
+          + (Number(w.sharePos) || 0.2) * zS;
+        g.zAvg = zA;
+        g.zMed = zM;
+        g.zShare = zS;
+      }
+      return groups;
     }
 
     function valueByMetric(x, metric) {
       if (metric === "sum") return x.sum;
       if (metric === "avg") return x.avg;
+      if (metric === "median") return x.median;
+      if (metric === "share_pos") return x.sharePos;
+      if (metric === "score") return x.score;
       return x.count;
+    }
+
+    function metricTitle(metric) {
+      return ({
+        count: "N (ТН)",
+        sum: "Σ сумма",
+        avg: "Средняя",
+        median: "Медиана",
+        share_pos: "Доля >0",
+        score: "Score"
+      })[metric] || metric;
+    }
+
+    /**
+     * Отбор лучших по ТЗ: Top-N / Top-X% / шишки.
+     * topParam: N или percent или threshold в зависимости от mode.
+     */
+    function selectRankedGroups(groups, metric, mode, topParam, outlierType) {
+      const M = groups.length;
+      const sorted = groups.slice().sort((a, b) => valueByMetric(b, metric) - valueByMetric(a, metric));
+      let picked = [];
+      let hint = "";
+      if (mode === "top_pct") {
+        const percent = Math.max(1, Math.min(100, Number(topParam) || 10));
+        const N = Math.max(1, Math.ceil(M * percent / 100));
+        picked = sorted.slice(0, Math.min(N, M));
+        const realPct = M ? (100 * picked.length / M) : 0;
+        hint = `Показаны лучшие ${percent}% объектов: ${picked.length} из ${M} (${realPct.toFixed(1)}%). Ранжирование по «${metricTitle(metric)}».`;
+      } else if (mode === "outliers") {
+        const threshold = Number(topParam) || 90;
+        const type = outlierType || "percentile";
+        const outlierMetric = metric === "count" ? "avg" : metric;
+        const vals = groups.map((g) => valueByMetric(g, outlierMetric));
+        if (type === "zscore") {
+          const mu = meanOf(vals);
+          const sg = sampleStd(vals, mu);
+          picked = groups.filter((g) => {
+            const z = sg ? (valueByMetric(g, outlierMetric) - mu) / sg : 0;
+            return z >= threshold;
+          });
+          hint = `Найдено ${picked.length} «шишек» (Z ≥ ${threshold}) из ${M}. Ранжирование по «${metricTitle(metric)}».`;
+        } else if (type === "abs") {
+          const billion = Number(APP_CONFIG.analysisBillion) || 1e9;
+          const absThr = threshold * billion;
+          picked = groups.filter((g) => g.avg >= absThr);
+          hint = `Найдено ${picked.length} «шишек» (avg ≥ ${threshold} млрд) из ${M}. Ранжирование по «${metricTitle(metric)}».`;
+        } else {
+          const sortedVals = vals.slice().sort((a, b) => a - b);
+          const T = quantile(sortedVals, Math.max(0, Math.min(1, threshold / 100)));
+          picked = groups.filter((g) => valueByMetric(g, outlierMetric) >= T);
+          hint = `Найдено ${picked.length} «шишек» (≥ ${threshold}-й процентиль) из ${M}. Ранжирование по «${metricTitle(metric)}».`;
+        }
+        picked = picked.slice().sort((a, b) => valueByMetric(b, metric) - valueByMetric(a, metric));
+      } else {
+        const N = Math.max(1, Math.floor(Number(topParam) || 5));
+        picked = sorted.slice(0, Math.min(N, M));
+        const realPct = M ? (100 * picked.length / M) : 0;
+        hint = `Показаны лучшие ${picked.length} объектов из ${M} (${realPct.toFixed(1)}%). Ранжирование по «${metricTitle(metric)}».`;
+      }
+      picked.forEach((g, i) => { g.rank = i + 1; });
+      return { picked, hint, M };
+    }
+
+    function drawBoxplot(canvas, groups) {
+      const pack = canvasContext2d(canvas);
+      if (!pack || !groups.length) return;
+      const { ctx, w, h } = pack;
+      const pad = { l: 36, r: 10, t: 12, b: 36 };
+      const pw = w - pad.l - pad.r;
+      const ph = h - pad.t - pad.b;
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (const g of groups) {
+        const whiskerLo = Math.max(g.min, g.q1 - 1.5 * g.iqr);
+        const whiskerHi = Math.min(g.max, g.q3 + 1.5 * g.iqr);
+        if (whiskerLo < lo) lo = whiskerLo;
+        if (whiskerHi > hi) hi = whiskerHi;
+      }
+      if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi === lo) {
+        lo = 0;
+        hi = 1;
+      }
+      const yAt = (v) => pad.t + ph - ((v - lo) / (hi - lo)) * ph;
+      const n = groups.length;
+      const slot = pw / n;
+      const boxW = Math.max(8, Math.min(28, slot * 0.55));
+      ctx.strokeStyle = "rgba(0,0,0,0.12)";
+      ctx.beginPath();
+      ctx.moveTo(pad.l, pad.t + ph);
+      ctx.lineTo(pad.l + pw, pad.t + ph);
+      ctx.stroke();
+      for (let i = 0; i < n; i += 1) {
+        const g = groups[i];
+        const cx = pad.l + slot * i + slot / 2;
+        const wLo = Math.max(g.min, g.q1 - 1.5 * g.iqr);
+        const wHi = Math.min(g.max, g.q3 + 1.5 * g.iqr);
+        ctx.strokeStyle = "#5856D6";
+        ctx.beginPath();
+        ctx.moveTo(cx, yAt(wLo));
+        ctx.lineTo(cx, yAt(wHi));
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx - boxW / 3, yAt(wLo));
+        ctx.lineTo(cx + boxW / 3, yAt(wLo));
+        ctx.moveTo(cx - boxW / 3, yAt(wHi));
+        ctx.lineTo(cx + boxW / 3, yAt(wHi));
+        ctx.stroke();
+        const y1 = yAt(g.q3);
+        const y0 = yAt(g.q1);
+        ctx.fillStyle = "rgba(88,86,214,0.18)";
+        ctx.fillRect(cx - boxW / 2, Math.min(y0, y1), boxW, Math.abs(y1 - y0) || 1);
+        ctx.strokeStyle = "#5856D6";
+        ctx.strokeRect(cx - boxW / 2, Math.min(y0, y1), boxW, Math.abs(y1 - y0) || 1);
+        ctx.strokeStyle = "#FF3B30";
+        ctx.beginPath();
+        ctx.moveTo(cx - boxW / 2, yAt(g.p50));
+        ctx.lineTo(cx + boxW / 2, yAt(g.p50));
+        ctx.stroke();
+        ctx.fillStyle = "#6e6e73";
+        ctx.font = "10px Segoe UI";
+        ctx.textAlign = "center";
+        ctx.fillText(shortenLabel(g.name, 8), cx, pad.t + ph + 14);
+      }
+    }
+
+    function drawHeatmapAvg(canvas, rows, rowField, colField, side) {
+      const pack = canvasContext2d(canvas);
+      if (!pack) return;
+      const { ctx, w, h } = pack;
+      const rKeys = topNCounts(rows, rowField, side).map((x) => x[0]);
+      const cKeys = topNCounts(rows, colField, side).map((x) => x[0]);
+      if (!rKeys.length || !cKeys.length) return;
+      const sums = new Map();
+      const cnts = new Map();
+      for (const r of rows) {
+        const rk = rowDimKey(r, rowField);
+        const ck = rowDimKey(r, colField);
+        if (!rKeys.includes(rk) || !cKeys.includes(ck)) continue;
+        const id = rk + "\0" + ck;
+        sums.set(id, (sums.get(id) || 0) + (Number(r.amount) || 0));
+        cnts.set(id, (cnts.get(id) || 0) + 1);
+      }
+      let minAvg = Infinity;
+      let maxAvg = -Infinity;
+      const avgs = new Map();
+      for (const rk of rKeys) {
+        for (const ck of cKeys) {
+          const id = rk + "\0" + ck;
+          const c = cnts.get(id) || 0;
+          const a = c ? (sums.get(id) || 0) / c : 0;
+          avgs.set(id, a);
+          if (c) {
+            if (a < minAvg) minAvg = a;
+            if (a > maxAvg) maxAvg = a;
+          }
+        }
+      }
+      if (!Number.isFinite(minAvg)) { minAvg = 0; maxAvg = 1; }
+      if (maxAvg === minAvg) maxAvg = minAvg + 1;
+      const pad = { l: 72, r: 8, t: 28, b: 8 };
+      const cw = (w - pad.l - pad.r) / cKeys.length;
+      const rh = (h - pad.t - pad.b) / rKeys.length;
+      ctx.font = "10px Segoe UI";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#6e6e73";
+      for (let j = 0; j < cKeys.length; j += 1) {
+        ctx.fillText(shortenLabel(cKeys[j], 8), pad.l + j * cw + cw / 2, 16);
+      }
+      ctx.textAlign = "right";
+      for (let i = 0; i < rKeys.length; i += 1) {
+        for (let j = 0; j < cKeys.length; j += 1) {
+          const id = rKeys[i] + "\0" + cKeys[j];
+          const a = avgs.get(id) || 0;
+          const t = (a - minAvg) / (maxAvg - minAvg);
+          const rC = Math.round(255 * (1 - t));
+          const gC = Math.round(200 * (1 - Math.abs(t - 0.5) * 2));
+          const bC = Math.round(255 * t);
+          ctx.fillStyle = `rgb(${rC},${gC},${bC})`;
+          ctx.fillRect(pad.l + j * cw, pad.t + i * rh, cw - 1, rh - 1);
+        }
+        ctx.fillStyle = "#1d1d1f";
+        ctx.fillText(shortenLabel(rKeys[i], 10), pad.l - 4, pad.t + i * rh + rh * 0.65);
+      }
     }
 
     function dimFieldTitle(dim) {
       if (dim === "gosb") return "ГОСБ";
       if (dim === "cluster") return "Кластер";
+      if (dim === "tn") return "ТН";
       return "ТБ";
     }
 
@@ -6216,8 +6629,10 @@
       }
       const dim = (el.analysisDim && el.analysisDim.value) || "tb";
       const dimTitle = dimFieldTitle(dim);
-      const metric = (el.analysisMetric && el.analysisMetric.value) || "count";
-      const topN = Math.max(3, Number(el.analysisTopN && el.analysisTopN.value) || 5);
+      const metric = (el.analysisMetric && el.analysisMetric.value) || "sum";
+      const rankMode = (el.analysisRankMode && el.analysisRankMode.value) || "top_n";
+      const outlierType = (el.analysisOutlierType && el.analysisOutlierType.value) || "percentile";
+      const topN = Math.max(1, Number(el.analysisTopN && el.analysisTopN.value) || 5);
       const hist = computeHistogram(rows, edges, "all");
       const totals = totalsByBin(hist);
       const total = Math.max(1, rows.length);
@@ -6241,12 +6656,26 @@
       }
       drawSimpleBars(el.anChartBins, hist.labels, totals, "#007AFF");
       drawSimpleLine(el.anChartCdf, hist.labels, cdf, "#5856D6");
-      const topTb = topNCounts(rows, "tb", 8);
-      const topGosb = topNCounts(rows, "gosb", 8);
-      const topCluster = topNCounts(rows, "cluster", 8);
-      drawSimpleBars(el.anChartTb, topTb.map((x) => x[0]), topTb.map((x) => x[1]), "#34C759");
-      drawSimpleBars(el.anChartGosb, topGosb.map((x) => x[0]), topGosb.map((x) => x[1]), "#FF9500");
-      drawSimpleBars(el.anChartCluster, topCluster.map((x) => x[0]), topCluster.map((x) => x[1]), "#AF52DE");
+
+      const groups = attachCompositeScores(groupStats(rows, dim));
+      const ranked = selectRankedGroups(groups, metric, rankMode, topN, outlierType);
+      const top = ranked.picked;
+      const sortedByMetric = groups.slice().sort((a, b) => valueByMetric(b, metric) - valueByMetric(a, metric));
+      const bottom = sortedByMetric.slice(-Math.min(topN, sortedByMetric.length)).reverse();
+      if (el.analysisRankHint) el.analysisRankHint.textContent = ranked.hint || "";
+
+      // Топы по оргразрезам — по выбранной метрике (не только count)
+      {
+        const gTb = attachCompositeScores(groupStats(rows, "tb"));
+        const pTb = selectRankedGroups(gTb, metric, "top_n", Math.min(8, topN), outlierType).picked;
+        drawSimpleBars(el.anChartTb, pTb.map((x) => x.name), pTb.map((x) => valueByMetric(x, metric)), "#34C759");
+        const gGo = attachCompositeScores(groupStats(rows, "gosb"));
+        const pGo = selectRankedGroups(gGo, metric, "top_n", Math.min(8, topN), outlierType).picked;
+        drawSimpleBars(el.anChartGosb, pGo.map((x) => x.name), pGo.map((x) => valueByMetric(x, metric)), "#FF9500");
+        const gCl = attachCompositeScores(groupStats(rows, "cluster"));
+        const pCl = selectRankedGroups(gCl, metric, "top_n", Math.min(8, topN), outlierType).picked;
+        drawSimpleBars(el.anChartCluster, pCl.map((x) => x.name), pCl.map((x) => valueByMetric(x, metric)), "#AF52DE");
+      }
 
       const sortedAmounts = rows.map((r) => r.amount).sort((a, b) => a - b);
       const decVals = [];
@@ -6257,36 +6686,56 @@
       }
       drawSimpleLine(el.anChartDeciles, decLabels, decVals, "#FF3B30");
 
-      const groups = groupStats(rows, dim);
-      const sortedByMetric = groups.slice().sort((a, b) => valueByMetric(b, metric) - valueByMetric(a, metric));
-      const top = sortedByMetric.slice(0, topN);
-      const bottom = sortedByMetric.slice(-topN).reverse();
       drawSimpleBars(el.anChartTop, top.map((x) => x.name), top.map((x) => valueByMetric(x, metric)), "#007AFF");
       drawSimpleBars(el.anChartBottom, bottom.map((x) => x.name), bottom.map((x) => valueByMetric(x, metric)), "#FF3B30");
-      drawSimplePie(el.anChartPie, top.map((x) => x.name), top.map((x) => Math.max(0, valueByMetric(x, metric))));
-      drawBandChart(
-        el.anChartBand,
+      drawSimplePie(el.anChartPie, top.map((x) => x.name), top.map((x) => Math.max(0, x.sum)));
+      drawBoxplot(el.anChartBand, top.slice(0, Math.min(12, top.length)));
+      const avgMetric = (metric === "median") ? "median" : "avg";
+      drawSimpleBars(
+        el.anChartAvgBar,
         top.map((x) => x.name),
-        top.map((x) => x.p10),
-        top.map((x) => x.p50),
-        top.map((x) => x.p90)
+        top.map((x) => valueByMetric(x, avgMetric)),
+        "#0b6bcb"
       );
+      if (el.anChartHeat) drawHeatmapAvg(el.anChartHeat, rows, "tb", "gosb", Math.min(8, Math.max(5, topN)));
 
       if (el.analysisTableIntervals) {
-        let html = "<table><thead><tr><th>Интервал</th><th>ТН</th><th>%</th><th>Средняя сумма</th></tr></thead><tbody>";
+        let html = "<table><thead><tr><th>Интервал</th><th>N</th><th>%</th><th>Средняя</th><th>Σ</th></tr></thead><tbody>";
         for (let i = 0; i < nBins; i += 1) {
           const cnt = binCounts[i];
           const avg = cnt ? binSums[i] / cnt : 0;
-          html += `<tr><td>${escapeHtml(hist.labels[i])}</td><td>${cnt}</td><td>${formatPctShare(cnt, total)}</td><td>${escapeHtml(formatAmount(avg))}</td></tr>`;
+          html += `<tr><td>${escapeHtml(hist.labels[i])}</td><td>${cnt}</td><td>${formatPctShare(cnt, total)}</td><td>${escapeHtml(formatAmount(avg))}</td><td>${escapeHtml(formatAmount(binSums[i]))}</td></tr>`;
         }
         html += "</tbody></table>";
         el.analysisTableIntervals.innerHTML = html;
       }
 
       if (el.analysisTableCategories) {
-        const html = "<table><thead><tr><th>Категория</th><th>ТН</th><th>Σ сумма</th><th>Средняя</th><th>P90</th></tr></thead><tbody>"
-          + top.map((x) => `<tr><td>${escapeHtml(x.name)}</td><td>${x.count}</td><td>${escapeHtml(formatAmount(x.sum))}</td><td>${escapeHtml(formatAmount(x.avg))}</td><td>${escapeHtml(formatAmount(x.p90))}</td></tr>`).join("")
-          + "</tbody></table>";
+        const rowsShow = (rankMode === "top_n" ? top : sortedByMetric.slice(0, Math.min(40, sortedByMetric.length)));
+        let html = "<table><thead><tr>"
+          + "<th>Rank</th><th>" + escapeHtml(dimTitle) + "</th><th>N</th><th>Σ</th><th>Avg</th><th>Median</th>"
+          + "<th>Std</th><th>Q1</th><th>Q3</th><th>IQR</th>"
+          + "<th>%&gt;0</th><th>%&lt;0</th><th>%0</th><th>Score</th>"
+          + "</tr></thead><tbody>";
+        for (const x of rowsShow) {
+          html += `<tr>`
+            + `<td>${x.rank || ""}</td>`
+            + `<td>${escapeHtml(x.name)}</td>`
+            + `<td>${x.count}</td>`
+            + `<td>${escapeHtml(formatAmount(x.sum))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.avg))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.median))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.std))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.q1))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.q3))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.iqr))}</td>`
+            + `<td>${(100 * x.sharePos).toFixed(1)}%</td>`
+            + `<td>${(100 * x.shareNeg).toFixed(1)}%</td>`
+            + `<td>${(100 * x.shareZero).toFixed(1)}%</td>`
+            + `<td>${x.score.toFixed(3)}</td>`
+            + `</tr>`;
+        }
+        html += "</tbody></table>";
         el.analysisTableCategories.innerHTML = html;
       }
 
@@ -6320,7 +6769,8 @@
         ];
         let html = "<table><thead><tr><th>Разрез</th><th>Сегмент</th><th>Категория</th><th>ТН</th><th>Σ сумма</th><th>Средняя</th></tr></thead><tbody>";
         for (const d of dims) {
-          const s = groupStats(rows, d.key).sort((a, b) => valueByMetric(b, metric) - valueByMetric(a, metric));
+          const s = attachCompositeScores(groupStats(rows, d.key))
+            .sort((a, b) => valueByMetric(b, metric) - valueByMetric(a, metric));
           const t = s.slice(0, Math.min(topN, s.length));
           const b = s.slice(-Math.min(topN, s.length)).reverse();
           for (const x of t) html += `<tr><td>${d.title}</td><td>Top</td><td>${escapeHtml(x.name)}</td><td>${x.count}</td><td>${escapeHtml(formatAmount(x.sum))}</td><td>${escapeHtml(formatAmount(x.avg))}</td></tr>`;
@@ -6339,12 +6789,19 @@
       }
 
       if (el.analysisTableStability) {
-        const s = sortedByMetric.slice(0, Math.min(topN, sortedByMetric.length));
-        let html = "<table><thead><tr><th>Категория</th><th>Min</th><th>Median</th><th>Max</th><th>IQR≈P90−P10</th><th>CV</th></tr></thead><tbody>";
+        const s = top.slice(0, Math.min(top.length, Math.max(topN, 10)));
+        let html = "<table><thead><tr><th>Категория</th><th>Min</th><th>Q1</th><th>Median</th><th>Q3</th><th>Max</th><th>IQR</th><th>CV</th><th>Score</th></tr></thead><tbody>";
         for (const x of s) {
-          const iqr = x.p90 - x.p10;
-          const cv = x.avg ? (iqr / Math.abs(x.avg)) : 0;
-          html += `<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(formatAmount(x.min))}</td><td>${escapeHtml(formatAmount(x.p50))}</td><td>${escapeHtml(formatAmount(x.max))}</td><td>${escapeHtml(formatAmount(iqr))}</td><td>${escapeHtml((cv * 100).toFixed(1) + "%")}</td></tr>`;
+          const cv = x.avg ? (x.iqr / Math.abs(x.avg)) : 0;
+          html += `<tr><td>${escapeHtml(x.name)}</td>`
+            + `<td>${escapeHtml(formatAmount(x.min))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.q1))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.median))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.q3))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.max))}</td>`
+            + `<td>${escapeHtml(formatAmount(x.iqr))}</td>`
+            + `<td>${escapeHtml((cv * 100).toFixed(1) + "%")}</td>`
+            + `<td>${x.score.toFixed(3)}</td></tr>`;
         }
         html += "</tbody></table>";
         el.analysisTableStability.innerHTML = html;
@@ -6724,9 +7181,6 @@
     }
     bindSegmentedControl(el.chartTypeSeg, el.chartType, rebuild);
     bindSegmentedControl(el.groupLayoutSeg, el.groupLayout, rebuild);
-    bindSegmentedControl(el.analysisMetricSeg, el.analysisMetric, () => {
-      if (viewMode === "analysis") rebuild();
-    });
     bindSegmentedControl(el.analysisTopNSeg, el.analysisTopN, () => {
       if (viewMode === "analysis") rebuild();
     });
@@ -6738,11 +7192,13 @@
       initEdgeStateFromData(true);
       rebuild();
     });
-    if (el.analysisDim) {
-      el.analysisDim.addEventListener("change", () => {
-        if (viewMode === "analysis") rebuild();
-      });
+    function rebuildAnalysisIfOpen() {
+      if (viewMode === "analysis") rebuild();
     }
+    if (el.analysisDim) el.analysisDim.addEventListener("change", rebuildAnalysisIfOpen);
+    if (el.analysisMetric) el.analysisMetric.addEventListener("change", rebuildAnalysisIfOpen);
+    if (el.analysisRankMode) el.analysisRankMode.addEventListener("change", rebuildAnalysisIfOpen);
+    if (el.analysisOutlierType) el.analysisOutlierType.addEventListener("change", rebuildAnalysisIfOpen);
 
     function runBulkFilterSelection(selectAll) {
       applyBulkFilterSelection(selectAll);
@@ -6789,7 +7245,6 @@
     syncGroupLayoutUi();
     syncChartModeConstraints();
     syncSegFromSelect(el.edgeCalcModeSeg, el.edgeCalcMode);
-    syncSegFromSelect(el.analysisMetricSeg, el.analysisMetric);
     syncSegFromSelect(el.analysisTopNSeg, el.analysisTopN);
 
     // Экспорт для тестов в Node (если страница открыта как модуль — не используется)
