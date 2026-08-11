@@ -64,6 +64,8 @@
 - [v] Документация аналитики: `Docs/ANALYSIS_METRICS.md` (метрики, графики 1–12, таблицы A–L)
 - [v] 2.4.24: экспорт «Статистика по файлу» — JSON-профиль ТБ/ГОСБ/кластер + связи для генерации демо
 - [v] Генератор демо из JSON-статистики: `tools/build_sum_demo_from_file_stats.py` (~25k± строк, агрегация ≈ прод)
+- [v] 2.4.25: в JSON статистики — хвосты P10/P90 по группам; CSV групп убран
+- [v] Генератор демо под v1.1: хвосты P10/P90 по группам из JSON; только JSON (без `_groups.csv`)
 
 ## Модули (внутри sum-distribution.html)
 
@@ -75,8 +77,8 @@
 - `formatAmount` / `formatAmountExact` — суммы с разрядами; точные мин/макс в статистике
 - `computeHistogram` / `buildPeriodOverlayHist` / `drawHistogram` (bars/line, barOverlap) / сравнение overlay|overlap|side|stack / `syncChartModeConstraints` / сегменты `chartTypeSeg`/`groupLayoutSeg` / `chartHitBars*` / `renderFrequencyTable` / `renderCompareStats`
 - `renderFileOverview` — карточки статистики загруженного файла
-- `groupNameForAmount` / `exportRawCsvWithGroup` / `exportUniqueTnCsv` / `exportGroupsText` / `exportFileStats` (`sum-distribution-file-stats/v1`) — выгрузки
-- `tools/build_sum_demo_csv_20k.py`, `tools/build_sum_demo_csv_21k.py` — демо CSV (samples/ в gitignore)
+- `groupNameForAmount` / `exportRawCsvWithGroup` / `exportUniqueTnCsv` / `exportGroupsText` / `exportFileStats` (`sum-distribution-file-stats/v1.1`) — выгрузки
+- `tools/build_sum_demo_from_file_stats.py` — демо CSV из JSON статистики (хвосты P10/P90); `build_sum_demo_csv_20k.py` / `21k.py` — синтетика
 
 ## Как проверить
 

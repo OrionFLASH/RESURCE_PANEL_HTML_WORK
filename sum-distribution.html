@@ -1796,7 +1796,7 @@
                 <span>TXT группы</span>
               </button>
               <button class="btn secondary btn-with-icon is-export-filestats" type="button" id="btnExportFileStats"
-                data-tip="JSON-профиль текущего файла (без фильтров): ТН по ТБ/ГОСБ/кластеру, min/max/median, знаки, суммы, связи оргструктуры — для генерации тестовых данных">
+                data-tip="JSON-профиль текущего файла (без фильтров): ТБ/ГОСБ/кластер; худшие/лучшие ~10% по сумме (больше = лучше); связи оргструктуры">
                 <span class="btn-ico" aria-hidden="true"></span>
                 <span>Статистика по файлу</span>
               </button>
@@ -2718,9 +2718,10 @@
 
     /**
      * Профиль одного разреза (ТБ / ГОСБ / кластер) по списку ТН.
-     * Нужен для генерации тестовых данных, близких к проду.
+     * p10/p90 — глобальные пороги файла по полю сумма (amount):
+     * чем больше сумма, тем лучше → ≤p10 худшие ~10%, ≥p90 лучшие ~10%.
      */
-    function buildFileDimStats(rows, field) {
+    function buildFileDimStats(rows, field, p10, p90) {
       const buckets = new Map();
       for (let i = 0; i < rows.length; i += 1) {
         const r = rows[i];
@@ -2729,6 +2730,8 @@
         buckets.get(key).push(Number(r.amount) || 0);
       }
       const totalTn = Math.max(1, rows.length);
+      const thrLo = Number.isFinite(p10) ? p10 : -Infinity;
+      const thrHi = Number.isFinite(p90) ? p90 : Infinity;
       const out = [];
       for (const [name, vals] of buckets.entries()) {
         const n = vals.length;
@@ -2738,6 +2741,8 @@
         let countPos = 0;
         let countNeg = 0;
         let countZero = 0;
+        let countLeP10 = 0;
+        let countGeP90 = 0;
         let min = Infinity;
         let max = -Infinity;
         for (let i = 0; i < n; i += 1) {
@@ -2746,6 +2751,8 @@
           if (v > 0) { countPos += 1; sumPos += v; }
           else if (v < 0) { countNeg += 1; sumNeg += v; }
           else countZero += 1;
+          if (v <= thrLo) countLeP10 += 1;
+          if (v >= thrHi) countGeP90 += 1;
           if (v < min) min = v;
           if (v > max) max = v;
         }
@@ -2767,7 +2774,14 @@
           count_zero: countZero,
           share_pos: n ? countPos / n : 0,
           share_neg: n ? countNeg / n : 0,
-          share_zero: n ? countZero / n : 0
+          share_zero: n ? countZero / n : 0,
+          // Хвосты по сумме: ≤P10 = худшие, ≥P90 = лучшие (больше amount → лучше)
+          count_le_p10: countLeP10,
+          share_le_p10: n ? countLeP10 / n : 0,
+          count_worst_10pct: countLeP10,
+          count_ge_p90: countGeP90,
+          share_ge_p90: n ? countGeP90 / n : 0,
+          count_best_10pct: countGeP90
         });
       }
       out.sort((a, b) => b.tn_count - a.tn_count || String(a.name).localeCompare(String(b.name), "ru"));
@@ -2839,11 +2853,19 @@
         else countZero += 1;
       }
       const sorted = amounts.slice().sort((a, b) => a - b);
-      const byTb = buildFileDimStats(rows, "tb");
-      const byGosb = buildFileDimStats(rows, "gosb");
-      const byCluster = buildFileDimStats(rows, "cluster");
+      const p10 = quantile(sorted, 0.1);
+      const p90 = quantile(sorted, 0.9);
+      let countLeP10 = 0;
+      let countGeP90 = 0;
+      for (let i = 0; i < n; i += 1) {
+        if (amounts[i] <= p10) countLeP10 += 1;
+        if (amounts[i] >= p90) countGeP90 += 1;
+      }
+      const byTb = buildFileDimStats(rows, "tb", p10, p90);
+      const byGosb = buildFileDimStats(rows, "gosb", p10, p90);
+      const byCluster = buildFileDimStats(rows, "cluster", p10, p90);
       return {
-        schema: "sum-distribution-file-stats/v1",
+        schema: "sum-distribution-file-stats/v1.1",
         purpose: "Профиль текущего файла для анализа и генерации тестовых CSV, близких к проду",
         generated_at: new Date().toISOString(),
         source: {
@@ -2872,16 +2894,31 @@
           count_zero: countZero,
           share_pos: n ? countPos / n : 0,
           share_neg: n ? countNeg / n : 0,
-          share_zero: n ? countZero / n : 0
+          share_zero: n ? countZero / n : 0,
+          count_le_p10: countLeP10,
+          share_le_p10: n ? countLeP10 / n : 0,
+          count_worst_10pct: countLeP10,
+          count_ge_p90: countGeP90,
+          share_ge_p90: n ? countGeP90 / n : 0,
+          count_best_10pct: countGeP90
         },
         amount_quantiles: {
-          p10: quantile(sorted, 0.1),
+          p10,
           p25: quantile(sorted, 0.25),
           p50: quantile(sorted, 0.5),
           p75: quantile(sorted, 0.75),
-          p90: quantile(sorted, 0.9),
+          p90,
           p95: quantile(sorted, 0.95),
           p99: quantile(sorted, 0.99)
+        },
+        tail_thresholds: {
+          field: "amount",
+          rule: "Чем больше сумма (amount), тем лучше",
+          description: "Глобальные пороги файла по сумме ТН: ≤ p10 = худшие ~10%, ≥ p90 = лучшие ~10%",
+          worst: { percentile: 10, op: "<=", key: "p10" },
+          best: { percentile: 90, op: ">=", key: "p90" },
+          p10,
+          p90
         },
         by_tb: byTb,
         by_gosb: byGosb,
@@ -2891,40 +2928,10 @@
           sample_by: "tn_share within by_tb / by_gosb / by_cluster",
           keep_links: "sample (tb,gosb,cluster) from links.tb_gosb_cluster weighted by tn_count",
           amount_model: "mix sign shares + draw magnitude from amount_quantiles / per-group min-max-median",
+          tails: "по amount: count_le_p10/count_worst_10pct (худшие), count_ge_p90/count_best_10pct (лучшие); больше сумма → лучше",
           empty_label: "(пусто)"
         }
       };
-    }
-
-    /** Плоский CSV по группам разреза (удобно смотреть в Excel). */
-    function fileStatsGroupsToCsv(payload) {
-      const header = [
-        "разрез", "имя", "tn_count", "tn_share", "min", "max", "median", "avg",
-        "sum_all", "sum_pos", "sum_neg",
-        "count_pos", "count_neg", "count_zero",
-        "share_pos", "share_neg", "share_zero"
-      ].join(";");
-      const lines = [header];
-      function pushDim(dim, arr) {
-        for (const x of arr) {
-          lines.push([
-            dim,
-            csvEscape(x.name),
-            x.tn_count,
-            (x.tn_share * 100).toFixed(4),
-            x.min, x.max, x.median, x.avg,
-            x.sum_all, x.sum_pos, x.sum_neg,
-            x.count_pos, x.count_neg, x.count_zero,
-            (x.share_pos * 100).toFixed(4),
-            (x.share_neg * 100).toFixed(4),
-            (x.share_zero * 100).toFixed(4)
-          ].join(";"));
-        }
-      }
-      pushDim("tb", payload.by_tb || []);
-      pushDim("gosb", payload.by_gosb || []);
-      pushDim("cluster", payload.by_cluster || []);
-      return lines.join("\n");
     }
 
     function exportFileStats() {
@@ -2937,14 +2944,8 @@
           JSON.stringify(payload, null, 2),
           "application/json;charset=utf-8"
         );
-        // Дополнительно плоский CSV по группам — для быстрого просмотра
-        downloadTextFile(
-          base + "_groups.csv",
-          fileStatsGroupsToCsv(payload),
-          "text/csv;charset=utf-8"
-        );
         setChartStatus(
-          "Статистика по файлу: JSON + CSV групп (ТН=" + allRows.length
+          "Статистика по файлу: JSON (ТН=" + allRows.length
             + ", ТБ=" + payload.source.unique_tb
             + ", ГОСБ=" + payload.source.unique_gosb
             + ", кластеров=" + payload.source.unique_cluster + ").",
