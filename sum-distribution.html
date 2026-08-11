@@ -3570,7 +3570,11 @@
           const posEdges = evenlySpacedEdges(0, calcScale.max, positiveInternalMovable);
           for (let i = 1; i < posEdges.length - 1; i += 1) edges.push(posEdges[i]);
         } else {
-          const amounts = rowsCalc.map((r) => r.amount);
+          const amountsRaw = rowsCalc.map((r) => Number(r.amount)).filter((v) => Number.isFinite(v) && v >= 0);
+          const amountsStrictPos = amountsRaw.filter((v) => v > 0);
+          // Важный момент: если есть >0, границы считаем по strictly-positive,
+          // чтобы не получать нулевой интервал [0..0] из-за большого числа нулей.
+          const amounts = amountsStrictPos.length ? amountsStrictPos : amountsRaw;
           // В positive режиме после якоря 0 остаётся n интервалов на [0..max]
           // => внутренних подвижных границ n-1.
           const posEdges = kind === "ladder"
@@ -3580,7 +3584,14 @@
         }
       }
       edges.push(fullScale.max);
-      return cascadeEdges(edges, 0);
+      const out = cascadeEdges(edges, 0);
+      // Для positive-режима не допускаем дубль 0 на первом положительном интервале,
+      // если по диапазону это вообще возможно.
+      if (out.length > 3 && out[1] === 0 && out[2] === 0 && out[out.length - 1] > 0) {
+        out[2] = 1;
+        return cascadeEdges(out, 2);
+      }
+      return out;
     }
 
     function cascadeEdges(edges, changedIndex) {
