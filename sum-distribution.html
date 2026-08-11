@@ -99,12 +99,7 @@
       background-clip: text;
       color: transparent;
     }
-    header.page-head p {
-      margin: 0;
-      color: var(--glass-text-secondary);
-      max-width: 72ch;
-      line-height: 1.45;
-    }
+    header.page-head p { display: none; }
 
     /* Всегда: данные сверху → график на всю ширину → бегунки снизу */
     .grid {
@@ -126,6 +121,7 @@
     }
     .panel.stack > .mode-tabs,
     .panel.stack > h2,
+    .panel.stack > details.section-block,
     .panel.stack > .row,
     .panel.stack > .status,
     .panel.stack > details.help,
@@ -256,6 +252,11 @@
       border-radius: 14px;
       background: rgba(255, 255, 255, 0.55);
       border: 1px solid var(--glass-white-border-light);
+      position: sticky;
+      top: 8px;
+      z-index: 25;
+      backdrop-filter: blur(12px) saturate(160%);
+      -webkit-backdrop-filter: blur(12px) saturate(160%);
     }
     .mode-tabs .btn {
       flex: 1 1 140px;
@@ -863,7 +864,7 @@
     }
     .edge-rail.is-compare {
       height: 56px;
-      margin: 44px 8px 36px;
+      margin: 44px 8px 52px;
     }
     .edge-rail__track {
       position: absolute;
@@ -1001,7 +1002,7 @@
     .edge-rail__current {
       position: absolute;
       left: 50%;
-      top: calc(100% + 8px);
+      top: calc(100% + 16px);
       transform: translateX(-50%);
       min-width: 48px;
       padding: 2px 7px;
@@ -1016,6 +1017,9 @@
       box-shadow: 0 1px 4px rgba(0, 122, 255, 0.14);
       white-space: nowrap;
       pointer-events: none;
+    }
+    .edge-rail.is-compare .edge-rail__current {
+      top: calc(100% + 20px);
     }
     .edge-values {
       display: grid;
@@ -1171,10 +1175,41 @@
       cursor: grabbing;
       transform: scale(1.05);
     }
+    .edge-fine__thumb-val {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 8px;
+      line-height: 1;
+      font-weight: 700;
+      color: #fff;
+      background: rgba(0, 122, 255, 0.82);
+      border-radius: 999px;
+      padding: 2px 5px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 1px 3px rgba(0, 122, 255, 0.26);
+    }
     .edge-fine__hint {
       font-size: 0.71rem;
       color: var(--glass-text-secondary);
       margin-top: 1px;
+    }
+    .edge-calc-mode {
+      display: grid;
+      gap: 4px;
+      min-width: 210px;
+      margin: 6px 0 2px;
+    }
+    .edge-calc-mode__label {
+      font-size: 0.74rem;
+      color: var(--glass-text-secondary);
+      font-weight: 600;
+    }
+    .edge-calc-mode .seg {
+      width: fit-content;
+      max-width: 100%;
     }
     .edge-fine__meta {
       display: flex;
@@ -1374,6 +1409,31 @@
       background: rgba(255,255,255,0.45);
     }
     details.help summary { cursor: pointer; font-weight: 600; }
+    details.section-block {
+      border: 1px dashed rgba(0,0,0,0.1);
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.45);
+    }
+    details.section-block > summary {
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 1rem;
+      list-style: none;
+    }
+    details.section-block > summary::-webkit-details-marker { display: none; }
+    details.section-block > summary::after {
+      content: "▾";
+      float: right;
+      color: var(--glass-text-secondary);
+      font-size: 0.9rem;
+    }
+    details.section-block:not([open]) > summary::after { content: "▸"; }
+    .section-block__content {
+      margin-top: 10px;
+      display: grid;
+      gap: 10px;
+    }
 
     /* Liquid Glass tooltip */
     .glass-tip {
@@ -1405,12 +1465,6 @@
   <div class="wrap">
     <header class="page-head">
       <h1>Распределение сумм</h1>
-      <p>
-        Обязательные столбцы: <strong>ТН</strong> и <strong>сумма</strong>. Опционально: ТБ, ГОСБ, кластер
-        (без них фильтры и разрезы по этим полям недоступны). Перед гистограммой суммы
-        <strong>суммируются по ТН</strong> (ТН нормализуется до 20 цифр). Демо-файл:
-        <code>samples/sum-distribution-demo-1800.csv</code>.
-      </p>
     </header>
 
     <div class="grid">
@@ -1422,82 +1476,89 @@
             data-tip="Текущий и прошлый периоды на общих интервалах">Сравнение периодов</button>
         </div>
 
-        <h2>1. Данные</h2>
+        <details class="section-block" id="dataBlock" open>
+          <summary>1. Данные</summary>
+          <div class="section-block__content">
+            <div class="period-block" id="periodBlockA">
+              <div class="period-block__title" id="periodTitleA">Текущий период</div>
+              <div class="file-row">
+                <input id="fileInput" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt"
+                  data-tip="CSV/TSV текущего периода. Обязательны колонки ТН и сумма.">
+                <button class="btn secondary" type="button" id="btnClear"
+                  data-tip="Очистить данные этого периода">Очистить</button>
+              </div>
+              <div id="fileOverviewA" class="file-overview" aria-live="polite"></div>
+            </div>
 
-        <div class="period-block" id="periodBlockA">
-          <div class="period-block__title" id="periodTitleA">Текущий период</div>
-          <div class="file-row">
-            <input id="fileInput" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt"
-              data-tip="CSV/TSV текущего периода. Обязательны колонки ТН и сумма.">
-            <button class="btn secondary" type="button" id="btnClear"
-              data-tip="Очистить данные этого периода">Очистить</button>
+            <div class="period-block compare-only" id="periodBlockB">
+              <div class="period-block__title" id="periodTitleB">Прошлый период</div>
+              <div class="file-row">
+                <input id="fileInputB" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt"
+                  data-tip="CSV прошлого периода для сравнения.">
+                <button class="btn secondary" type="button" id="btnClearB"
+                  data-tip="Очистить данные этого периода">Очистить</button>
+              </div>
+              <div id="fileOverviewB" class="file-overview" aria-live="polite"></div>
+            </div>
+
+            <div class="row">
+              <button class="btn ghost" type="button" id="btnRebuild" data-tip="Пересчитать фильтры, интервалы и график">Обновить график</button>
+            </div>
+
+            <div id="loadStatus" class="status" hidden></div>
+
+            <details class="help">
+              <summary data-tip="Подсказка по алиасам колонок">Формат и алиасы колонок</summary>
+              <p class="hint" style="margin:8px 0 0">
+                Регистр заголовков не важен. Если несколько колонок из одного списка алиасов —
+                берётся та, чьё имя раньше в списке алиасов.<br>
+                <strong>сумма:</strong> сумма, прирост, прирос, рост, итог, sum, amount<br>
+                <strong>ТН:</strong> тн, tn, табельный, таб.ном, табельный номер<br>
+                <strong>ТБ:</strong> тб, tb, тербанк · <strong>ГОСБ:</strong> госб, gosb ·
+                <strong>кластер:</strong> кластер, cluster<br>
+                Демо сравнения: <code>python3 tools/build_sum_demo_csv_20k.py</code> и
+                <code>python3 tools/build_sum_demo_csv_21k.py</code> → samples/
+              </p>
+            </details>
           </div>
-          <div id="fileOverviewA" class="file-overview" aria-live="polite"></div>
-        </div>
-
-        <div class="period-block compare-only" id="periodBlockB">
-          <div class="period-block__title" id="periodTitleB">Прошлый период</div>
-          <div class="file-row">
-            <input id="fileInputB" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt"
-              data-tip="CSV прошлого периода для сравнения.">
-            <button class="btn secondary" type="button" id="btnClearB"
-              data-tip="Очистить данные этого периода">Очистить</button>
-          </div>
-          <div id="fileOverviewB" class="file-overview" aria-live="polite"></div>
-        </div>
-
-        <div class="row">
-          <button class="btn ghost" type="button" id="btnRebuild" data-tip="Пересчитать фильтры, интервалы и график">Обновить график</button>
-        </div>
-
-        <div id="loadStatus" class="status" hidden></div>
-
-        <details class="help">
-          <summary data-tip="Подсказка по алиасам колонок">Формат и алиасы колонок</summary>
-          <p class="hint" style="margin:8px 0 0">
-            Регистр заголовков не важен. Если несколько колонок из одного списка алиасов —
-            берётся та, чьё имя раньше в списке алиасов.<br>
-            <strong>сумма:</strong> сумма, прирост, прирос, рост, итог, sum, amount<br>
-            <strong>ТН:</strong> тн, tn, табельный, таб.ном, табельный номер<br>
-            <strong>ТБ:</strong> тб, tb, тербанк · <strong>ГОСБ:</strong> госб, gosb ·
-            <strong>кластер:</strong> кластер, cluster<br>
-            Демо сравнения: <code>python3 tools/build_sum_demo_csv_20k.py</code> и
-            <code>python3 tools/build_sum_demo_csv_21k.py</code> → samples/
-          </p>
         </details>
 
-        <h2 class="section-gap">2. Фильтры</h2>
-        <div id="filterHint" class="filter-hint" aria-live="polite"></div>
+        <details class="section-block" id="filtersBlock">
+          <summary>2. Фильтры</summary>
+          <div class="section-block__content">
+            <div id="filterHint" class="filter-hint" aria-live="polite"></div>
 
-        <div class="filter-block" id="orgTreeFilterBlock">
-          <div class="filter-toolbar">
-            <div class="filter-toolbar__title">
-              <strong>ТБ / ГОСБ</strong>
-              <span class="filter-toolbar__sub">кнопки действуют и на кластеры</span>
+            <div class="filter-block" id="orgTreeFilterBlock">
+              <div class="filter-toolbar">
+                <div class="filter-toolbar__title">
+                  <strong>ТБ / ГОСБ</strong>
+                  <span class="filter-toolbar__sub">кнопки действуют и на кластеры</span>
+                </div>
+                <div class="filter-toolbar__actions">
+                  <button class="btn secondary small btn-with-icon is-select-all" type="button" id="btnFilterSelectAll"
+                    data-tip="Отметить все ТБ, ГОСБ и кластеры">
+                    <span class="btn-ico" aria-hidden="true"></span>
+                    <span>Выбрать всё</span>
+                  </button>
+                  <button class="btn secondary small btn-with-icon is-clear-all" type="button" id="btnFilterClearAll"
+                    data-tip="Снять все отметки в ТБ, ГОСБ и кластерах">
+                    <span class="btn-ico" aria-hidden="true"></span>
+                    <span>Снять всё</span>
+                  </button>
+                </div>
+              </div>
+              <p class="hint" style="margin:0 0 6px">Порядок фиксированный. Невыбранные — серые; их тоже можно выбрать — подтянутся связанные значения. В сравнении фильтр общий для обоих периодов.</p>
+              <div id="orgTree" class="filter-tree"><div class="empty">Загрузите данные</div></div>
             </div>
-            <div class="filter-toolbar__actions">
-              <button class="btn secondary small btn-with-icon is-select-all" type="button" id="btnFilterSelectAll"
-                data-tip="Отметить все ТБ, ГОСБ и кластеры">
-                <span class="btn-ico" aria-hidden="true"></span>
-                <span>Выбрать всё</span>
-              </button>
-              <button class="btn secondary small btn-with-icon is-clear-all" type="button" id="btnFilterClearAll"
-                data-tip="Снять все отметки в ТБ, ГОСБ и кластерах">
-                <span class="btn-ico" aria-hidden="true"></span>
-                <span>Снять всё</span>
-              </button>
+
+            <div class="filter-block" id="clusterFilterBlock">
+              <div class="toolbar toolbar--plain">
+                <strong>Кластер</strong>
+              </div>
+              <div id="clusterChecks" class="checks"><div class="empty">Загрузите данные</div></div>
             </div>
           </div>
-          <p class="hint" style="margin:0 0 6px">Порядок фиксированный. Невыбранные — серые; их тоже можно выбрать — подтянутся связанные значения. В сравнении фильтр общий для обоих периодов.</p>
-          <div id="orgTree" class="filter-tree"><div class="empty">Загрузите данные</div></div>
-        </div>
-
-        <div class="filter-block" id="clusterFilterBlock">
-          <div class="toolbar toolbar--plain">
-            <strong>Кластер</strong>
-          </div>
-          <div id="clusterChecks" class="checks"><div class="empty">Загрузите данные</div></div>
-        </div>
+        </details>
       </section>
 
       <section class="panel panel-chart-col">
@@ -1589,6 +1650,17 @@
               </div>
             </div>
             <p class="hint">Интервалы общие. «Равно» и «Лесенка» считают границы по текущему периоду; у прошлого — своё попадание в те же интервалы.</p>
+            <div class="edge-calc-mode" data-tip="Для авторасчёта границ: по положительным значениям или по всем (включая отрицательные).">
+              <span class="edge-calc-mode__label">Авторасчёт границ</span>
+              <div class="seg" id="edgeCalcModeSeg" role="group" aria-label="Авторасчёт границ">
+                <button type="button" class="seg__btn is-on" data-value="positive">Только положительные</button>
+                <button type="button" class="seg__btn" data-value="all">Все значения</button>
+              </div>
+              <select id="edgeCalcMode" class="sr-only" tabindex="-1" aria-hidden="true">
+                <option value="positive" selected>Только положительные</option>
+                <option value="all">Все значения</option>
+              </select>
+            </div>
             <div class="edge-rail-wrap">
               <div id="edgeRail" class="edge-rail" aria-label="Шкала границ интервалов"></div>
               <div id="edgeFineTune" class="edge-fine hidden" aria-live="polite"></div>
@@ -1688,6 +1760,15 @@
       /** Индекс активной подвижной границы для увеличенной тонкой настройки */
       fineIndex: -1
     };
+    let edgeRebuildRaf = 0;
+
+    function requestRebuildEdge() {
+      if (edgeRebuildRaf) return;
+      edgeRebuildRaf = requestAnimationFrame(() => {
+        edgeRebuildRaf = 0;
+        rebuild();
+      });
+    }
 
     /** Последний расчёт для экспорта */
     let lastChartState = null;
@@ -1731,6 +1812,8 @@
       btnFilterSelectAll: document.getElementById("btnFilterSelectAll"),
       btnFilterClearAll: document.getElementById("btnFilterClearAll"),
       movableEdgeCount: document.getElementById("movableEdgeCount"),
+      edgeCalcMode: document.getElementById("edgeCalcMode"),
+      edgeCalcModeSeg: document.getElementById("edgeCalcModeSeg"),
       btnEqualCountEdges: document.getElementById("btnEqualCountEdges"),
       btnLadderCountEdges: document.getElementById("btnLadderCountEdges"),
       btnEvenWidthEdges: document.getElementById("btnEvenWidthEdges"),
@@ -3199,6 +3282,20 @@
       return a;
     }
 
+    function currentEdgeCalcMode() {
+      return (el.edgeCalcMode && el.edgeCalcMode.value === "all") ? "all" : "positive";
+    }
+
+    function includePositiveOnlyForAutoEdges() {
+      return currentEdgeCalcMode() === "positive";
+    }
+
+    function rowsForAutoEdgeCalc(rows) {
+      if (!includePositiveOnlyForAutoEdges()) return rows.slice();
+      const pos = rows.filter((r) => Number(r.amount) >= 0);
+      return pos.length ? pos : rows.slice();
+    }
+
     /** Точные мин/макс по суммам ТН (без floor/ceil). */
     function dataMinMax(rows) {
       const amounts = rows.map((r) => r.amount);
@@ -3212,6 +3309,25 @@
     function edgeScaleMinMax(rows) {
       const raw = dataMinMax(rows);
       return integerBounds(raw.min, raw.max);
+    }
+
+    /**
+     * Шкала для автоинициализации:
+     * - по умолчанию (positive) при наличии неотрицательных значений стартуем с 0,
+     * - остальные границы распределяются по положительному диапазону.
+     */
+    function autoEdgeScaleMinMax(rows) {
+      const workRows = rowsForAutoEdgeCalc(rows);
+      const { min, max } = edgeScaleMinMax(workRows);
+      if (includePositiveOnlyForAutoEdges()) {
+        const hasNonNeg = workRows.some((r) => Number(r.amount) >= 0);
+        if (hasNonNeg) {
+          const nonNeg = workRows.filter((r) => Number(r.amount) >= 0);
+          const posScale = edgeScaleMinMax(nonNeg);
+          return { min: 0, max: Math.max(1, posScale.max) };
+        }
+      }
+      return { min, max };
     }
 
     function cascadeEdges(edges, changedIndex) {
@@ -3306,12 +3422,12 @@
         setChartStatus("Сначала загрузите данные.", "err");
         return;
       }
-      const rowsA = filteredRows();
+      const rowsA = rowsForAutoEdgeCalc(filteredRows());
       if (!rowsA.length) {
         setChartStatus("После фильтров в текущем периоде ТН не осталось — нечего распределять.", "err");
         return;
       }
-      const aScale = edgeScaleMinMax(rowsA);
+      const aScale = autoEdgeScaleMinMax(rowsA);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
@@ -3322,7 +3438,7 @@
 
       // В сравнении шкалу рельса расширяем на оба периода; промежуточные границы остаются от текущего
       if (viewMode === "compare" && allRowsB.length) {
-        const full = edgeScaleMinMax(edgeSourceRows());
+        const full = autoEdgeScaleMinMax(edgeSourceRows());
         edgeState.min = full.min;
         edgeState.max = full.max;
         edges = edges.slice();
@@ -3357,12 +3473,12 @@
         setChartStatus("Сначала загрузите данные.", "err");
         return;
       }
-      const rows = edgeSourceRows();
+      const rows = rowsForAutoEdgeCalc(edgeSourceRows());
       if (!rows.length) {
         setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
         return;
       }
-      const { min, max } = edgeScaleMinMax(rows);
+      const { min, max } = autoEdgeScaleMinMax(rows);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
@@ -3380,7 +3496,8 @@
         renderEdgeRail();
         return;
       }
-      const { min, max } = edgeScaleMinMax(rows.length ? rows : allRows);
+      const baseRows = rows.length ? rows : allRows;
+      const { min, max } = autoEdgeScaleMinMax(baseRows);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
@@ -3461,7 +3578,7 @@
       edgeState.edges = cascadeEdges(edgeState.edges, idx);
       setFineIndex(idx);
       syncEdgeUiFromState();
-      rebuild();
+      requestRebuildEdge();
     }
 
     function onFineThumbPointerDown(ev) {
@@ -3501,6 +3618,8 @@
       const cur = edgeState.edges[idx];
       const sel = el.edgeFineTune.querySelector(".edge-fine__thumb.is-selected");
       if (sel) sel.style.left = finePctForValue(cur, left, right) + "%";
+      const selVal = el.edgeFineTune.querySelector(".edge-fine__thumb-val");
+      if (selVal) selVal.textContent = formatEdgeInt(cur);
       const valNode = el.edgeFineTune.querySelector('[data-fine-current-val="1"]');
       if (valNode) valNode.textContent = formatEdgeInt(cur);
       const rangeNode = el.edgeFineTune.querySelector('[data-fine-range="1"]');
@@ -3552,7 +3671,9 @@
             `<div class="edge-fine__fill" style="left:0%;width:100%;"></div>` +
           `</div>` +
           `<div class="edge-fine__thumb" style="left:0%;" title="${leftLabel}: ${formatEdgeInt(left)}"></div>` +
-          `<div class="edge-fine__thumb is-selected" style="left:${selectedPct}%;" data-fine-selected-index="${idx}" title="Граница ${idx}: ${formatEdgeInt(cur)}"></div>` +
+          `<div class="edge-fine__thumb is-selected" style="left:${selectedPct}%;" data-fine-selected-index="${idx}" title="Граница ${idx}: ${formatEdgeInt(cur)}">` +
+            `<span class="edge-fine__thumb-val">${formatEdgeInt(cur)}</span>` +
+          `</div>` +
           `<div class="edge-fine__thumb" style="left:100%;" title="${rightLabel}: ${formatEdgeInt(right)}"></div>` +
         `</div>` +
         `<div class="edge-fine__meta"><span>${leftLabel}: ${formatEdgeInt(left)}${leftOuter}</span><span>текущее: <span data-fine-current-val="1">${formatEdgeInt(cur)}</span></span><span>${rightLabel}: ${formatEdgeInt(right)}${rightOuter}</span></div>`;
@@ -3577,7 +3698,7 @@
           const next = Number(btn.dataset.fineIndex);
           if (!Number.isFinite(next)) return;
           setFineIndex(next);
-          renderFineTuneRail();
+          renderEdgeRail();
         });
       });
     }
@@ -3845,7 +3966,7 @@
         edgeState.edges = cascadeEdges(edgeState.edges, idx);
         setFineIndex(idx);
         syncEdgeUiFromState();
-        rebuild();
+        requestRebuildEdge();
       };
       const up = (e) => {
         edgeState.dragIndex = -1;
@@ -3883,7 +4004,7 @@
           setChartStatus("После фильтров ТН не осталось.", "err");
           return;
         }
-        const scale = edgeScaleMinMax(edgeRows);
+        const scale = autoEdgeScaleMinMax(edgeRows);
         edgeState.min = scale.min;
         edgeState.max = scale.max;
         if (edgeState.edges.length) {
@@ -5393,6 +5514,10 @@
     }
     bindSegmentedControl(el.chartTypeSeg, el.chartType, rebuild);
     bindSegmentedControl(el.groupLayoutSeg, el.groupLayout, rebuild);
+    bindSegmentedControl(el.edgeCalcModeSeg, el.edgeCalcMode, () => {
+      initEdgeStateFromData(true);
+      rebuild();
+    });
     el.movableEdgeCount.addEventListener("change", () => {
       initEdgeStateFromData(true);
       rebuild();
@@ -5436,6 +5561,7 @@
     el.groupLayout.value = APP_CONFIG.defaultGroupLayout || "slice";
     if (el.chartType) el.chartType.value = APP_CONFIG.defaultChartType || "bars";
     if (el.compareLayout) el.compareLayout.value = APP_CONFIG.defaultCompareLayout || "overlay";
+    if (el.edgeCalcMode) el.edgeCalcMode.value = "positive";
     el.movableEdgeCount.value = String(APP_CONFIG.defaultMovableEdges);
     el.movableEdgeCount.max = String(APP_CONFIG.movableEdgesMax || 40);
     syncViewModeUi();
