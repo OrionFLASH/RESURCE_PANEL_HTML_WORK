@@ -16,7 +16,8 @@
   "defaultGroupLayout": "slice",
   "defaultChartType": "bars",
   "defaultCompareLayout": "overlay",
-  "defaultMovableEdges": 2,
+  "defaultMovableEdges": 3,
+  "_intervalsNote": "defaultMovableEdges / movableEdgesMax — это число ИНТЕРВАЛОВ (столбиков), не бегунков",
   "movableEdgesMax": 40,
   "tnPadLength": 20,
   "exportTnLength": 8,
@@ -1704,30 +1705,30 @@
         <div class="chart-below">
           <div id="binCustomRow">
             <div class="edge-tools">
-              <label class="field field--edges" data-tip="Число подвижных границ между минимумом и максимумом">
-                <span>Границ</span>
-                <input id="movableEdgeCount" type="number" min="1" max="40" step="1" value="2">
+              <label class="field field--edges" data-tip="Число интервалов (столбиков). В режиме «Только положительные» — число положительных интервалов; отрицательные — отдельная колонка слева и в это число не входят.">
+                <span>Интервалов</span>
+                <input id="movableEdgeCount" type="number" min="1" max="40" step="1" value="3">
               </label>
               <div class="edge-tools__btns">
                 <button class="btn secondary btn-with-icon is-edge-equal" type="button" id="btnEqualCountEdges"
-                  data-tip="Примерно равное число ТН в интервалах — только по текущему периоду. Прошлый период в расчёт не входит.">
+                  data-tip="Примерно равное число ТН в заданных интервалах (в режиме «Только положительные» — во всех положительных, начиная с первого после 0). Только текущий период.">
                   <span class="btn-ico" aria-hidden="true"></span>
                   <span>Равно по ТН</span>
                 </button>
                 <button class="btn secondary btn-with-icon is-edge-ladder" type="button" id="btnLadderCountEdges"
-                  data-tip="Лесенка K…1 по числу ТН — только по текущему периоду. Прошлый период в расчёт не входит.">
+                  data-tip="Лесенка K…1 по числу ТН по всем заданным интервалам (в positive — по всем положительным с первого после 0). Только текущий период.">
                   <span class="btn-ico" aria-hidden="true"></span>
                   <span>Лесенка</span>
                 </button>
                 <button class="btn secondary btn-with-icon is-edge-even" type="button" id="btnEvenWidthEdges"
-                  data-tip="Равная ширина по шкале сумм (в сравнении шкала охватывает оба периода).">
+                  data-tip="Равная ширина по шкале сумм среди заданных интервалов (в positive — среди положительных на 0…max). В сравнении шкала охватывает оба периода.">
                   <span class="btn-ico" aria-hidden="true"></span>
                   <span>Равные интервалы</span>
                 </button>
               </div>
             </div>
-            <p class="hint">Интервалы общие. «Равно» и «Лесенка» считают границы по текущему периоду; у прошлого — своё попадание в те же интервалы.</p>
-            <div class="edge-calc-mode" data-tip="Все значения — авторасчёт по всему диапазону. Только положительные — отрицательные в первой колонке, граница 0 зафиксирована, авторасчёт только по значениям > 0.">
+            <p class="hint">Число в поле — интервалы (столбики), не бегунки. В «Только положительные» это только положительные столбики; отрицательные — отдельная колонка слева. «Равно»/«Лесенка» — по текущему периоду.</p>
+            <div class="edge-calc-mode" data-tip="Все значения — K интервалов на всём [min…max]. Только положительные — K положительных интервалов на [0…max] плюс колонка отрицательных; граница 0 зафиксирована; выравнивание со всех положительных, начиная с первого.">
               <span class="edge-calc-mode__label">Авторасчёт границ</span>
               <div class="seg" id="edgeCalcModeSeg" role="group" aria-label="Авторасчёт границ">
                 <button type="button" class="seg__btn is-on" data-value="positive">Только положительные</button>
@@ -3621,9 +3622,10 @@
     }
 
     function evenlySpacedEdges(min, max, movableCount) {
-      const n = Math.max(1, Math.floor(movableCount));
+      const n = Math.max(0, Math.floor(movableCount));
       const lo = toIntegerEdge(min);
       const hi = toIntegerEdge(max);
+      if (n <= 0 || hi <= lo) return normalizeEdges([lo, hi], lo, hi);
       const totalIntervals = n + 1;
       const edges = [lo];
       for (let i = 1; i <= n; i += 1) {
@@ -3634,16 +3636,17 @@
     }
 
     /**
-     * Границы по весам числа ТН: вес[i] задаёт целевую долю i-го интервала.
-     * Всегда возвращает строго неубывающие рёбра; при возможности — строго возрастающие.
+     * Границы по весам числа ТН.
+     * @param {number} movableCount — число внутренних границ (= intervals - 1)
      */
     function weightedCountEdges(amounts, movableCount, min, max, weights) {
-      const n = Math.max(1, Math.floor(movableCount));
-      const binCount = n + 1;
+      const n = Math.max(0, Math.floor(movableCount));
       const lo = toIntegerEdge(min);
       const hi = toIntegerEdge(max);
+      if (n <= 0 || hi <= lo) return normalizeEdges([lo, hi], lo, hi);
+      const binCount = n + 1;
       const sorted = amounts.filter((x) => Number.isFinite(x)).slice().sort((a, b) => a - b);
-      if (!sorted.length || hi <= lo) return evenlySpacedEdges(lo, hi, n);
+      if (!sorted.length) return evenlySpacedEdges(lo, hi, n);
 
       const w = (weights && weights.length === binCount)
         ? weights.map((x) => Math.max(0, Number(x) || 0))
@@ -3654,16 +3657,17 @@
       let cumW = 0;
       for (let i = 0; i < n; i += 1) {
         cumW += w[i];
-        // Граница после накопленной доли: берём элемент на позиции cumW/totalW,
-        // но не последний (оставляем хвост последнему интервалу).
-        const pos = (cumW / totalW) * sorted.length;
-        let idx = Math.floor(pos);
-        if (idx < 0) idx = 0;
+        // Классический квантиль: граница после накопленной доли интервалов
+        let idx = Math.floor((cumW / totalW) * sorted.length);
+        if (idx < 1) idx = 1; // строго правее первого элемента → первый интервал не пустой по данным
         if (idx > sorted.length - 1) idx = sorted.length - 1;
-        // Для внутренних границ лучше «чуть раньше» последнего элемента
-        if (i < n - 1 && idx >= sorted.length - 1) idx = sorted.length - 2;
-        if (idx < 0) idx = 0;
-        let v = toIntegerEdge(sorted[idx]);
+        if (i < n - 1 && idx >= sorted.length - 1) idx = Math.max(1, sorted.length - 2);
+        let v = toIntegerEdge(sorted[Math.min(idx, sorted.length - 1)]);
+        // Для диапазона, начинающегося с 0, внутренняя граница должна быть > 0
+        if (lo === 0 && v <= 0) {
+          const firstPos = sorted.find((x) => x > 0);
+          v = firstPos != null ? toIntegerEdge(firstPos) : 1;
+        }
         if (v < lo) v = lo;
         if (v > hi) v = hi;
         edges.push(v);
@@ -3672,29 +3676,55 @@
       return ensureStrictlyIncreasingEdges(edges, sorted, lo, hi);
     }
 
-    /** Равные доли ТН по интервалам. */
     function equalCountEdges(amounts, movableCount, min, max) {
-      const n = Math.max(1, Math.floor(movableCount));
+      const n = Math.max(0, Math.floor(movableCount));
       const binCount = n + 1;
       return weightedCountEdges(amounts, n, min, max, Array(binCount).fill(1));
     }
 
-    /** Лесенка: веса K, K−1, …, 1 (первый интервал больше всех). */
     function ladderCountEdges(amounts, movableCount, min, max) {
-      const n = Math.max(1, Math.floor(movableCount));
+      const n = Math.max(0, Math.floor(movableCount));
       const binCount = n + 1;
       const weights = Array.from({ length: binCount }, (_, i) => binCount - i);
       return weightedCountEdges(amounts, n, min, max, weights);
     }
 
+    /** Текущее число интервалов из поля (это столбики, не бегунки). */
+    function readIntervalCount() {
+      const maxI = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
+      const def = Math.max(1, Number(APP_CONFIG.defaultMovableEdges) || 3);
+      const raw = Number(el.movableEdgeCount && el.movableEdgeCount.value);
+      const n = Math.max(1, Math.min(maxI, Number.isFinite(raw) ? raw : def));
+      if (el.movableEdgeCount) el.movableEdgeCount.value = String(n);
+      return n;
+    }
+
+    /** Ожидаемое число точек edges при заданном числе интервалов. */
+    function expectedEdgePointCount(intervalCount, rowsForAnchor) {
+      const k = Math.max(1, Math.floor(intervalCount));
+      return shouldAnchorZeroEdge(rowsForAnchor) ? (k + 2) : (k + 1);
+    }
+
     /**
-     * Режим "только положительные":
-     * - интервал [min..0] — все отрицательные, граница 0 фиксирована;
-     * - авторасчёт (равно/лесенка/равные) только по значениям >0 на оставшихся интервалах [0..max].
-     * Режим "все": все значения участвуют в расчёте на полном [min..max].
+     * Построить рёбра для ровно intervalCount интервалов на [min..max].
      */
-    function buildAutoEdges(rowsFull, movableCount, kind) {
-      const n = Math.max(1, Math.floor(movableCount));
+    function buildEdgesForIntervalCount(amounts, intervalCount, min, max, kind) {
+      const k = Math.max(1, Math.floor(intervalCount));
+      const movable = Math.max(0, k - 1);
+      if (kind === "even") return evenlySpacedEdges(min, max, movable);
+      if (kind === "ladder") return ladderCountEdges(amounts, movable, min, max);
+      return equalCountEdges(amounts, movable, min, max);
+    }
+
+    /**
+     * Авторасчёт границ.
+     * intervalCount — число интервалов (столбиков):
+     * - режим «все»: intervalCount интервалов на всём [min..max];
+     * - режим «только положительные»: intervalCount положительных интервалов на [0..max],
+     *   плюс отдельная колонка отрицательных [min..0] (если min < 0); граница 0 фиксирована.
+     */
+    function buildAutoEdges(rowsFull, intervalCount, kind) {
+      const k = Math.max(1, Math.floor(intervalCount));
       const scaleRows = (viewMode === "compare" && allRowsB.length)
         ? edgeSourceRows()
         : rowsFull;
@@ -3702,55 +3732,49 @@
       const lo = fullScale.min;
       const hi = fullScale.max;
 
-      // --- Режим "все значения" ---
+      // --- Режим "все значения": k интервалов по всем суммам ---
       if (!includePositiveOnlyForAutoEdges()) {
         const amounts = rowsFull.map((r) => Number(r.amount)).filter((v) => Number.isFinite(v));
-        if (kind === "even") return evenlySpacedEdges(lo, hi, n);
-        return kind === "ladder"
-          ? ladderCountEdges(amounts, n, lo, hi)
-          : equalCountEdges(amounts, n, lo, hi);
+        return buildEdgesForIntervalCount(amounts, k, lo, hi, kind);
       }
 
       // --- Режим "только положительные" ---
-      const anchored = shouldAnchorZeroEdge(scaleRows.length ? scaleRows : rowsFull);
+      const anchorRows = scaleRows.length ? scaleRows : rowsFull;
+      const anchored = shouldAnchorZeroEdge(anchorRows);
       const posAmounts = rowsFull
         .map((r) => Number(r.amount))
         .filter((v) => Number.isFinite(v) && v > 0);
+      const nonNegAmounts = rowsFull
+        .map((r) => Number(r.amount))
+        .filter((v) => Number.isFinite(v) && v >= 0);
+      const calcAmounts = posAmounts.length ? posAmounts : nonNegAmounts;
 
-      // Нет отрицательной зоны — считаем как обычно по неотрицательным/всем доступным.
+      // Нет отрицательных — k интервалов на всём диапазоне
       if (!anchored) {
-        const amounts = posAmounts.length
-          ? posAmounts
-          : rowsFull.map((r) => Number(r.amount)).filter((v) => Number.isFinite(v) && v >= 0);
-        if (kind === "even") return evenlySpacedEdges(lo, hi, n);
-        return kind === "ladder"
-          ? ladderCountEdges(amounts, n, lo, hi)
-          : equalCountEdges(amounts, n, lo, hi);
+        return buildEdgesForIntervalCount(calcAmounts, k, lo, hi, kind);
       }
 
-      // Есть отрицательная зона: [min, 0] + распределение по [0, max] на оставшихся n интервалах.
-      // n подвижных границ: edges = [min, 0, g2..gn, max] => внутренних положительных границ = n-1.
-      const edges = [lo, 0];
-      if (n === 1) {
-        edges.push(hi);
-        return normalizeEdges(edges, lo, hi);
+      // Есть отрицательные: [min..0] + ровно k положительных интервалов на [0..max]
+      // Все k положительных (начиная с первого после 0) участвуют в равно/лесенке/ширине.
+      const posMax = Math.max(hi, 1);
+      if (k === 1) {
+        return normalizeEdges([lo, 0, posMax], lo, hi);
       }
-      const posMovable = n - 1; // число внутренних границ на (0..max)
-      const posMax = Math.max(1, hi);
-      let posEdges;
-      if (kind === "even") {
-        posEdges = evenlySpacedEdges(0, posMax, posMovable);
-      } else if (!posAmounts.length) {
-        posEdges = evenlySpacedEdges(0, posMax, posMovable);
-      } else {
-        posEdges = kind === "ladder"
-          ? ladderCountEdges(posAmounts, posMovable, 0, posMax)
-          : equalCountEdges(posAmounts, posMovable, 0, posMax);
+
+      // Считаем k интервалов строго на [0..max] по положительным значениям
+      const posPart = buildEdgesForIntervalCount(calcAmounts, k, 0, posMax, kind);
+      // posPart = [0, b1, b2, ..., b_{k-1}, max] — все k интервалов с первого
+      const posFixed = ensureStrictlyIncreasingEdges(posPart, calcAmounts, 0, posMax);
+      // Гарантируем, что внутренние границы > 0 (первый положительный интервал не схлопывается в 0..0)
+      for (let i = 1; i < posFixed.length - 1; i += 1) {
+        if (posFixed[i] <= 0) posFixed[i] = Math.max(1, posFixed[i]);
       }
-      // posEdges = [0, ..., max]; берём только внутренние
-      for (let i = 1; i < posEdges.length - 1; i += 1) edges.push(posEdges[i]);
-      edges.push(hi);
-      return ensureStrictlyIncreasingEdges(normalizeEdges(edges, lo, hi), posAmounts, lo, hi);
+      const posClean = ensureStrictlyIncreasingEdges(posFixed, calcAmounts, 0, posMax);
+
+      const edges = [lo];
+      for (let i = 0; i < posClean.length; i += 1) edges.push(posClean[i]);
+      // edges = [lo, 0, b1, ..., max]
+      return normalizeEdges(edges, lo, hi);
     }
 
     /**
@@ -3768,14 +3792,11 @@
         setChartStatus("После фильтров в текущем периоде ТН не осталось — нечего распределять.", "err");
         return;
       }
-      const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
-      const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
-      el.movableEdgeCount.value = String(n);
-      const edges = buildAutoEdges(rowsAFull, n, kind);
+      const k = readIntervalCount();
+      const edges = buildAutoEdges(rowsAFull, k, kind);
       edgeState.min = edges[0];
       edgeState.max = edges[edges.length - 1];
       edgeState.edges = edges;
-      // Если активна тонкая настройка на зафиксированной нулевой границе — переключаем дальше
       if (isZeroAnchorIndex(edgeState.fineIndex)) {
         const movable = getMovableEdgeIndices();
         edgeState.fineIndex = movable.length ? movable[0] : -1;
@@ -3803,8 +3824,6 @@
         setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
         return;
       }
-      // Для even в одиночном режиме — по текущему; в сравнении шкала обоих.
-      // Доли ширины в positive — только на [0..max], отрицательные в первой колонке.
       const sourceForCalc = (viewMode === "compare" && allRowsB.length)
         ? rowsFull
         : filteredRows();
@@ -3812,10 +3831,8 @@
         setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
         return;
       }
-      const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
-      const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
-      el.movableEdgeCount.value = String(n);
-      const edges = buildAutoEdges(sourceForCalc, n, "even");
+      const k = readIntervalCount();
+      const edges = buildAutoEdges(sourceForCalc, k, "even");
       edgeState.min = edges[0];
       edgeState.max = edges[edges.length - 1];
       edgeState.edges = edges;
@@ -3836,14 +3853,14 @@
       }
       const baseRows = rows.length ? rows : allRows;
       const scaleFull = edgeScaleMinMax(baseRows);
-      const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
-      const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
-      el.movableEdgeCount.value = String(n);
-      el.movableEdgeCount.max = String(maxEdges);
+      const maxI = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
+      const k = readIntervalCount();
+      if (el.movableEdgeCount) el.movableEdgeCount.max = String(maxI);
+      const expectPts = expectedEdgePointCount(k, baseRows);
       const sameRange = edgeState.min === scaleFull.min && edgeState.max === scaleFull.max;
-      if (forceReset || !edgeState.edges.length || !sameRange || edgeState.edges.length !== n + 2) {
+      if (forceReset || !edgeState.edges.length || !sameRange || edgeState.edges.length !== expectPts) {
         const initRows = filteredRows().length ? filteredRows() : baseRows;
-        const edges = buildAutoEdges(initRows, n, "even");
+        const edges = buildAutoEdges(initRows, k, "even");
         edgeState.min = edges[0];
         edgeState.max = edges[edges.length - 1];
         edgeState.edges = edges;
