@@ -1711,12 +1711,12 @@
               </label>
               <div class="edge-tools__btns">
                 <button class="btn secondary btn-with-icon is-edge-equal" type="button" id="btnEqualCountEdges"
-                  data-tip="Примерно равное число ТН в заданных интервалах (в режиме «Только положительные» — во всех положительных, начиная с первого после 0). Только текущий период.">
+                  data-tip="Равное число ТН во всех заданных интервалах. «Только положительные»: колонка ≤0 не участвует; выравниваются все K положительных с первого после 0. Только текущий период.">
                   <span class="btn-ico" aria-hidden="true"></span>
                   <span>Равно по ТН</span>
                 </button>
                 <button class="btn secondary btn-with-icon is-edge-ladder" type="button" id="btnLadderCountEdges"
-                  data-tip="Лесенка K…1 по числу ТН по всем заданным интервалам (в positive — по всем положительным с первого после 0). Только текущий период.">
+                  data-tip="Лесенка K…1 по числу ТН. «Только положительные»: ≤0 не участвует; лесенка по всем K положительным с первого после 0. Только текущий период.">
                   <span class="btn-ico" aria-hidden="true"></span>
                   <span>Лесенка</span>
                 </button>
@@ -1727,8 +1727,8 @@
                 </button>
               </div>
             </div>
-            <p class="hint">Число в поле — интервалы (столбики), не бегунки. В «Только положительные» это только положительные столбики; отрицательные — отдельная колонка слева. «Равно»/«Лесенка» — по текущему периоду.</p>
-            <div class="edge-calc-mode" data-tip="Все значения — K интервалов на всём [min…max]. Только положительные — K положительных интервалов на [0…max] плюс колонка отрицательных; граница 0 зафиксирована; выравнивание со всех положительных, начиная с первого.">
+            <p class="hint">Число в поле — интервалы (столбики), не бегунки. В «Только положительные»: колонка «≤ 0» слева не входит в K и не участвует в равно/лесенке; выравниваются все K положительных начиная с первого после 0.</p>
+            <div class="edge-calc-mode" data-tip="Все значения — K интервалов по всему диапазону, отрицательные тоже участвуют в равно/лесенке. Только положительные — колонка «≤ 0» вне K + K положительных с первого после 0.">
               <span class="edge-calc-mode__label">Авторасчёт границ</span>
               <div class="seg" id="edgeCalcModeSeg" role="group" aria-label="Авторасчёт границ">
                 <button type="button" class="seg__btn is-on" data-value="positive">Только положительные</button>
@@ -1772,6 +1772,7 @@
           </div>
           <section id="analysisPanel" class="analysis-panel" aria-label="Аналитика по текущему периоду">
             <div class="analysis-guide">
+              Режим использует только текущий файл (один период). Второй файл для сравнения не нужен.
               Для подбора границ используйте бегунки выше: ориентируйтесь на кумулятивную кривую и таблицу интервалов.
               Рекомендуется избегать интервалов с очень малым числом ТН и проверять концентрацию по ТБ/ГОСБ/кластеру.
             </div>
@@ -2410,18 +2411,17 @@
      */
     function groupNameForAmount(amount, edges, labels) {
       if (!edges || edges.length < 2) return "";
+      if (!Number.isFinite(amount)) return "";
       if (amount < edges[0]) return "ниже минимума";
       if (amount > edges[edges.length - 1]) return "выше максимума";
-      const binCount = edges.length - 1;
-      for (let i = 0; i < binCount; i += 1) {
-        const left = edges[i];
-        const right = edges[i + 1];
-        const isLast = i === binCount - 1;
-        if ((amount >= left && amount < right) || (isLast && amount >= left && amount <= right)) {
-          return "Группа " + (i + 1);
-        }
+      const bi = binIndexForAmount(amount, edges);
+      if (bi < 0) return "выше максимума";
+      // При якоре 0: колонка ≤0 отдельно; положительные нумеруем с 1
+      if (hasNonPositiveAnchorBin(edges)) {
+        if (bi === 0) return "≤ 0";
+        return "Группа " + bi;
       }
-      return "выше максимума";
+      return "Группа " + (bi + 1);
     }
 
     /** @returns {Map<string, string>} tn → group */
@@ -2634,7 +2634,17 @@
       return formatAmount(n);
     }
 
-    function formatBinLabel(a, b, last) {
+    /**
+     * Колонка «≤ 0» только при активном якоре positive-режима.
+     * В «Все значения» граница может случайно быть 0 — это обычный интервал среди всех.
+     */
+    function hasNonPositiveAnchorBin(edges) {
+      if (!shouldAnchorZeroEdge(rowsForZeroAnchorCheck())) return false;
+      return Array.isArray(edges) && edges.length > 2 && edges[0] < 0 && edges[1] === 0;
+    }
+
+    function formatBinLabel(a, b, last, nonPositiveAnchor) {
+      if (nonPositiveAnchor) return "≤ 0";
       return last ? `[${formatAmount(a)} … ${formatAmount(b)}]` : `[${formatAmount(a)} … ${formatAmount(b)})`;
     }
 
@@ -2643,6 +2653,7 @@
       let below = 0;
       let above = 0;
       const binCount = edges.length - 1;
+      const anchorNP = hasNonPositiveAnchorBin(edges);
 
       function seriesName(row) {
         if (sliceMode === "tb") return row.tb || "(без ТБ)";
@@ -2659,18 +2670,9 @@
         const x = row.amount;
         if (x < edges[0]) { below += 1; continue; }
         if (x > edges[edges.length - 1]) { above += 1; continue; }
-        let placed = false;
-        for (let i = 0; i < binCount; i += 1) {
-          const left = edges[i];
-          const right = edges[i + 1];
-          const isLast = i === binCount - 1;
-          if ((x >= left && x < right) || (isLast && x >= left && x <= right)) {
-            counts[i] += 1;
-            placed = true;
-            break;
-          }
-        }
-        if (!placed) above += 1;
+        const bi = binIndexForAmount(x, edges);
+        if (bi < 0) above += 1;
+        else counts[bi] += 1;
       }
 
       const series = [...seriesMap.entries()]
@@ -2679,7 +2681,12 @@
 
       const labels = [];
       for (let i = 0; i < binCount; i += 1) {
-        labels.push(formatBinLabel(edges[i], edges[i + 1], i === binCount - 1));
+        labels.push(formatBinLabel(
+          edges[i],
+          edges[i + 1],
+          i === binCount - 1,
+          anchorNP && i === 0
+        ));
       }
 
       return { edges, labels, series, total: rows.length, below, above };
@@ -2693,8 +2700,10 @@
       else el.loadStatus.setAttribute("hidden", "");
     }
     function setChartStatus(msg, kind) {
-      // Нижний статусный блок убран; ошибки показываем у загрузки файла
+      // Ошибки — в блоке загрузки; при успехе/пустом статусе обязательно сбрасываем,
+      // иначе предупреждение сравнения («загрузите оба периода») остаётся в анализе.
       if (kind === "err" && msg) setLoadStatus(msg, "err");
+      else setLoadStatus("", "");
     }
 
     function applyParsed(parsed, sourceLabel) {
@@ -2755,16 +2764,24 @@
     }
 
     function mergedColumnPresence() {
+      // Сравнение — union колонок обоих файлов; один период / анализ — только текущий файл
+      if (viewMode === "compare") {
+        return {
+          hasTb: !!(presenceA.hasTb || presenceB.hasTb),
+          hasGosb: !!(presenceA.hasGosb || presenceB.hasGosb),
+          hasCluster: !!(presenceA.hasCluster || presenceB.hasCluster)
+        };
+      }
       return {
-        hasTb: !!(presenceA.hasTb || presenceB.hasTb),
-        hasGosb: !!(presenceA.hasGosb || presenceB.hasGosb),
-        hasCluster: !!(presenceA.hasCluster || presenceB.hasCluster)
+        hasTb: !!presenceA.hasTb,
+        hasGosb: !!presenceA.hasGosb,
+        hasCluster: !!presenceA.hasCluster
       };
     }
 
     /**
      * Источник для фильтров ТБ/ГОСБ/кластер.
-     * В сравнении — объединение обоих периодов (уникальные значения из текущего и прошлого).
+     * Сравнение — объединение обоих периодов; один период и анализ — только текущий файл.
      */
     function activeRowsPool() {
       if (viewMode === "compare") {
@@ -3653,21 +3670,30 @@
         : Array(binCount).fill(1);
       const totalW = w.reduce((a, b) => a + b, 0) || binCount;
 
+      // Целевые размеры: КАЖДЫЙ интервал 0..binCount-1 (включая первый) получает свою долю.
+      // «Все значения»: в amounts уже есть отрицательные, нули и положительные.
+      const targets = w.map((wi) => (wi / totalW) * sorted.length);
       const edges = [lo];
-      let cumW = 0;
+      let cumItems = 0;
       for (let i = 0; i < n; i += 1) {
-        cumW += w[i];
-        // Классический квантиль: граница после накопленной доли интервалов
-        let idx = Math.floor((cumW / totalW) * sorted.length);
-        if (idx < 1) idx = 1; // строго правее первого элемента → первый интервал не пустой по данным
-        if (idx > sorted.length - 1) idx = sorted.length - 1;
-        if (i < n - 1 && idx >= sorted.length - 1) idx = Math.max(1, sorted.length - 2);
-        let v = toIntegerEdge(sorted[Math.min(idx, sorted.length - 1)]);
-        // Для диапазона, начинающегося с 0, внутренняя граница должна быть > 0
-        if (lo === 0 && v <= 0) {
-          const firstPos = sorted.find((x) => x > 0);
-          v = firstPos != null ? toIntegerEdge(firstPos) : 1;
-        }
+        cumItems += targets[i];
+        let end = Math.round(cumItems);
+        const remainBins = binCount - (i + 1);
+        const minEnd = i + 1;
+        const maxEnd = Math.max(minEnd, sorted.length - remainBins);
+        if (end < minEnd) end = minEnd;
+        if (end > maxEnd) end = maxEnd;
+        if (end > sorted.length - 1) end = sorted.length - 1;
+        if (end < 1) end = 1;
+
+        // Граница = значение на разрезе. Нельзя делать lastIn+1 по дубликатам нулей:
+        // иначе граница прыгает в 1 и ВСЕ нули схлопываются в первый интервал —
+        // равно/лесенка визуально «начинаются со 2-го положительного».
+        let v = toIntegerEdge(sorted[end]);
+        const prev = edges[edges.length - 1];
+        if (v <= prev) v = prev + 1;
+        // Positive-якорь на [0..max]: внутренняя граница > 0
+        if (lo === 0 && v <= 0) v = Math.max(1, prev + 1);
         if (v < lo) v = lo;
         if (v > hi) v = hi;
         edges.push(v);
@@ -3732,9 +3758,11 @@
       const lo = fullScale.min;
       const hi = fullScale.max;
 
-      // --- Режим "все значения": k интервалов по всем суммам ---
+      // --- Режим "все значения": k интервалов по ВСЕМ суммам (отриц. + нули + полож.) ---
       if (!includePositiveOnlyForAutoEdges()) {
-        const amounts = rowsFull.map((r) => Number(r.amount)).filter((v) => Number.isFinite(v));
+        const amounts = rowsFull
+          .map((r) => Number(r.amount))
+          .filter((v) => Number.isFinite(v));
         return buildEdgesForIntervalCount(amounts, k, lo, hi, kind);
       }
 
@@ -3761,19 +3789,33 @@
         return normalizeEdges([lo, 0, posMax], lo, hi);
       }
 
-      // Считаем k интервалов строго на [0..max] по положительным значениям
-      const posPart = buildEdgesForIntervalCount(calcAmounts, k, 0, posMax, kind);
-      // posPart = [0, b1, b2, ..., b_{k-1}, max] — все k интервалов с первого
-      const posFixed = ensureStrictlyIncreasingEdges(posPart, calcAmounts, 0, posMax);
-      // Гарантируем, что внутренние границы > 0 (первый положительный интервал не схлопывается в 0..0)
-      for (let i = 1; i < posFixed.length - 1; i += 1) {
-        if (posFixed[i] <= 0) posFixed[i] = Math.max(1, posFixed[i]);
+      // Ровно k положительных интервалов на [0..max] — ВСЕ с первого после 0 участвуют в kind.
+      // Колонка [min..0] / «≤ 0» в авто-выравнивание не входит.
+      let posPart = buildEdgesForIntervalCount(calcAmounts, k, 0, posMax, kind);
+      posPart = ensureStrictlyIncreasingEdges(posPart, calcAmounts, 0, posMax);
+      for (let i = 1; i < posPart.length - 1; i += 1) {
+        if (posPart[i] <= 0) posPart[i] = 1;
       }
-      const posClean = ensureStrictlyIncreasingEdges(posFixed, calcAmounts, 0, posMax);
+      posPart = ensureStrictlyIncreasingEdges(posPart, calcAmounts, 0, posMax);
+
+      // Если первый положительный [0..b1) пуст по >0 — сдвигаем b1 вверх до первого квантиля с данными
+      if (posPart.length >= 3 && calcAmounts.length) {
+        const sortedPos = calcAmounts.slice().sort((a, b) => a - b);
+        const b1 = posPart[1];
+        const inFirst = sortedPos.filter((v) => v > 0 && v < b1).length;
+        if (inFirst === 0) {
+          const want = Math.max(1, Math.round(sortedPos.length / k));
+          const idx = Math.min(sortedPos.length - 1, want);
+          let nb = toIntegerEdge(sortedPos[idx]);
+          if (nb <= 0) nb = 1;
+          if (posPart.length > 3 && nb >= posPart[2]) nb = Math.max(1, posPart[2] - 1);
+          posPart[1] = Math.max(1, nb);
+          posPart = ensureStrictlyIncreasingEdges(posPart, calcAmounts, 0, posMax);
+        }
+      }
 
       const edges = [lo];
-      for (let i = 0; i < posClean.length; i += 1) edges.push(posClean[i]);
-      // edges = [lo, 0, b1, ..., max]
+      for (let i = 0; i < posPart.length; i += 1) edges.push(posPart[i]);
       return normalizeEdges(edges, lo, hi);
     }
 
@@ -4201,7 +4243,8 @@
         if (groupNum > 0 || isZeroLock) {
           const badge = document.createElement("span");
           badge.className = "edge-rail__badge";
-          badge.textContent = String(idx);
+          // Якорь 0 — колонка «≤ 0» (не положительная группа 1)
+          badge.textContent = isZeroLock ? "≤0" : String(idx);
           badge.setAttribute("aria-hidden", "true");
           thumb.appendChild(badge);
         }
@@ -4384,16 +4427,20 @@
       try {
         syncViewModeUi();
         if (!allRows.length) {
-          setChartStatus("Нет данных для графика.", "");
+          setChartStatus("Нет данных для графика.", "err");
           return;
         }
+        // Требование второго периода — только для вкладки «Сравнение»
         if (viewMode === "compare" && !allRowsB.length) {
           setChartStatus("В сравнении загрузите оба периода (текущий и прошлый).", "err");
           return;
         }
+        // Анализ и один период работают только по текущему файлу (allRows / rowsA)
         const rowsA = filteredRows();
         const rowsB = viewMode === "compare" ? filteredRowsB() : [];
-        const edgeRows = edgeSourceRows();
+        const edgeRows = (viewMode === "compare")
+          ? edgeSourceRows()
+          : rowsA;
         if (!edgeRows.length) {
           setChartStatus("После фильтров ТН не осталось.", "err");
           return;
@@ -4643,7 +4690,9 @@
       if (el.exportPanelSub) {
         el.exportPanelSub.textContent = viewMode === "compare"
           ? "Общие интервалы и фильтры. В сравнении в файл попадают оба периода (колонка «Период» / секции текущего и прошлого)."
-          : "По текущим интервалам и фильтрам (группа = интервал суммы после агрегации по ТН)";
+          : (viewMode === "analysis"
+            ? "Аналитика по текущему файлу и фильтрам (второй период не используется)."
+            : "По текущим интервалам и фильтрам (группа = интервал суммы после агрегации по ТН)");
       }
       // Компоновка сравнения — только во вкладке сравнения
       if (viewMode !== "compare") {
@@ -5446,11 +5495,19 @@
       ).join("");
     }
 
+    /**
+     * Индекс интервала для суммы.
+     * Спец-правило «все ≤ 0 → колонка 0» — только в positive-режиме с якорем 0.
+     * В режиме «Все значения» — обычные полуинтервалы [left, right) по всем границам.
+     */
     function binIndexForAmount(amount, edges) {
       if (!edges || edges.length < 2 || !Number.isFinite(amount)) return -1;
       if (amount < edges[0] || amount > edges[edges.length - 1]) return -1;
+      const anchorNP = hasNonPositiveAnchorBin(edges);
+      if (anchorNP && amount <= 0) return 0;
       const binCount = edges.length - 1;
-      for (let i = 0; i < binCount; i += 1) {
+      const start = anchorNP ? 1 : 0;
+      for (let i = start; i < binCount; i += 1) {
         const left = edges[i];
         const right = edges[i + 1];
         const isLast = i === binCount - 1;
@@ -5991,12 +6048,7 @@
       if (el.analysisTableIntervals) {
         let html = "<table><thead><tr><th>Интервал</th><th>ТН</th><th>%</th><th>Средняя сумма</th></tr></thead><tbody>";
         for (let i = 0; i < hist.labels.length; i += 1) {
-          const left = edges[i];
-          const right = edges[i + 1];
-          const inBin = rows.filter((r) => {
-            if (i === hist.labels.length - 1) return r.amount >= left && r.amount <= right;
-            return r.amount >= left && r.amount < right;
-          });
+          const inBin = rows.filter((r) => binIndexForAmount(r.amount, edges) === i);
           const cnt = inBin.length;
           const avg = cnt ? inBin.reduce((a, r) => a + r.amount, 0) / cnt : 0;
           html += `<tr><td>${escapeHtml(hist.labels[i])}</td><td>${cnt}</td><td>${formatPctShare(cnt, total)}</td><td>${escapeHtml(formatAmount(avg))}</td></tr>`;
@@ -6161,6 +6213,8 @@
 
     function setViewMode(mode) {
       viewMode = mode === "compare" ? "compare" : (mode === "analysis" ? "analysis" : "single");
+      // Сбрасываем предупреждение сравнения при уходе со вкладки «Сравнение»
+      if (viewMode !== "compare") setLoadStatus("", "");
       syncViewModeUi();
       refreshPresenceAndFilters(false);
       initEdgeStateFromData(true);
