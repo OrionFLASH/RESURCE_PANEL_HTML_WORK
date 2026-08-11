@@ -704,6 +704,10 @@ RESURCE_PANEL_HTML_WORK/
 │   └── build_sum_demo_csv_20k.py # Демо 20000 / 2000 ТН (синтетика)
 ├── src/Tests/                    # Тесты (гистограмма, clipboard/Playwright)
 ├── Docs/
+│   ├── ANALYSIS_METRICS.md       # Аналитика: метрики, графики, таблицы
+│   ├── FILE_STATS_EXPORT.md      # Экспорт «Статистика по файлу» (JSON v1)
+│   ├── tz_metrics_charts.md      # ТЗ метрик и визуализаций
+│   ├── TASK_SUM_DISTRIBUTION_UI.md
 │   └── РЕКОМЕНДАЦИИ_ПО_УЛУЧШЕНИЮ.md
 ├── JS/                           # DevTools-скрипты (редактирование)
 │   ├── AddressBook_export_OE.js
