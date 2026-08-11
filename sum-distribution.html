@@ -1727,7 +1727,7 @@
               </div>
             </div>
             <p class="hint">Интервалы общие. «Равно» и «Лесенка» считают границы по текущему периоду; у прошлого — своё попадание в те же интервалы.</p>
-            <div class="edge-calc-mode" data-tip="Для авторасчёта границ: по положительным значениям или по всем (включая отрицательные).">
+            <div class="edge-calc-mode" data-tip="Все значения — авторасчёт по всему диапазону. Только положительные — отрицательные в первой колонке, граница 0 зафиксирована, авторасчёт только по значениям > 0.">
               <span class="edge-calc-mode__label">Авторасчёт границ</span>
               <div class="seg" id="edgeCalcModeSeg" role="group" aria-label="Авторасчёт границ">
                 <button type="button" class="seg__btn is-on" data-value="positive">Только положительные</button>
@@ -3505,8 +3505,9 @@
 
     function rowsForAutoEdgeCalc(rows) {
       if (!includePositiveOnlyForAutoEdges()) return rows.slice();
-      const pos = rows.filter((r) => Number(r.amount) >= 0);
-      return pos.length ? pos : rows.slice();
+      // Для авторасчёта берём строго >0: нули попадут в первый положительный интервал [0..).
+      const pos = rows.filter((r) => Number(r.amount) > 0);
+      return pos.length ? pos : rows.filter((r) => Number(r.amount) >= 0);
     }
 
     /** Точные мин/макс по суммам ТН (без floor/ceil). */
@@ -3524,74 +3525,79 @@
       return integerBounds(raw.min, raw.max);
     }
 
-    /** Нужен ли якорь 0 на первом подвижном бегунке. */
-    function shouldAnchorFirstMovableAtZero(rows) {
+    /** Нужен ли фиксированный якорь 0 (отрицательная зона отдельным интервалом). */
+    function shouldAnchorZeroEdge(rows) {
       if (!includePositiveOnlyForAutoEdges()) return false;
       if (!rows || !rows.length) return false;
-      const hasNonNeg = rows.some((r) => Number(r.amount) >= 0);
-      if (!hasNonNeg) return false;
       const scale = edgeScaleMinMax(rows);
-      return scale.min < 0 && scale.max >= 0;
+      return scale.min < 0 && scale.max > 0;
     }
 
-    /** Применяет якорь 0 к первому подвижному бегунку (если применимо). */
-    function applyZeroAnchorToFirstMovable(edges, rows) {
-      if (!edges || edges.length < 3) return edges;
-      if (!shouldAnchorFirstMovableAtZero(rows)) return edges;
-      const out = edges.slice();
-      out[1] = 0;
-      return cascadeEdges(out, 1);
+    function rowsForZeroAnchorCheck() {
+      const rows = edgeSourceRows();
+      return rows.length ? rows : allRows;
+    }
+
+    /** Индекс 1 — фиксированная граница 0 в positive-режиме. */
+    function isZeroAnchorIndex(idx) {
+      return idx === 1 && shouldAnchorZeroEdge(rowsForZeroAnchorCheck());
     }
 
     /**
-     * Для режима "только положительные":
-     * - [min..0] остаётся отдельным левым интервалом (если min < 0),
-     * - распределение "равно/лесенка/равные интервалы" выполняется по диапазону [0..max]
-     *   для оставшихся интервалов.
+     * Нормализация рёбер без зависимости от stale edgeState.min/max.
+     * Гарантирует монотонность и фиксированные концы.
      */
-    function buildPositiveModeEdges(rowsFull, rowsCalc, movableCount, kind) {
-      const fullScale = edgeScaleMinMax(rowsFull);
-      const calcScale = edgeScaleMinMax(rowsCalc);
-      const n = Math.max(1, Math.floor(movableCount));
-      const edges = [fullScale.min];
-      const anchored = shouldAnchorFirstMovableAtZero(rowsFull);
-      if (!anchored) {
-        if (kind === "even") return evenlySpacedEdges(fullScale.min, fullScale.max, n);
-        const amounts = rowsCalc.map((r) => r.amount);
-        return kind === "ladder"
-          ? ladderCountEdges(amounts, n, fullScale.min, fullScale.max)
-          : equalCountEdges(amounts, n, fullScale.min, fullScale.max);
+    function normalizeEdges(edges, min, max) {
+      const out = edges.map(toIntegerEdge);
+      if (!out.length) return out;
+      const lo = toIntegerEdge(min);
+      const hi = toIntegerEdge(max);
+      out[0] = lo;
+      out[out.length - 1] = hi;
+      for (let i = 1; i < out.length; i += 1) {
+        if (out[i] < out[i - 1]) out[i] = out[i - 1];
       }
-
-      edges.push(0);
-      if (n > 1) {
-        const positiveInternalMovable = n - 1;
-        if (kind === "even") {
-          const posEdges = evenlySpacedEdges(0, calcScale.max, positiveInternalMovable);
-          for (let i = 1; i < posEdges.length - 1; i += 1) edges.push(posEdges[i]);
-        } else {
-          const amountsRaw = rowsCalc.map((r) => Number(r.amount)).filter((v) => Number.isFinite(v) && v >= 0);
-          const amountsStrictPos = amountsRaw.filter((v) => v > 0);
-          // Важный момент: если есть >0, границы считаем по strictly-positive,
-          // чтобы не получать нулевой интервал [0..0] из-за большого числа нулей.
-          const amounts = amountsStrictPos.length ? amountsStrictPos : amountsRaw;
-          // В positive режиме после якоря 0 остаётся n интервалов на [0..max]
-          // => внутренних подвижных границ n-1.
-          const posEdges = kind === "ladder"
-            ? ladderCountEdges(amounts, positiveInternalMovable, 0, calcScale.max)
-            : equalCountEdges(amounts, positiveInternalMovable, 0, calcScale.max);
-          for (let i = 1; i < posEdges.length - 1; i += 1) edges.push(posEdges[i]);
-        }
+      for (let i = out.length - 2; i >= 0; i -= 1) {
+        if (out[i] > out[i + 1]) out[i] = out[i + 1];
       }
-      edges.push(fullScale.max);
-      const out = cascadeEdges(edges, 0);
-      // Для positive-режима не допускаем дубль 0 на первом положительном интервале,
-      // если по диапазону это вообще возможно.
-      if (out.length > 3 && out[1] === 0 && out[2] === 0 && out[out.length - 1] > 0) {
-        out[2] = 1;
-        return cascadeEdges(out, 2);
-      }
+      out[0] = lo;
+      out[out.length - 1] = hi;
       return out;
+    }
+
+    /**
+     * Устраняет нулевые/пустые интервалы: consecutive edges поднимаем
+     * до следующего уникального значения из sorted (или +1), пока позволяет max.
+     */
+    function ensureStrictlyIncreasingEdges(edges, sortedAmounts, min, max) {
+      const out = normalizeEdges(edges, min, max);
+      if (out.length < 3) return out;
+      const sorted = (sortedAmounts || [])
+        .filter((x) => Number.isFinite(x))
+        .map((x) => toIntegerEdge(x))
+        .sort((a, b) => a - b);
+      const uniq = [];
+      for (const v of sorted) {
+        if (!uniq.length || uniq[uniq.length - 1] !== v) uniq.push(v);
+      }
+      const hi = toIntegerEdge(max);
+      for (let i = 1; i < out.length - 1; i += 1) {
+        if (out[i] > out[i - 1]) continue;
+        let next = out[i - 1] + 1;
+        // Ищем следующее значение из данных, строго больше предыдущей границы
+        for (const v of uniq) {
+          if (v > out[i - 1]) {
+            next = v;
+            break;
+          }
+        }
+        // Оставляем запас для оставшихся границ
+        const remain = out.length - 1 - i;
+        const maxAllowed = hi - remain;
+        if (next > maxAllowed) next = Math.max(out[i - 1], maxAllowed);
+        out[i] = next;
+      }
+      return normalizeEdges(out, min, max);
     }
 
     function cascadeEdges(edges, changedIndex) {
@@ -3602,6 +3608,13 @@
       for (let i = changedIndex - 1; i >= 0; i -= 1) {
         if (out[i] > out[i + 1]) out[i] = out[i + 1];
       }
+      // В positive-режиме граница 0 (индекс 1) всегда зафиксирована.
+      if (shouldAnchorZeroEdge(rowsForZeroAnchorCheck()) && out.length > 2) {
+        out[1] = 0;
+        for (let i = 2; i < out.length; i += 1) {
+          if (out[i] < out[i - 1]) out[i] = out[i - 1];
+        }
+      }
       out[0] = edgeState.min;
       out[out.length - 1] = edgeState.max;
       return out;
@@ -3609,56 +3622,54 @@
 
     function evenlySpacedEdges(min, max, movableCount) {
       const n = Math.max(1, Math.floor(movableCount));
+      const lo = toIntegerEdge(min);
+      const hi = toIntegerEdge(max);
       const totalIntervals = n + 1;
-      const edges = [min];
+      const edges = [lo];
       for (let i = 1; i <= n; i += 1) {
-        edges.push(toIntegerEdge(min + ((max - min) * i) / totalIntervals));
+        edges.push(toIntegerEdge(lo + ((hi - lo) * i) / totalIntervals));
       }
-      edges.push(max);
-      for (let i = 1; i < edges.length; i += 1) {
-        if (edges[i] < edges[i - 1]) edges[i] = edges[i - 1];
-      }
-      edges[edges.length - 1] = max;
-      return edges;
+      edges.push(hi);
+      return ensureStrictlyIncreasingEdges(edges, null, lo, hi);
     }
 
     /**
      * Границы по весам числа ТН: вес[i] задаёт целевую долю i-го интервала.
-     * @param {number[]} amounts
-     * @param {number} movableCount
-     * @param {number} min
-     * @param {number} max
-     * @param {number[]} weights длины movableCount+1
-     * @returns {number[]}
+     * Всегда возвращает строго неубывающие рёбра; при возможности — строго возрастающие.
      */
     function weightedCountEdges(amounts, movableCount, min, max, weights) {
       const n = Math.max(1, Math.floor(movableCount));
       const binCount = n + 1;
+      const lo = toIntegerEdge(min);
+      const hi = toIntegerEdge(max);
       const sorted = amounts.filter((x) => Number.isFinite(x)).slice().sort((a, b) => a - b);
-      if (!sorted.length) return evenlySpacedEdges(min, max, n);
+      if (!sorted.length || hi <= lo) return evenlySpacedEdges(lo, hi, n);
 
       const w = (weights && weights.length === binCount)
         ? weights.map((x) => Math.max(0, Number(x) || 0))
         : Array(binCount).fill(1);
       const totalW = w.reduce((a, b) => a + b, 0) || binCount;
 
-      const edges = [toIntegerEdge(min)];
+      const edges = [lo];
       let cumW = 0;
       for (let i = 0; i < n; i += 1) {
         cumW += w[i];
-        const idx = Math.min(sorted.length - 1, Math.floor((cumW / totalW) * sorted.length));
+        // Граница после накопленной доли: берём элемент на позиции cumW/totalW,
+        // но не последний (оставляем хвост последнему интервалу).
+        const pos = (cumW / totalW) * sorted.length;
+        let idx = Math.floor(pos);
+        if (idx < 0) idx = 0;
+        if (idx > sorted.length - 1) idx = sorted.length - 1;
+        // Для внутренних границ лучше «чуть раньше» последнего элемента
+        if (i < n - 1 && idx >= sorted.length - 1) idx = sorted.length - 2;
+        if (idx < 0) idx = 0;
         let v = toIntegerEdge(sorted[idx]);
-        if (v < min) v = toIntegerEdge(min);
-        if (v > max) v = toIntegerEdge(max);
+        if (v < lo) v = lo;
+        if (v > hi) v = hi;
         edges.push(v);
       }
-      edges.push(toIntegerEdge(max));
-      for (let i = 1; i < edges.length; i += 1) {
-        if (edges[i] < edges[i - 1]) edges[i] = edges[i - 1];
-      }
-      edges[0] = toIntegerEdge(min);
-      edges[edges.length - 1] = toIntegerEdge(max);
-      return edges;
+      edges.push(hi);
+      return ensureStrictlyIncreasingEdges(edges, sorted, lo, hi);
     }
 
     /** Равные доли ТН по интервалам. */
@@ -3677,9 +3688,75 @@
     }
 
     /**
+     * Режим "только положительные":
+     * - интервал [min..0] — все отрицательные, граница 0 фиксирована;
+     * - авторасчёт (равно/лесенка/равные) только по значениям >0 на оставшихся интервалах [0..max].
+     * Режим "все": все значения участвуют в расчёте на полном [min..max].
+     */
+    function buildAutoEdges(rowsFull, movableCount, kind) {
+      const n = Math.max(1, Math.floor(movableCount));
+      const scaleRows = (viewMode === "compare" && allRowsB.length)
+        ? edgeSourceRows()
+        : rowsFull;
+      const fullScale = edgeScaleMinMax(scaleRows.length ? scaleRows : rowsFull);
+      const lo = fullScale.min;
+      const hi = fullScale.max;
+
+      // --- Режим "все значения" ---
+      if (!includePositiveOnlyForAutoEdges()) {
+        const amounts = rowsFull.map((r) => Number(r.amount)).filter((v) => Number.isFinite(v));
+        if (kind === "even") return evenlySpacedEdges(lo, hi, n);
+        return kind === "ladder"
+          ? ladderCountEdges(amounts, n, lo, hi)
+          : equalCountEdges(amounts, n, lo, hi);
+      }
+
+      // --- Режим "только положительные" ---
+      const anchored = shouldAnchorZeroEdge(scaleRows.length ? scaleRows : rowsFull);
+      const posAmounts = rowsFull
+        .map((r) => Number(r.amount))
+        .filter((v) => Number.isFinite(v) && v > 0);
+
+      // Нет отрицательной зоны — считаем как обычно по неотрицательным/всем доступным.
+      if (!anchored) {
+        const amounts = posAmounts.length
+          ? posAmounts
+          : rowsFull.map((r) => Number(r.amount)).filter((v) => Number.isFinite(v) && v >= 0);
+        if (kind === "even") return evenlySpacedEdges(lo, hi, n);
+        return kind === "ladder"
+          ? ladderCountEdges(amounts, n, lo, hi)
+          : equalCountEdges(amounts, n, lo, hi);
+      }
+
+      // Есть отрицательная зона: [min, 0] + распределение по [0, max] на оставшихся n интервалах.
+      // n подвижных границ: edges = [min, 0, g2..gn, max] => внутренних положительных границ = n-1.
+      const edges = [lo, 0];
+      if (n === 1) {
+        edges.push(hi);
+        return normalizeEdges(edges, lo, hi);
+      }
+      const posMovable = n - 1; // число внутренних границ на (0..max)
+      const posMax = Math.max(1, hi);
+      let posEdges;
+      if (kind === "even") {
+        posEdges = evenlySpacedEdges(0, posMax, posMovable);
+      } else if (!posAmounts.length) {
+        posEdges = evenlySpacedEdges(0, posMax, posMovable);
+      } else {
+        posEdges = kind === "ladder"
+          ? ladderCountEdges(posAmounts, posMovable, 0, posMax)
+          : equalCountEdges(posAmounts, posMovable, 0, posMax);
+      }
+      // posEdges = [0, ..., max]; берём только внутренние
+      for (let i = 1; i < posEdges.length - 1; i += 1) edges.push(posEdges[i]);
+      edges.push(hi);
+      return ensureStrictlyIncreasingEdges(normalizeEdges(edges, lo, hi), posAmounts, lo, hi);
+    }
+
+    /**
      * Общий обработчик кнопок распределения по числу ТН.
-     * Квантили всегда только по текущему периоду; прошлый не участвует.
-     * @param {"equal"|"ladder"} kind
+     * Квантили всегда только по текущему периоду; прошлый не участвует в долях,
+     * но шкала min/max в сравнении охватывает оба периода.
      */
     function applyWeightedCountEdges(kind) {
       if (!allRows.length) {
@@ -3691,32 +3768,18 @@
         setChartStatus("После фильтров в текущем периоде ТН не осталось — нечего распределять.", "err");
         return;
       }
-      const rowsACalc = rowsForAutoEdgeCalc(rowsAFull);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
-      let edges = includePositiveOnlyForAutoEdges()
-        ? buildPositiveModeEdges(rowsAFull, rowsACalc, n, kind)
-        : (function buildAllMode() {
-            const fullScaleRows = (viewMode === "compare" && allRowsB.length) ? edgeSourceRows() : rowsAFull;
-            const fullScale = edgeScaleMinMax(fullScaleRows);
-            const amounts = rowsACalc.map((r) => r.amount);
-            const base = kind === "ladder"
-              ? ladderCountEdges(amounts, n, fullScale.min, fullScale.max)
-              : equalCountEdges(amounts, n, fullScale.min, fullScale.max);
-            return cascadeEdges(base, 0);
-          })();
-
-      if (viewMode === "compare" && allRowsB.length) {
-        const fullScaleCompare = edgeScaleMinMax(edgeSourceRows());
-        edges[0] = fullScaleCompare.min;
-        edges[edges.length - 1] = fullScaleCompare.max;
-        edges = cascadeEdges(edges, 0);
-      }
+      const edges = buildAutoEdges(rowsAFull, n, kind);
       edgeState.min = edges[0];
       edgeState.max = edges[edges.length - 1];
       edgeState.edges = edges;
-
+      // Если активна тонкая настройка на зафиксированной нулевой границе — переключаем дальше
+      if (isZeroAnchorIndex(edgeState.fineIndex)) {
+        const movable = getMovableEdgeIndices();
+        edgeState.fineIndex = movable.length ? movable[0] : -1;
+      }
       renderEdgeRail();
       rebuild();
     }
@@ -3740,22 +3803,26 @@
         setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
         return;
       }
-      const rowsCalc = rowsForAutoEdgeCalc(rowsFull);
+      // Для even в одиночном режиме — по текущему; в сравнении шкала обоих.
+      // Доли ширины в positive — только на [0..max], отрицательные в первой колонке.
+      const sourceForCalc = (viewMode === "compare" && allRowsB.length)
+        ? rowsFull
+        : filteredRows();
+      if (!sourceForCalc.length) {
+        setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
+        return;
+      }
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
-      let edges = includePositiveOnlyForAutoEdges()
-        ? buildPositiveModeEdges(rowsFull, rowsCalc, n, "even")
-        : evenlySpacedEdges(edgeScaleMinMax(rowsFull).min, edgeScaleMinMax(rowsFull).max, n);
-      if (viewMode === "compare" && allRowsB.length) {
-        const fullScaleCompare = edgeScaleMinMax(edgeSourceRows());
-        edges[0] = fullScaleCompare.min;
-        edges[edges.length - 1] = fullScaleCompare.max;
-        edges = cascadeEdges(edges, 0);
-      }
+      const edges = buildAutoEdges(sourceForCalc, n, "even");
       edgeState.min = edges[0];
       edgeState.max = edges[edges.length - 1];
       edgeState.edges = edges;
+      if (isZeroAnchorIndex(edgeState.fineIndex)) {
+        const movable = getMovableEdgeIndices();
+        edgeState.fineIndex = movable.length ? movable[0] : -1;
+      }
       renderEdgeRail();
       rebuild();
     }
@@ -3768,28 +3835,31 @@
         return;
       }
       const baseRows = rows.length ? rows : allRows;
-      const calcRows = rowsForAutoEdgeCalc(baseRows);
       const scaleFull = edgeScaleMinMax(baseRows);
-      const scaleCalc = edgeScaleMinMax(calcRows);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
       el.movableEdgeCount.max = String(maxEdges);
       const sameRange = edgeState.min === scaleFull.min && edgeState.max === scaleFull.max;
       if (forceReset || !edgeState.edges.length || !sameRange || edgeState.edges.length !== n + 2) {
-        edgeState.min = scaleFull.min;
-        edgeState.max = scaleFull.max;
-        if (includePositiveOnlyForAutoEdges()) {
-          edgeState.edges = buildPositiveModeEdges(baseRows, calcRows, n, "even");
-        } else {
-          edgeState.edges = evenlySpacedEdges(scaleFull.min, scaleFull.max, n);
-        }
+        const initRows = filteredRows().length ? filteredRows() : baseRows;
+        const edges = buildAutoEdges(initRows, n, "even");
+        edgeState.min = edges[0];
+        edgeState.max = edges[edges.length - 1];
+        edgeState.edges = edges;
       } else {
         edgeState.min = scaleFull.min;
         edgeState.max = scaleFull.max;
         edgeState.edges[0] = scaleFull.min;
         edgeState.edges[edgeState.edges.length - 1] = scaleFull.max;
+        if (shouldAnchorZeroEdge(baseRows) && edgeState.edges.length > 2) {
+          edgeState.edges[1] = 0;
+        }
         edgeState.edges = cascadeEdges(edgeState.edges, 0);
+      }
+      if (isZeroAnchorIndex(edgeState.fineIndex)) {
+        const movable = getMovableEdgeIndices();
+        edgeState.fineIndex = movable.length ? movable[0] : -1;
       }
       renderEdgeRail();
     }
@@ -3818,7 +3888,7 @@
         edgeState.fineIndex = -1;
         return;
       }
-      if (idx <= 0 || idx >= edgeState.edges.length - 1) {
+      if (idx <= 0 || idx >= edgeState.edges.length - 1 || isZeroAnchorIndex(idx)) {
         edgeState.fineIndex = -1;
         return;
       }
@@ -3827,13 +3897,17 @@
 
     function getMovableEdgeIndices() {
       const out = [];
-      for (let i = 1; i < edgeState.edges.length - 1; i += 1) out.push(i);
+      for (let i = 1; i < edgeState.edges.length - 1; i += 1) {
+        // В positive-режиме граница 0 (индекс 1) зафиксирована и не двигается.
+        if (isZeroAnchorIndex(i)) continue;
+        out.push(i);
+      }
       return out;
     }
 
     function ensureFineIndex() {
-      if (edgeState.fineIndex > 0 && edgeState.fineIndex < edgeState.edges.length - 1) return;
       const movable = getMovableEdgeIndices();
+      if (movable.includes(edgeState.fineIndex)) return;
       edgeState.fineIndex = movable.length ? movable[0] : -1;
     }
 
@@ -3844,12 +3918,17 @@
 
     function applyEdgeValueLive(idx, rawVal) {
       if (idx <= 0 || idx >= edgeState.edges.length - 1) return;
+      if (isZeroAnchorIndex(idx)) return; // границу 0 в positive-режиме менять нельзя
       let val = typeof rawVal === "number" ? rawVal : parseEdgeInt(rawVal);
       if (!Number.isFinite(val)) return;
       val = toIntegerEdge(val);
       const left = edgeState.edges[idx - 1];
       const right = edgeState.edges[idx + 1];
-      if (val < left) val = left;
+      // Нельзя зайти левее зафиксированного нуля
+      const minAllowed = (shouldAnchorZeroEdge(rowsForZeroAnchorCheck()) && idx > 1)
+        ? Math.max(left, 0)
+        : left;
+      if (val < minAllowed) val = minAllowed;
       if (val > right) val = right;
       edgeState.edges[idx] = val;
       edgeState.edges = cascadeEdges(edgeState.edges, idx);
@@ -4092,7 +4171,8 @@
       el.edgeRail.appendChild(track);
 
       edges.forEach((val, idx) => {
-        const isFixed = idx === 0 || idx === edges.length - 1;
+        const isZeroLock = isZeroAnchorIndex(idx);
+        const isFixed = idx === 0 || idx === edges.length - 1 || isZeroLock;
         const thumb = document.createElement("div");
         thumb.className = "edge-rail__thumb" + (isFixed ? " is-fixed" : "") +
           ((!isFixed && idx === edgeState.fineIndex) ? " is-selected-main" : "");
@@ -4100,11 +4180,11 @@
         thumb.dataset.index = String(idx);
         // Номер группы только на подвижных бегунках (не на мин и не на макс)
         const isMax = idx === edges.length - 1;
-        const groupNum = (!isFixed && idx > 0) ? idx : 0;
-        if (groupNum > 0) {
+        const groupNum = (!isFixed && idx > 0) ? idx : (isZeroLock ? idx : 0);
+        if (groupNum > 0 || isZeroLock) {
           const badge = document.createElement("span");
           badge.className = "edge-rail__badge";
-          badge.textContent = String(groupNum);
+          badge.textContent = String(idx);
           badge.setAttribute("aria-hidden", "true");
           thumb.appendChild(badge);
         }
@@ -4115,10 +4195,14 @@
           current.textContent = formatEdgeInt(val);
           thumb.appendChild(current);
         }
-        thumb.title = (groupNum > 0 ? ("Группа " + groupNum + ": ") : "") + formatAmount(val);
-        thumb.setAttribute("aria-label", groupNum > 0
-          ? ("Граница группы " + groupNum + ", " + formatAmount(val))
-          : (isMax ? ("Максимум " + formatAmount(val)) : ("Минимум " + formatAmount(val))));
+        thumb.title = isZeroLock
+          ? ("Фикс. граница 0 (отрицательные слева): " + formatAmount(val))
+          : ((groupNum > 0 ? ("Группа " + groupNum + ": ") : "") + formatAmount(val));
+        thumb.setAttribute("aria-label", isZeroLock
+          ? ("Фиксированная граница 0, " + formatAmount(val))
+          : (groupNum > 0
+            ? ("Граница группы " + groupNum + ", " + formatAmount(val))
+            : (isMax ? ("Максимум " + formatAmount(val)) : ("Минимум " + formatAmount(val)))));
         if (!isFixed) {
           thumb.addEventListener("pointerdown", (ev) => {
             setFineIndex(idx);
@@ -4133,8 +4217,13 @@
       el.edgeValues.innerHTML = "";
       el.edgeValues.style.setProperty("--edge-count", String(edges.length));
       edges.forEach((v, i) => {
-        const isFixed = i === 0 || i === edges.length - 1;
-        const tag = i === 0 ? "мин" : (i === edges.length - 1 ? "макс" : ("группа " + i));
+        const isZeroLock = isZeroAnchorIndex(i);
+        const isFixed = i === 0 || i === edges.length - 1 || isZeroLock;
+        const tag = i === 0
+          ? "мин"
+          : (i === edges.length - 1
+            ? "макс"
+            : (isZeroLock ? "0 (фикс.)" : ("группа " + i)));
         const lab = document.createElement("label");
         const span = document.createElement("span");
         span.textContent = tag;
@@ -4202,6 +4291,10 @@
 
     function applyEdgeValue(idx, rawVal) {
       if (idx <= 0 || idx >= edgeState.edges.length - 1) return;
+      if (isZeroAnchorIndex(idx)) {
+        renderEdgeRail();
+        return;
+      }
       let val = typeof rawVal === "number" ? rawVal : parseEdgeInt(rawVal);
       if (!Number.isFinite(val)) {
         renderEdgeRail();
@@ -4210,7 +4303,10 @@
       val = toIntegerEdge(val);
       const left = edgeState.edges[idx - 1];
       const right = edgeState.edges[idx + 1];
-      if (val < left) val = left;
+      const minAllowed = (shouldAnchorZeroEdge(rowsForZeroAnchorCheck()) && idx > 1)
+        ? Math.max(left, 0)
+        : left;
+      if (val < minAllowed) val = minAllowed;
       if (val > right) val = right;
       edgeState.edges[idx] = val;
       edgeState.edges = cascadeEdges(edgeState.edges, idx);
@@ -4227,6 +4323,7 @@
     function onThumbPointerDown(ev) {
       ev.preventDefault();
       const idx = Number(ev.currentTarget.dataset.index);
+      if (isZeroAnchorIndex(idx)) return;
       edgeState.dragIndex = idx;
       setFineIndex(idx);
       ev.currentTarget.setPointerCapture(ev.pointerId);
@@ -4237,7 +4334,10 @@
         let val = toIntegerEdge(pctToValue(pct));
         const left = edgeState.edges[idx - 1];
         const right = edgeState.edges[idx + 1];
-        if (val < left) val = left;
+        const minAllowed = (shouldAnchorZeroEdge(rowsForZeroAnchorCheck()) && idx > 1)
+          ? Math.max(left, 0)
+          : left;
+        if (val < minAllowed) val = minAllowed;
         if (val > right) val = right;
         edgeState.edges[idx] = val;
         edgeState.edges = cascadeEdges(edgeState.edges, idx);
