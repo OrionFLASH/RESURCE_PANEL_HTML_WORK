@@ -304,7 +304,7 @@
     }
     .analysis-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
     }
     .analysis-card {
@@ -323,7 +323,7 @@
     }
     .analysis-card canvas {
       width: 100%;
-      height: 180px;
+      height: 230px;
       border-radius: 10px;
       background: rgba(255,255,255,0.5);
       border: 1px solid rgba(0,0,0,0.05);
@@ -336,9 +336,6 @@
     @media (max-width: 1200px) {
       .analysis-controls {
         grid-template-columns: 1fr;
-      }
-      .analysis-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
     @media (max-width: 900px) {
@@ -3028,6 +3025,7 @@
           const v = btn.getAttribute("data-value");
           if (!v || selectEl.value === v) return;
           selectEl.value = v;
+          syncSegFromSelect(segEl, selectEl);
           syncChartModeConstraints();
           if (typeof afterChange === "function") afterChange();
         });
@@ -3545,6 +3543,46 @@
       return cascadeEdges(out, 1);
     }
 
+    /**
+     * Для режима "только положительные":
+     * - [min..0] остаётся отдельным левым интервалом (если min < 0),
+     * - распределение "равно/лесенка/равные интервалы" выполняется по диапазону [0..max]
+     *   для оставшихся интервалов.
+     */
+    function buildPositiveModeEdges(rowsFull, rowsCalc, movableCount, kind) {
+      const fullScale = edgeScaleMinMax(rowsFull);
+      const calcScale = edgeScaleMinMax(rowsCalc);
+      const n = Math.max(1, Math.floor(movableCount));
+      const edges = [fullScale.min];
+      const anchored = shouldAnchorFirstMovableAtZero(rowsFull);
+      if (!anchored) {
+        if (kind === "even") return evenlySpacedEdges(fullScale.min, fullScale.max, n);
+        const amounts = rowsCalc.map((r) => r.amount);
+        return kind === "ladder"
+          ? ladderCountEdges(amounts, n, fullScale.min, fullScale.max)
+          : equalCountEdges(amounts, n, fullScale.min, fullScale.max);
+      }
+
+      edges.push(0);
+      if (n > 1) {
+        const positiveInternalMovable = n - 1;
+        if (kind === "even") {
+          const posEdges = evenlySpacedEdges(0, calcScale.max, positiveInternalMovable);
+          for (let i = 1; i < posEdges.length - 1; i += 1) edges.push(posEdges[i]);
+        } else {
+          const amounts = rowsCalc.map((r) => r.amount);
+          // В positive режиме после якоря 0 остаётся n интервалов на [0..max]
+          // => внутренних подвижных границ n-1.
+          const posEdges = kind === "ladder"
+            ? ladderCountEdges(amounts, positiveInternalMovable, 0, calcScale.max)
+            : equalCountEdges(amounts, positiveInternalMovable, 0, calcScale.max);
+          for (let i = 1; i < posEdges.length - 1; i += 1) edges.push(posEdges[i]);
+        }
+      }
+      edges.push(fullScale.max);
+      return cascadeEdges(edges, 0);
+    }
+
     function cascadeEdges(edges, changedIndex) {
       const out = edges.map(toIntegerEdge);
       for (let i = changedIndex + 1; i < out.length; i += 1) {
@@ -3643,30 +3681,30 @@
         return;
       }
       const rowsACalc = rowsForAutoEdgeCalc(rowsAFull);
-      const aScaleCalc = edgeScaleMinMax(rowsACalc);
-      const aScaleFull = edgeScaleMinMax(rowsAFull);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
-      const amounts = rowsACalc.map((r) => r.amount);
-      let edges = kind === "ladder"
-        ? ladderCountEdges(amounts, n, aScaleCalc.min, aScaleCalc.max)
-        : equalCountEdges(amounts, n, aScaleCalc.min, aScaleCalc.max);
+      let edges = includePositiveOnlyForAutoEdges()
+        ? buildPositiveModeEdges(rowsAFull, rowsACalc, n, kind)
+        : (function buildAllMode() {
+            const fullScaleRows = (viewMode === "compare" && allRowsB.length) ? edgeSourceRows() : rowsAFull;
+            const fullScale = edgeScaleMinMax(fullScaleRows);
+            const amounts = rowsACalc.map((r) => r.amount);
+            const base = kind === "ladder"
+              ? ladderCountEdges(amounts, n, fullScale.min, fullScale.max)
+              : equalCountEdges(amounts, n, fullScale.min, fullScale.max);
+            return cascadeEdges(base, 0);
+          })();
 
-      // В сравнении шкала рельса охватывает оба периода; расчёт квантилей — по текущему.
-      const fullScaleRows = (viewMode === "compare" && allRowsB.length) ? edgeSourceRows() : rowsAFull;
-      const fullScale = edgeScaleMinMax(fullScaleRows);
-      edgeState.min = fullScale.min;
-      edgeState.max = fullScale.max;
-      edges = edges.slice();
-      edges[0] = fullScale.min;
-      edges[edges.length - 1] = fullScale.max;
-      for (let i = 1; i < edges.length - 1; i += 1) {
-        if (edges[i] < fullScale.min) edges[i] = fullScale.min;
-        if (edges[i] > fullScale.max) edges[i] = fullScale.max;
+      if (viewMode === "compare" && allRowsB.length) {
+        const fullScaleCompare = edgeScaleMinMax(edgeSourceRows());
+        edges[0] = fullScaleCompare.min;
+        edges[edges.length - 1] = fullScaleCompare.max;
+        edges = cascadeEdges(edges, 0);
       }
-      edgeState.edges = cascadeEdges(edges, 0);
-      edgeState.edges = applyZeroAnchorToFirstMovable(edgeState.edges, rowsAFull);
+      edgeState.min = edges[0];
+      edgeState.max = edges[edges.length - 1];
+      edgeState.edges = edges;
 
       renderEdgeRail();
       rebuild();
@@ -3692,18 +3730,21 @@
         return;
       }
       const rowsCalc = rowsForAutoEdgeCalc(rowsFull);
-      const scaleCalc = edgeScaleMinMax(rowsCalc);
-      const scaleFull = edgeScaleMinMax(rowsFull);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
-      edgeState.min = scaleFull.min;
-      edgeState.max = scaleFull.max;
-      edgeState.edges = evenlySpacedEdges(scaleCalc.min, scaleCalc.max, n);
-      edgeState.edges[0] = scaleFull.min;
-      edgeState.edges[edgeState.edges.length - 1] = scaleFull.max;
-      edgeState.edges = cascadeEdges(edgeState.edges, 0);
-      edgeState.edges = applyZeroAnchorToFirstMovable(edgeState.edges, rowsFull);
+      let edges = includePositiveOnlyForAutoEdges()
+        ? buildPositiveModeEdges(rowsFull, rowsCalc, n, "even")
+        : evenlySpacedEdges(edgeScaleMinMax(rowsFull).min, edgeScaleMinMax(rowsFull).max, n);
+      if (viewMode === "compare" && allRowsB.length) {
+        const fullScaleCompare = edgeScaleMinMax(edgeSourceRows());
+        edges[0] = fullScaleCompare.min;
+        edges[edges.length - 1] = fullScaleCompare.max;
+        edges = cascadeEdges(edges, 0);
+      }
+      edgeState.min = edges[0];
+      edgeState.max = edges[edges.length - 1];
+      edgeState.edges = edges;
       renderEdgeRail();
       rebuild();
     }
@@ -3727,10 +3768,11 @@
       if (forceReset || !edgeState.edges.length || !sameRange || edgeState.edges.length !== n + 2) {
         edgeState.min = scaleFull.min;
         edgeState.max = scaleFull.max;
-        edgeState.edges = evenlySpacedEdges(scaleCalc.min, scaleCalc.max, n);
-        edgeState.edges[0] = scaleFull.min;
-        edgeState.edges[edgeState.edges.length - 1] = scaleFull.max;
-        edgeState.edges = cascadeEdges(edgeState.edges, 0);
+        if (includePositiveOnlyForAutoEdges()) {
+          edgeState.edges = buildPositiveModeEdges(baseRows, calcRows, n, "even");
+        } else {
+          edgeState.edges = evenlySpacedEdges(scaleFull.min, scaleFull.max, n);
+        }
       } else {
         edgeState.min = scaleFull.min;
         edgeState.max = scaleFull.max;
@@ -3738,7 +3780,6 @@
         edgeState.edges[edgeState.edges.length - 1] = scaleFull.max;
         edgeState.edges = cascadeEdges(edgeState.edges, 0);
       }
-      edgeState.edges = applyZeroAnchorToFirstMovable(edgeState.edges, baseRows);
       renderEdgeRail();
     }
 
@@ -5576,13 +5617,14 @@
       const pack = canvasContext2d(canvas);
       if (!pack) return;
       const { ctx, w, h } = pack;
-      const pad = { l: 34, r: 8, t: 10, b: 46 };
+      const pad = { l: 36, r: 10, t: 12, b: 58 };
       const pw = w - pad.l - pad.r;
       const ph = h - pad.t - pad.b;
       const maxV = Math.max(1, ...values.map((v) => Number(v) || 0));
       const n = Math.max(1, values.length);
-      const gap = 6;
+      const gap = n > 12 ? 3 : 6;
       const bw = Math.max(8, (pw - gap * (n - 1)) / n);
+      const labelStep = n > 18 ? 4 : (n > 12 ? 3 : (n > 8 ? 2 : 1));
       ctx.strokeStyle = "rgba(0,0,0,0.12)";
       ctx.beginPath();
       ctx.moveTo(pad.l, pad.t + ph);
@@ -5595,15 +5637,17 @@
         const y = pad.t + ph - bh;
         ctx.fillStyle = color || "#007AFF";
         ctx.fillRect(x, y, bw, bh);
-        const lbl = shortenLabel(String(labels[i] || "—"), 10);
-        ctx.save();
-        ctx.translate(x + bw / 2, pad.t + ph + 12);
-        ctx.rotate(-0.35);
-        ctx.fillStyle = "#6e6e73";
-        ctx.font = "11px Segoe UI";
-        ctx.textAlign = "center";
-        ctx.fillText(lbl, 0, 0);
-        ctx.restore();
+        if (i % labelStep === 0 || i === n - 1) {
+          const lbl = shortenLabel(String(labels[i] || "—"), 9);
+          ctx.save();
+          ctx.translate(x + bw / 2, pad.t + ph + 12);
+          ctx.rotate(-0.45);
+          ctx.fillStyle = "#6e6e73";
+          ctx.font = "10px Segoe UI";
+          ctx.textAlign = "center";
+          ctx.fillText(lbl, 0, 0);
+          ctx.restore();
+        }
       }
     }
 
@@ -6187,6 +6231,9 @@
     syncViewModeUi();
     syncGroupLayoutUi();
     syncChartModeConstraints();
+    syncSegFromSelect(el.edgeCalcModeSeg, el.edgeCalcMode);
+    syncSegFromSelect(el.analysisMetricSeg, el.analysisMetric);
+    syncSegFromSelect(el.analysisTopNSeg, el.analysisTopN);
 
     // Экспорт для тестов в Node (если страница открыта как модуль — не используется)
     window.SumDistribution = {
