@@ -269,6 +269,83 @@
       background: rgba(0, 122, 255, 0.14);
       color: var(--glass-blue);
     }
+    body.is-analysis .chart-wrap-primary,
+    body.is-analysis .charts-dual,
+    body.is-analysis .chart-toolbar,
+    body.is-analysis #legend,
+    body.is-analysis #stats,
+    body.is-analysis #freqDetail,
+    body.is-analysis .export-panel {
+      display: none !important;
+    }
+    .analysis-panel {
+      display: none;
+      gap: 12px;
+    }
+    body.is-analysis .analysis-panel {
+      display: grid;
+    }
+    .analysis-guide {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-white-border-light);
+      background: rgba(255, 255, 255, 0.5);
+      font-size: 0.88rem;
+      color: var(--glass-text-secondary);
+      line-height: 1.4;
+    }
+    .analysis-controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .analysis-controls .toolbar-cell {
+      min-height: 56px;
+    }
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .analysis-card {
+      border: 1px solid var(--glass-white-border-light);
+      border-radius: 12px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.5);
+      display: grid;
+      gap: 6px;
+    }
+    .analysis-card h4 {
+      margin: 0;
+      font-size: 0.84rem;
+      color: var(--glass-text-secondary);
+      font-weight: 700;
+    }
+    .analysis-card canvas {
+      width: 100%;
+      height: 180px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.5);
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+    .analysis-tables {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 1200px) {
+      .analysis-controls {
+        grid-template-columns: 1fr;
+      }
+      .analysis-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 900px) {
+      .analysis-grid {
+        grid-template-columns: 1fr;
+      }
+    }
 
     .period-block {
       display: grid;
@@ -1067,7 +1144,7 @@
     }
     /* Тонкая настройка выбранной границы (мини-шкала в стиле основной) */
     .edge-fine {
-      margin-top: 8px;
+      margin-top: 18px;
       padding: 8px 10px;
       border-radius: 12px;
       border: 1px solid rgba(0, 122, 255, 0.22);
@@ -1125,7 +1202,7 @@
     .edge-fine__rail {
       position: relative;
       width: 100%;
-      height: 36px;
+      height: 56px;
       user-select: none;
       touch-action: none;
       margin-top: 2px;
@@ -1175,21 +1252,22 @@
       cursor: grabbing;
       transform: scale(1.05);
     }
-    .edge-fine__thumb-val {
+    .edge-fine__current {
       position: absolute;
       left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 8px;
-      line-height: 1;
+      top: calc(100% + 8px);
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      line-height: 1.15;
       font-weight: 700;
-      color: #fff;
-      background: rgba(0, 122, 255, 0.82);
-      border-radius: 999px;
-      padding: 2px 5px;
+      color: var(--glass-blue);
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(0, 122, 255, 0.25);
+      border-radius: 8px;
+      padding: 1px 6px;
       white-space: nowrap;
       pointer-events: none;
-      box-shadow: 0 1px 3px rgba(0, 122, 255, 0.26);
+      box-shadow: 0 2px 6px rgba(0, 122, 255, 0.16);
     }
     .edge-fine__hint {
       font-size: 0.71rem;
@@ -1474,6 +1552,8 @@
             data-tip="Один файл — распределение и фильтры">Один период</button>
           <button class="btn secondary" type="button" id="tabCompare" role="tab" aria-selected="false"
             data-tip="Текущий и прошлый периоды на общих интервалах">Сравнение периодов</button>
+          <button class="btn secondary" type="button" id="tabAnalysis" role="tab" aria-selected="false"
+            data-tip="Расширенная аналитика по текущему файлу с графиками и таблицами">Статистика и анализ</button>
         </div>
 
         <details class="section-block" id="dataBlock" open>
@@ -1692,6 +1772,116 @@
               </button>
             </div>
           </div>
+          <section id="analysisPanel" class="analysis-panel" aria-label="Аналитика по текущему периоду">
+            <div class="analysis-guide">
+              Для подбора границ используйте бегунки выше: ориентируйтесь на кумулятивную кривую и таблицу интервалов.
+              Рекомендуется избегать интервалов с очень малым числом ТН и проверять концентрацию по ТБ/ГОСБ/кластеру.
+            </div>
+            <div class="analysis-controls">
+              <div class="toolbar-cell" data-tip="Базовый разрез аналитики для top/bottom и структурных графиков">
+                <span class="toolbar-label">Разрез аналитики</span>
+                <select id="analysisDim">
+                  <option value="tb" selected>ТБ</option>
+                  <option value="gosb">ГОСБ</option>
+                  <option value="cluster">Кластер</option>
+                </select>
+              </div>
+              <div class="toolbar-cell" data-tip="Метрика для рейтингов и структуры категорий">
+                <span class="toolbar-label">Метрика</span>
+                <div class="seg" id="analysisMetricSeg" role="group" aria-label="Метрика аналитики">
+                  <button type="button" class="seg__btn is-on" data-value="count">ТН</button>
+                  <button type="button" class="seg__btn" data-value="sum">Σ сумма</button>
+                  <button type="button" class="seg__btn" data-value="avg">Средняя</button>
+                </div>
+                <select id="analysisMetric" class="sr-only" tabindex="-1" aria-hidden="true">
+                  <option value="count" selected>ТН</option>
+                  <option value="sum">Сумма</option>
+                  <option value="avg">Средняя сумма</option>
+                </select>
+              </div>
+              <div class="toolbar-cell" data-tip="Сколько категорий показывать в top/bottom и в таблицах">
+                <span class="toolbar-label">Top/Bottom</span>
+                <div class="seg" id="analysisTopNSeg" role="group" aria-label="Размер top выборки">
+                  <button type="button" class="seg__btn is-on" data-value="5">5</button>
+                  <button type="button" class="seg__btn" data-value="10">10</button>
+                  <button type="button" class="seg__btn" data-value="20">20</button>
+                </div>
+                <select id="analysisTopN" class="sr-only" tabindex="-1" aria-hidden="true">
+                  <option value="5" selected>5</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                </select>
+              </div>
+            </div>
+            <div class="analysis-grid">
+              <div class="analysis-card" data-tip="Распределение ТН по текущим интервалам">
+                <h4>1) Распределение по интервалам</h4>
+                <canvas id="anChartBins"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="Накопленная доля ТН: помогает выставлять границы по целевым процентам">
+                <h4>2) Кумулятивная доля ТН</h4>
+                <canvas id="anChartCdf"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="Топ ТБ по числу ТН после фильтров">
+                <h4>3) Топ ТБ</h4>
+                <canvas id="anChartTb"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="Топ ГОСБ по числу ТН после фильтров">
+                <h4>4) Топ ГОСБ</h4>
+                <canvas id="anChartGosb"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="Топ кластеров по числу ТН после фильтров">
+                <h4>5) Топ кластеров</h4>
+                <canvas id="anChartCluster"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="Децили сумм: профиль распределения и устойчивость границ">
+                <h4>6) Децили сумм</h4>
+                <canvas id="anChartDeciles"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="Top категорий по выбранной метрике">
+                <h4>7) Top категорий (выбранный разрез)</h4>
+                <canvas id="anChartTop"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="Bottom категорий по выбранной метрике">
+                <h4>8) Bottom категорий (выбранный разрез)</h4>
+                <canvas id="anChartBottom"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="Доли top-категорий в общей структуре">
+                <h4>9) Структура top (круговая)</h4>
+                <canvas id="anChartPie"></canvas>
+              </div>
+              <div class="analysis-card" data-tip="P10/P50/P90 по top-категориям: вариативность внутри разреза">
+                <h4>10) Вариативность категорий (P10/P50/P90)</h4>
+                <canvas id="anChartBand"></canvas>
+              </div>
+            </div>
+            <div class="analysis-tables">
+              <div class="freq-block" data-tip="Интервальные метрики: количество, доля, средняя сумма и плотность">
+                <h3>Таблица A: интервальный профиль</h3>
+                <div id="analysisTableIntervals" class="table-wrap"></div>
+              </div>
+              <div class="freq-block" data-tip="Концентрация по категориям: где сосредоточены максимальные объёмы">
+                <h3>Таблица B: концентрация категорий</h3>
+                <div id="analysisTableCategories" class="table-wrap"></div>
+              </div>
+              <div class="freq-block" data-tip="Процентили и сводные коэффициенты концентрации/асимметрии">
+                <h3>Таблица C: процентили и коэффициенты</h3>
+                <div id="analysisTablePercentiles" class="table-wrap"></div>
+              </div>
+              <div class="freq-block" data-tip="Top/Bottom по ТБ, ГОСБ и кластеру одновременно">
+                <h3>Таблица D: топ и худшие по всем разрезам</h3>
+                <div id="analysisTableTopBottomAllDims" class="table-wrap"></div>
+              </div>
+              <div class="freq-block" data-tip="Матрица ТБ × кластер: где сконцентрированы ТН">
+                <h3>Таблица E: матрица ТБ × кластер</h3>
+                <div id="analysisTableTbClusterMatrix" class="table-wrap"></div>
+              </div>
+              <div class="freq-block" data-tip="Стабильность категорий: min/median/max и коэффициент вариации">
+                <h3>Таблица F: стабильность категорий</h3>
+                <div id="analysisTableStability" class="table-wrap"></div>
+              </div>
+            </div>
+          </section>
         </div>
       </section>
     </div>
@@ -1747,7 +1937,7 @@
     let fileNameA = "";
     let fileNameB = "";
 
-    /** @type {"single"|"compare"} */
+    /** @type {"single"|"compare"|"analysis"} */
     let viewMode = "single";
 
     /** Состояние ручных границ */
@@ -1782,6 +1972,7 @@
     const el = {
       tabSingle: document.getElementById("tabSingle"),
       tabCompare: document.getElementById("tabCompare"),
+      tabAnalysis: document.getElementById("tabAnalysis"),
       fileInput: document.getElementById("fileInput"),
       fileInputB: document.getElementById("fileInputB"),
       fileOverviewA: document.getElementById("fileOverviewA"),
@@ -1825,6 +2016,28 @@
       legend: document.getElementById("legend"),
       stats: document.getElementById("stats"),
       freqDetail: document.getElementById("freqDetail"),
+      analysisPanel: document.getElementById("analysisPanel"),
+      analysisDim: document.getElementById("analysisDim"),
+      analysisMetric: document.getElementById("analysisMetric"),
+      analysisMetricSeg: document.getElementById("analysisMetricSeg"),
+      analysisTopN: document.getElementById("analysisTopN"),
+      analysisTopNSeg: document.getElementById("analysisTopNSeg"),
+      anChartBins: document.getElementById("anChartBins"),
+      anChartCdf: document.getElementById("anChartCdf"),
+      anChartTb: document.getElementById("anChartTb"),
+      anChartGosb: document.getElementById("anChartGosb"),
+      anChartCluster: document.getElementById("anChartCluster"),
+      anChartDeciles: document.getElementById("anChartDeciles"),
+      anChartTop: document.getElementById("anChartTop"),
+      anChartBottom: document.getElementById("anChartBottom"),
+      anChartPie: document.getElementById("anChartPie"),
+      anChartBand: document.getElementById("anChartBand"),
+      analysisTableIntervals: document.getElementById("analysisTableIntervals"),
+      analysisTableCategories: document.getElementById("analysisTableCategories"),
+      analysisTablePercentiles: document.getElementById("analysisTablePercentiles"),
+      analysisTableTopBottomAllDims: document.getElementById("analysisTableTopBottomAllDims"),
+      analysisTableTbClusterMatrix: document.getElementById("analysisTableTbClusterMatrix"),
+      analysisTableStability: document.getElementById("analysisTableStability"),
       chartStatus: null,
       glassTip: document.getElementById("glassTip"),
       btnExportRaw: document.getElementById("btnExportRaw"),
@@ -2408,12 +2621,14 @@
       }).format(n);
     }
 
-    /** Мин/макс из данных без округления шкалы (точные значения). */
+    /** Мин/макс из данных для UI (с тем же лимитом дробной части, что и у остальных сумм). */
     function formatAmountExact(n) {
       if (!Number.isFinite(n)) return "—";
+      const digits = Math.max(0, Number(APP_CONFIG.amountFractionDigits));
+      const maxDigits = Number.isFinite(digits) ? digits : 2;
       return new Intl.NumberFormat("ru-RU", {
         useGrouping: true,
-        maximumFractionDigits: 20
+        maximumFractionDigits: maxDigits
       }).format(n);
     }
 
@@ -3311,23 +3526,23 @@
       return integerBounds(raw.min, raw.max);
     }
 
-    /**
-     * Шкала для автоинициализации:
-     * - по умолчанию (positive) при наличии неотрицательных значений стартуем с 0,
-     * - остальные границы распределяются по положительному диапазону.
-     */
-    function autoEdgeScaleMinMax(rows) {
-      const workRows = rowsForAutoEdgeCalc(rows);
-      const { min, max } = edgeScaleMinMax(workRows);
-      if (includePositiveOnlyForAutoEdges()) {
-        const hasNonNeg = workRows.some((r) => Number(r.amount) >= 0);
-        if (hasNonNeg) {
-          const nonNeg = workRows.filter((r) => Number(r.amount) >= 0);
-          const posScale = edgeScaleMinMax(nonNeg);
-          return { min: 0, max: Math.max(1, posScale.max) };
-        }
-      }
-      return { min, max };
+    /** Нужен ли якорь 0 на первом подвижном бегунке. */
+    function shouldAnchorFirstMovableAtZero(rows) {
+      if (!includePositiveOnlyForAutoEdges()) return false;
+      if (!rows || !rows.length) return false;
+      const hasNonNeg = rows.some((r) => Number(r.amount) >= 0);
+      if (!hasNonNeg) return false;
+      const scale = edgeScaleMinMax(rows);
+      return scale.min < 0 && scale.max >= 0;
+    }
+
+    /** Применяет якорь 0 к первому подвижному бегунку (если применимо). */
+    function applyZeroAnchorToFirstMovable(edges, rows) {
+      if (!edges || edges.length < 3) return edges;
+      if (!shouldAnchorFirstMovableAtZero(rows)) return edges;
+      const out = edges.slice();
+      out[1] = 0;
+      return cascadeEdges(out, 1);
     }
 
     function cascadeEdges(edges, changedIndex) {
@@ -3422,38 +3637,36 @@
         setChartStatus("Сначала загрузите данные.", "err");
         return;
       }
-      const rowsA = rowsForAutoEdgeCalc(filteredRows());
-      if (!rowsA.length) {
+      const rowsAFull = filteredRows();
+      if (!rowsAFull.length) {
         setChartStatus("После фильтров в текущем периоде ТН не осталось — нечего распределять.", "err");
         return;
       }
-      const aScale = autoEdgeScaleMinMax(rowsA);
+      const rowsACalc = rowsForAutoEdgeCalc(rowsAFull);
+      const aScaleCalc = edgeScaleMinMax(rowsACalc);
+      const aScaleFull = edgeScaleMinMax(rowsAFull);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
-      const amounts = rowsA.map((r) => r.amount);
+      const amounts = rowsACalc.map((r) => r.amount);
       let edges = kind === "ladder"
-        ? ladderCountEdges(amounts, n, aScale.min, aScale.max)
-        : equalCountEdges(amounts, n, aScale.min, aScale.max);
+        ? ladderCountEdges(amounts, n, aScaleCalc.min, aScaleCalc.max)
+        : equalCountEdges(amounts, n, aScaleCalc.min, aScaleCalc.max);
 
-      // В сравнении шкалу рельса расширяем на оба периода; промежуточные границы остаются от текущего
-      if (viewMode === "compare" && allRowsB.length) {
-        const full = autoEdgeScaleMinMax(edgeSourceRows());
-        edgeState.min = full.min;
-        edgeState.max = full.max;
-        edges = edges.slice();
-        edges[0] = full.min;
-        edges[edges.length - 1] = full.max;
-        for (let i = 1; i < edges.length - 1; i += 1) {
-          if (edges[i] < full.min) edges[i] = full.min;
-          if (edges[i] > full.max) edges[i] = full.max;
-        }
-        edgeState.edges = cascadeEdges(edges, 0);
-      } else {
-        edgeState.min = aScale.min;
-        edgeState.max = aScale.max;
-        edgeState.edges = edges;
+      // В сравнении шкала рельса охватывает оба периода; расчёт квантилей — по текущему.
+      const fullScaleRows = (viewMode === "compare" && allRowsB.length) ? edgeSourceRows() : rowsAFull;
+      const fullScale = edgeScaleMinMax(fullScaleRows);
+      edgeState.min = fullScale.min;
+      edgeState.max = fullScale.max;
+      edges = edges.slice();
+      edges[0] = fullScale.min;
+      edges[edges.length - 1] = fullScale.max;
+      for (let i = 1; i < edges.length - 1; i += 1) {
+        if (edges[i] < fullScale.min) edges[i] = fullScale.min;
+        if (edges[i] > fullScale.max) edges[i] = fullScale.max;
       }
+      edgeState.edges = cascadeEdges(edges, 0);
+      edgeState.edges = applyZeroAnchorToFirstMovable(edgeState.edges, rowsAFull);
 
       renderEdgeRail();
       rebuild();
@@ -3473,18 +3686,24 @@
         setChartStatus("Сначала загрузите данные.", "err");
         return;
       }
-      const rows = rowsForAutoEdgeCalc(edgeSourceRows());
-      if (!rows.length) {
+      const rowsFull = edgeSourceRows();
+      if (!rowsFull.length) {
         setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
         return;
       }
-      const { min, max } = autoEdgeScaleMinMax(rows);
+      const rowsCalc = rowsForAutoEdgeCalc(rowsFull);
+      const scaleCalc = edgeScaleMinMax(rowsCalc);
+      const scaleFull = edgeScaleMinMax(rowsFull);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
-      edgeState.min = min;
-      edgeState.max = max;
-      edgeState.edges = evenlySpacedEdges(min, max, n);
+      edgeState.min = scaleFull.min;
+      edgeState.max = scaleFull.max;
+      edgeState.edges = evenlySpacedEdges(scaleCalc.min, scaleCalc.max, n);
+      edgeState.edges[0] = scaleFull.min;
+      edgeState.edges[edgeState.edges.length - 1] = scaleFull.max;
+      edgeState.edges = cascadeEdges(edgeState.edges, 0);
+      edgeState.edges = applyZeroAnchorToFirstMovable(edgeState.edges, rowsFull);
       renderEdgeRail();
       rebuild();
     }
@@ -3497,23 +3716,29 @@
         return;
       }
       const baseRows = rows.length ? rows : allRows;
-      const { min, max } = autoEdgeScaleMinMax(baseRows);
+      const calcRows = rowsForAutoEdgeCalc(baseRows);
+      const scaleFull = edgeScaleMinMax(baseRows);
+      const scaleCalc = edgeScaleMinMax(calcRows);
       const maxEdges = Math.max(1, Number(APP_CONFIG.movableEdgesMax) || 40);
       const n = Math.max(1, Math.min(maxEdges, Number(el.movableEdgeCount.value) || APP_CONFIG.defaultMovableEdges));
       el.movableEdgeCount.value = String(n);
       el.movableEdgeCount.max = String(maxEdges);
-      const sameRange = edgeState.min === min && edgeState.max === max;
+      const sameRange = edgeState.min === scaleFull.min && edgeState.max === scaleFull.max;
       if (forceReset || !edgeState.edges.length || !sameRange || edgeState.edges.length !== n + 2) {
-        edgeState.min = min;
-        edgeState.max = max;
-        edgeState.edges = evenlySpacedEdges(min, max, n);
+        edgeState.min = scaleFull.min;
+        edgeState.max = scaleFull.max;
+        edgeState.edges = evenlySpacedEdges(scaleCalc.min, scaleCalc.max, n);
+        edgeState.edges[0] = scaleFull.min;
+        edgeState.edges[edgeState.edges.length - 1] = scaleFull.max;
+        edgeState.edges = cascadeEdges(edgeState.edges, 0);
       } else {
-        edgeState.min = min;
-        edgeState.max = max;
-        edgeState.edges[0] = min;
-        edgeState.edges[edgeState.edges.length - 1] = max;
+        edgeState.min = scaleFull.min;
+        edgeState.max = scaleFull.max;
+        edgeState.edges[0] = scaleFull.min;
+        edgeState.edges[edgeState.edges.length - 1] = scaleFull.max;
         edgeState.edges = cascadeEdges(edgeState.edges, 0);
       }
+      edgeState.edges = applyZeroAnchorToFirstMovable(edgeState.edges, baseRows);
       renderEdgeRail();
     }
 
@@ -3618,7 +3843,7 @@
       const cur = edgeState.edges[idx];
       const sel = el.edgeFineTune.querySelector(".edge-fine__thumb.is-selected");
       if (sel) sel.style.left = finePctForValue(cur, left, right) + "%";
-      const selVal = el.edgeFineTune.querySelector(".edge-fine__thumb-val");
+      const selVal = el.edgeFineTune.querySelector('[data-fine-thumb-current="1"]');
       if (selVal) selVal.textContent = formatEdgeInt(cur);
       const valNode = el.edgeFineTune.querySelector('[data-fine-current-val="1"]');
       if (valNode) valNode.textContent = formatEdgeInt(cur);
@@ -3672,7 +3897,7 @@
           `</div>` +
           `<div class="edge-fine__thumb" style="left:0%;" title="${leftLabel}: ${formatEdgeInt(left)}"></div>` +
           `<div class="edge-fine__thumb is-selected" style="left:${selectedPct}%;" data-fine-selected-index="${idx}" title="Граница ${idx}: ${formatEdgeInt(cur)}">` +
-            `<span class="edge-fine__thumb-val">${formatEdgeInt(cur)}</span>` +
+            `<span class="edge-fine__current" data-fine-thumb-current="1">${formatEdgeInt(cur)}</span>` +
           `</div>` +
           `<div class="edge-fine__thumb" style="left:100%;" title="${rightLabel}: ${formatEdgeInt(right)}"></div>` +
         `</div>` +
@@ -4004,7 +4229,7 @@
           setChartStatus("После фильтров ТН не осталось.", "err");
           return;
         }
-        const scale = autoEdgeScaleMinMax(edgeRows);
+        const scale = edgeScaleMinMax(edgeRows);
         edgeState.min = scale.min;
         edgeState.max = scale.max;
         if (edgeState.edges.length) {
@@ -4127,6 +4352,24 @@
           return;
         }
 
+        if (viewMode === "analysis") {
+          document.body.classList.remove("is-compare-split");
+          if (!rowsA.length) {
+            setChartStatus("После фильтров ТН не осталось.", "err");
+            return;
+          }
+          const hist = computeHistogram(rowsA, edges, "all");
+          lastChartState = { rows: rowsA, edges, hist, layout: "bin", slice: "all", chartType: "bars", compare: false };
+          renderAnalysis(rowsA, edges);
+          renderStats(rowsA, hist);
+          renderFrequencyTable(hist, rowsA, "all");
+          setChartStatus(
+            `Аналитика: ${hist.labels.length} интервалов; ТН в анализе: ${rowsA.length}.`,
+            "ok"
+          );
+          return;
+        }
+
         document.body.classList.remove("is-compare-split");
         if (!rowsA.length) {
           setChartStatus("После фильтров ТН не осталось.", "err");
@@ -4205,6 +4448,7 @@
 
     function syncViewModeUi() {
       document.body.classList.toggle("is-compare", viewMode === "compare");
+      document.body.classList.toggle("is-analysis", viewMode === "analysis");
       if (el.tabSingle) {
         el.tabSingle.classList.toggle("is-active", viewMode === "single");
         el.tabSingle.classList.toggle("secondary", viewMode !== "single");
@@ -4215,10 +4459,17 @@
         el.tabCompare.classList.toggle("secondary", viewMode !== "compare");
         el.tabCompare.setAttribute("aria-selected", viewMode === "compare" ? "true" : "false");
       }
+      if (el.tabAnalysis) {
+        el.tabAnalysis.classList.toggle("is-active", viewMode === "analysis");
+        el.tabAnalysis.classList.toggle("secondary", viewMode !== "analysis");
+        el.tabAnalysis.setAttribute("aria-selected", viewMode === "analysis" ? "true" : "false");
+      }
       if (el.periodTitleA) el.periodTitleA.textContent = viewMode === "compare" ? PERIOD_CUR.label : "Файл данных";
       if (el.periodTitleB) el.periodTitleB.textContent = PERIOD_PREV.label;
       if (el.chartHeading) {
-        el.chartHeading.textContent = viewMode === "compare" ? "Сравнение распределений" : "Гистограмма";
+        if (viewMode === "compare") el.chartHeading.textContent = "Сравнение распределений";
+        else if (viewMode === "analysis") el.chartHeading.textContent = "Статистика и аналитика";
+        else el.chartHeading.textContent = "Гистограмма";
       }
       if (el.exportPanelSub) {
         el.exportPanelSub.textContent = viewMode === "compare"
@@ -5307,6 +5558,357 @@
       el.freqDetail.innerHTML = html;
     }
 
+    function canvasContext2d(canvas) {
+      if (!canvas) return null;
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = Math.max(1, canvas.clientWidth || 640);
+      const cssH = Math.max(1, canvas.clientHeight || 180);
+      canvas.width = Math.floor(cssW * dpr);
+      canvas.height = Math.floor(cssH * dpr);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cssW, cssH);
+      return { ctx, w: cssW, h: cssH };
+    }
+
+    function drawSimpleBars(canvas, labels, values, color) {
+      const pack = canvasContext2d(canvas);
+      if (!pack) return;
+      const { ctx, w, h } = pack;
+      const pad = { l: 34, r: 8, t: 10, b: 46 };
+      const pw = w - pad.l - pad.r;
+      const ph = h - pad.t - pad.b;
+      const maxV = Math.max(1, ...values.map((v) => Number(v) || 0));
+      const n = Math.max(1, values.length);
+      const gap = 6;
+      const bw = Math.max(8, (pw - gap * (n - 1)) / n);
+      ctx.strokeStyle = "rgba(0,0,0,0.12)";
+      ctx.beginPath();
+      ctx.moveTo(pad.l, pad.t + ph);
+      ctx.lineTo(pad.l + pw, pad.t + ph);
+      ctx.stroke();
+      for (let i = 0; i < n; i += 1) {
+        const v = Number(values[i]) || 0;
+        const bh = (v / maxV) * ph;
+        const x = pad.l + i * (bw + gap);
+        const y = pad.t + ph - bh;
+        ctx.fillStyle = color || "#007AFF";
+        ctx.fillRect(x, y, bw, bh);
+        const lbl = shortenLabel(String(labels[i] || "—"), 10);
+        ctx.save();
+        ctx.translate(x + bw / 2, pad.t + ph + 12);
+        ctx.rotate(-0.35);
+        ctx.fillStyle = "#6e6e73";
+        ctx.font = "11px Segoe UI";
+        ctx.textAlign = "center";
+        ctx.fillText(lbl, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    function drawSimpleLine(canvas, labels, values, color) {
+      const pack = canvasContext2d(canvas);
+      if (!pack) return;
+      const { ctx, w, h } = pack;
+      const pad = { l: 34, r: 8, t: 10, b: 30 };
+      const pw = w - pad.l - pad.r;
+      const ph = h - pad.t - pad.b;
+      const maxV = Math.max(1, ...values.map((v) => Number(v) || 0));
+      const n = Math.max(2, values.length);
+      ctx.strokeStyle = "rgba(0,0,0,0.12)";
+      ctx.beginPath();
+      ctx.moveTo(pad.l, pad.t + ph);
+      ctx.lineTo(pad.l + pw, pad.t + ph);
+      ctx.stroke();
+      ctx.strokeStyle = color || "#5856D6";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < values.length; i += 1) {
+        const x = pad.l + (i * pw) / (n - 1);
+        const y = pad.t + ph - ((Number(values[i]) || 0) / maxV) * ph;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    function quantile(sorted, q) {
+      if (!sorted.length) return 0;
+      const p = Math.max(0, Math.min(1, q));
+      const pos = (sorted.length - 1) * p;
+      const lo = Math.floor(pos);
+      const hi = Math.ceil(pos);
+      if (lo === hi) return sorted[lo];
+      const t = pos - lo;
+      return sorted[lo] * (1 - t) + sorted[hi] * t;
+    }
+
+    function topNCounts(rows, field, n) {
+      const map = new Map();
+      for (const r of rows) {
+        const key = (r[field] || "(пусто)").trim() || "(пусто)";
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+      return Array.from(map.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, n);
+    }
+
+    function drawSimplePie(canvas, labels, values) {
+      const pack = canvasContext2d(canvas);
+      if (!pack) return;
+      const { ctx, w, h } = pack;
+      const total = values.reduce((a, b) => a + Math.max(0, Number(b) || 0), 0);
+      if (!total) return;
+      const cx = Math.round(w * 0.28);
+      const cy = Math.round(h * 0.52);
+      const r = Math.min(w, h) * 0.28;
+      let start = -Math.PI / 2;
+      const colors = ["#007AFF", "#34C759", "#FF9500", "#AF52DE", "#5856D6", "#FF3B30", "#5AC8FA", "#30D158"];
+      for (let i = 0; i < values.length; i += 1) {
+        const v = Math.max(0, Number(values[i]) || 0);
+        const a = (v / total) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, start, start + a);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        start += a;
+      }
+      ctx.fillStyle = "#1d1d1f";
+      ctx.font = "12px Segoe UI";
+      ctx.textAlign = "left";
+      for (let i = 0; i < labels.length; i += 1) {
+        const y = 18 + i * 16;
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fillRect(Math.round(w * 0.56), y - 8, 10, 10);
+        ctx.fillStyle = "#1d1d1f";
+        const pct = total ? ((100 * (values[i] || 0)) / total).toFixed(1) : "0.0";
+        ctx.fillText(shortenLabel(String(labels[i]), 16) + " · " + pct + "%", Math.round(w * 0.56) + 14, y);
+      }
+    }
+
+    function drawBandChart(canvas, labels, p10, p50, p90) {
+      const pack = canvasContext2d(canvas);
+      if (!pack) return;
+      const { ctx, w, h } = pack;
+      const pad = { l: 34, r: 8, t: 10, b: 34 };
+      const pw = w - pad.l - pad.r;
+      const ph = h - pad.t - pad.b;
+      const all = p10.concat(p50).concat(p90).map((v) => Number(v) || 0);
+      const maxV = Math.max(1, ...all);
+      const n = Math.max(2, labels.length);
+      const xAt = (i) => pad.l + (i * pw) / (n - 1);
+      const yAt = (v) => pad.t + ph - ((Number(v) || 0) / maxV) * ph;
+      ctx.strokeStyle = "rgba(0,0,0,0.12)";
+      ctx.beginPath();
+      ctx.moveTo(pad.l, pad.t + ph);
+      ctx.lineTo(pad.l + pw, pad.t + ph);
+      ctx.stroke();
+      ctx.beginPath();
+      for (let i = 0; i < labels.length; i += 1) {
+        const x = xAt(i);
+        if (i === 0) ctx.moveTo(x, yAt(p10[i]));
+        else ctx.lineTo(x, yAt(p10[i]));
+      }
+      for (let i = labels.length - 1; i >= 0; i -= 1) {
+        ctx.lineTo(xAt(i), yAt(p90[i]));
+      }
+      ctx.closePath();
+      ctx.fillStyle = "rgba(0,122,255,0.16)";
+      ctx.fill();
+      ctx.strokeStyle = "#5856D6";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < labels.length; i += 1) {
+        const x = xAt(i);
+        const y = yAt(p50[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    function groupStats(rows, field) {
+      const m = new Map();
+      for (const r of rows) {
+        const k = (r[field] || "(пусто)").trim() || "(пусто)";
+        if (!m.has(k)) m.set(k, []);
+        m.get(k).push(Number(r.amount) || 0);
+      }
+      return Array.from(m.entries()).map(([name, vals]) => {
+        const count = vals.length;
+        const sum = vals.reduce((a, b) => a + b, 0);
+        const avg = count ? sum / count : 0;
+        const sorted = vals.slice().sort((a, b) => a - b);
+        return {
+          name, count, sum, avg,
+          p10: quantile(sorted, 0.1),
+          p50: quantile(sorted, 0.5),
+          p90: quantile(sorted, 0.9),
+          min: sorted[0] || 0,
+          max: sorted[sorted.length - 1] || 0
+        };
+      });
+    }
+
+    function valueByMetric(x, metric) {
+      if (metric === "sum") return x.sum;
+      if (metric === "avg") return x.avg;
+      return x.count;
+    }
+
+    function renderAnalysis(rows, edges) {
+      if (!el.analysisPanel) return;
+      if (!rows.length || !edges || edges.length < 2) {
+        if (el.analysisTableIntervals) el.analysisTableIntervals.innerHTML = "";
+        if (el.analysisTableCategories) el.analysisTableCategories.innerHTML = "";
+        if (el.analysisTablePercentiles) el.analysisTablePercentiles.innerHTML = "";
+        if (el.analysisTableTopBottomAllDims) el.analysisTableTopBottomAllDims.innerHTML = "";
+        if (el.analysisTableTbClusterMatrix) el.analysisTableTbClusterMatrix.innerHTML = "";
+        if (el.analysisTableStability) el.analysisTableStability.innerHTML = "";
+        return;
+      }
+      const dim = (el.analysisDim && el.analysisDim.value) || "tb";
+      const metric = (el.analysisMetric && el.analysisMetric.value) || "count";
+      const topN = Math.max(3, Number(el.analysisTopN && el.analysisTopN.value) || 5);
+      const hist = computeHistogram(rows, edges, "all");
+      const totals = totalsByBin(hist);
+      const total = Math.max(1, rows.length);
+      const cdf = [];
+      let acc = 0;
+      for (const v of totals) {
+        acc += v;
+        cdf.push((100 * acc) / total);
+      }
+      drawSimpleBars(el.anChartBins, hist.labels, totals, "#007AFF");
+      drawSimpleLine(el.anChartCdf, hist.labels, cdf, "#5856D6");
+      const topTb = topNCounts(rows, "tb", 8);
+      const topGosb = topNCounts(rows, "gosb", 8);
+      const topCluster = topNCounts(rows, "cluster", 8);
+      drawSimpleBars(el.anChartTb, topTb.map((x) => x[0]), topTb.map((x) => x[1]), "#34C759");
+      drawSimpleBars(el.anChartGosb, topGosb.map((x) => x[0]), topGosb.map((x) => x[1]), "#FF9500");
+      drawSimpleBars(el.anChartCluster, topCluster.map((x) => x[0]), topCluster.map((x) => x[1]), "#AF52DE");
+
+      const sortedAmounts = rows.map((r) => r.amount).sort((a, b) => a - b);
+      const decVals = [];
+      const decLabels = [];
+      for (let i = 1; i <= 10; i += 1) {
+        decLabels.push("D" + i);
+        decVals.push(quantile(sortedAmounts, i / 10));
+      }
+      drawSimpleLine(el.anChartDeciles, decLabels, decVals, "#FF3B30");
+
+      const groups = groupStats(rows, dim);
+      const sortedByMetric = groups.slice().sort((a, b) => valueByMetric(b, metric) - valueByMetric(a, metric));
+      const top = sortedByMetric.slice(0, topN);
+      const bottom = sortedByMetric.slice(-topN).reverse();
+      drawSimpleBars(el.anChartTop, top.map((x) => x.name), top.map((x) => valueByMetric(x, metric)), "#007AFF");
+      drawSimpleBars(el.anChartBottom, bottom.map((x) => x.name), bottom.map((x) => valueByMetric(x, metric)), "#FF3B30");
+      drawSimplePie(el.anChartPie, top.map((x) => x.name), top.map((x) => Math.max(0, valueByMetric(x, metric))));
+      drawBandChart(
+        el.anChartBand,
+        top.map((x) => x.name),
+        top.map((x) => x.p10),
+        top.map((x) => x.p50),
+        top.map((x) => x.p90)
+      );
+
+      if (el.analysisTableIntervals) {
+        let html = "<table><thead><tr><th>Интервал</th><th>ТН</th><th>%</th><th>Средняя сумма</th></tr></thead><tbody>";
+        for (let i = 0; i < hist.labels.length; i += 1) {
+          const left = edges[i];
+          const right = edges[i + 1];
+          const inBin = rows.filter((r) => {
+            if (i === hist.labels.length - 1) return r.amount >= left && r.amount <= right;
+            return r.amount >= left && r.amount < right;
+          });
+          const cnt = inBin.length;
+          const avg = cnt ? inBin.reduce((a, r) => a + r.amount, 0) / cnt : 0;
+          html += `<tr><td>${escapeHtml(hist.labels[i])}</td><td>${cnt}</td><td>${formatPctShare(cnt, total)}</td><td>${escapeHtml(formatAmount(avg))}</td></tr>`;
+        }
+        html += "</tbody></table>";
+        el.analysisTableIntervals.innerHTML = html;
+      }
+
+      if (el.analysisTableCategories) {
+        const html = "<table><thead><tr><th>Категория</th><th>ТН</th><th>Σ сумма</th><th>Средняя</th><th>P90</th></tr></thead><tbody>"
+          + top.map((x) => `<tr><td>${escapeHtml(x.name)}</td><td>${x.count}</td><td>${escapeHtml(formatAmount(x.sum))}</td><td>${escapeHtml(formatAmount(x.avg))}</td><td>${escapeHtml(formatAmount(x.p90))}</td></tr>`).join("")
+          + "</tbody></table>";
+        el.analysisTableCategories.innerHTML = html;
+      }
+
+      if (el.analysisTablePercentiles) {
+        const p1 = quantile(sortedAmounts, 0.01);
+        const p5 = quantile(sortedAmounts, 0.05);
+        const p25 = quantile(sortedAmounts, 0.25);
+        const p50 = quantile(sortedAmounts, 0.5);
+        const p75 = quantile(sortedAmounts, 0.75);
+        const p95 = quantile(sortedAmounts, 0.95);
+        const p99 = quantile(sortedAmounts, 0.99);
+        const iqr = p75 - p25;
+        const concentrationTop10 = top.slice(0, Math.min(10, top.length)).reduce((a, x) => a + x.count, 0);
+        const concentrationShare = formatPctShare(concentrationTop10, rows.length);
+        const html = "<table><thead><tr><th>Показатель</th><th>Значение</th></tr></thead><tbody>"
+          + `<tr><td>P1 / P5</td><td>${escapeHtml(formatAmount(p1))} / ${escapeHtml(formatAmount(p5))}</td></tr>`
+          + `<tr><td>P25 / P50 / P75</td><td>${escapeHtml(formatAmount(p25))} / ${escapeHtml(formatAmount(p50))} / ${escapeHtml(formatAmount(p75))}</td></tr>`
+          + `<tr><td>P95 / P99</td><td>${escapeHtml(formatAmount(p95))} / ${escapeHtml(formatAmount(p99))}</td></tr>`
+          + `<tr><td>IQR (P75-P25)</td><td>${escapeHtml(formatAmount(iqr))}</td></tr>`
+          + `<tr><td>Размах (max-min)</td><td>${escapeHtml(formatAmount((sortedAmounts[sortedAmounts.length - 1] || 0) - (sortedAmounts[0] || 0)))}</td></tr>`
+          + `<tr><td>Концентрация top-${Math.min(10, top.length)} категорий</td><td>${concentrationShare}</td></tr>`
+          + "</tbody></table>";
+        el.analysisTablePercentiles.innerHTML = html;
+      }
+
+      if (el.analysisTableTopBottomAllDims) {
+        const dims = [
+          { key: "tb", title: "ТБ" },
+          { key: "gosb", title: "ГОСБ" },
+          { key: "cluster", title: "Кластер" }
+        ];
+        let html = "<table><thead><tr><th>Разрез</th><th>Сегмент</th><th>Категория</th><th>ТН</th><th>Σ сумма</th><th>Средняя</th></tr></thead><tbody>";
+        for (const d of dims) {
+          const s = groupStats(rows, d.key).sort((a, b) => valueByMetric(b, metric) - valueByMetric(a, metric));
+          const t = s.slice(0, Math.min(topN, s.length));
+          const b = s.slice(-Math.min(topN, s.length)).reverse();
+          for (const x of t) html += `<tr><td>${d.title}</td><td>Top</td><td>${escapeHtml(x.name)}</td><td>${x.count}</td><td>${escapeHtml(formatAmount(x.sum))}</td><td>${escapeHtml(formatAmount(x.avg))}</td></tr>`;
+          for (const x of b) html += `<tr><td>${d.title}</td><td>Bottom</td><td>${escapeHtml(x.name)}</td><td>${x.count}</td><td>${escapeHtml(formatAmount(x.sum))}</td><td>${escapeHtml(formatAmount(x.avg))}</td></tr>`;
+        }
+        html += "</tbody></table>";
+        el.analysisTableTopBottomAllDims.innerHTML = html;
+      }
+
+      if (el.analysisTableTbClusterMatrix) {
+        const topTbKeys = topNCounts(rows, "tb", Math.min(8, topN)).map((x) => x[0]);
+        const topClusterKeys = topNCounts(rows, "cluster", Math.min(8, topN)).map((x) => x[0]);
+        let html = "<table><thead><tr><th>ТБ \\ Кластер</th>" + topClusterKeys.map((k) => `<th>${escapeHtml(shortenLabel(k, 12))}</th>`).join("") + "</tr></thead><tbody>";
+        for (const tb of topTbKeys) {
+          html += `<tr><td>${escapeHtml(tb)}</td>`;
+          for (const cl of topClusterKeys) {
+            const cnt = rows.filter((r) => (r.tb || "(пусто)") === tb && (r.cluster || "(пусто)") === cl).length;
+            html += `<td>${cnt}</td>`;
+          }
+          html += "</tr>";
+        }
+        html += "</tbody></table>";
+        el.analysisTableTbClusterMatrix.innerHTML = html;
+      }
+
+      if (el.analysisTableStability) {
+        const s = groupStats(rows, dim).sort((a, b) => valueByMetric(b, metric) - valueByMetric(a, metric)).slice(0, Math.min(topN, rows.length));
+        let html = "<table><thead><tr><th>Категория</th><th>Min</th><th>Median</th><th>Max</th><th>IQR</th><th>CV</th></tr></thead><tbody>";
+        for (const x of s) {
+          const iqr = x.p90 - x.p10;
+          const cv = x.avg ? (iqr / Math.abs(x.avg)) : 0;
+          html += `<tr><td>${escapeHtml(x.name)}</td><td>${escapeHtml(formatAmount(x.min))}</td><td>${escapeHtml(formatAmount(x.p50))}</td><td>${escapeHtml(formatAmount(x.max))}</td><td>${escapeHtml(formatAmount(iqr))}</td><td>${escapeHtml((cv * 100).toFixed(1) + "%")}</td></tr>`;
+        }
+        html += "</tbody></table>";
+        el.analysisTableStability.innerHTML = html;
+      }
+    }
+
     /* Tooltip: data-tip и столбики гистограммы */
     (function initTips() {
       const tip = el.glassTip;
@@ -5386,7 +5988,7 @@
     }
 
     function setViewMode(mode) {
-      viewMode = mode === "compare" ? "compare" : "single";
+      viewMode = mode === "compare" ? "compare" : (mode === "analysis" ? "analysis" : "single");
       syncViewModeUi();
       refreshPresenceAndFilters(false);
       initEdgeStateFromData(true);
@@ -5395,6 +5997,7 @@
 
     if (el.tabSingle) el.tabSingle.addEventListener("click", () => setViewMode("single"));
     if (el.tabCompare) el.tabCompare.addEventListener("click", () => setViewMode("compare"));
+    if (el.tabAnalysis) el.tabAnalysis.addEventListener("click", () => setViewMode("analysis"));
 
     el.fileInput.addEventListener("change", async () => {
       const file = el.fileInput.files && el.fileInput.files[0];
@@ -5461,6 +6064,12 @@
         el.legend.innerHTML = "";
         el.stats.innerHTML = "";
         if (el.freqDetail) el.freqDetail.innerHTML = "";
+        if (el.analysisTableIntervals) el.analysisTableIntervals.innerHTML = "";
+        if (el.analysisTableCategories) el.analysisTableCategories.innerHTML = "";
+        if (el.analysisTablePercentiles) el.analysisTablePercentiles.innerHTML = "";
+        if (el.analysisTableTopBottomAllDims) el.analysisTableTopBottomAllDims.innerHTML = "";
+        if (el.analysisTableTbClusterMatrix) el.analysisTableTbClusterMatrix.innerHTML = "";
+        if (el.analysisTableStability) el.analysisTableStability.innerHTML = "";
         edgeState.edges = [];
         renderEdgeRail();
         setChartStatus("", "");
@@ -5514,6 +6123,12 @@
     }
     bindSegmentedControl(el.chartTypeSeg, el.chartType, rebuild);
     bindSegmentedControl(el.groupLayoutSeg, el.groupLayout, rebuild);
+    bindSegmentedControl(el.analysisMetricSeg, el.analysisMetric, () => {
+      if (viewMode === "analysis") rebuild();
+    });
+    bindSegmentedControl(el.analysisTopNSeg, el.analysisTopN, () => {
+      if (viewMode === "analysis") rebuild();
+    });
     bindSegmentedControl(el.edgeCalcModeSeg, el.edgeCalcMode, () => {
       initEdgeStateFromData(true);
       rebuild();
@@ -5522,6 +6137,11 @@
       initEdgeStateFromData(true);
       rebuild();
     });
+    if (el.analysisDim) {
+      el.analysisDim.addEventListener("change", () => {
+        if (viewMode === "analysis") rebuild();
+      });
+    }
 
     function runBulkFilterSelection(selectAll) {
       applyBulkFilterSelection(selectAll);
