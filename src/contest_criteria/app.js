@@ -1,2005 +1,18 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Распределение сумм (ТН)</title>
-  <!--
-    Настройки страницы — правьте JSON ниже (#app-config).
-    Отдельный config.json не нужен: страница самодостаточный HTML.
-  -->
-  <script type="application/json" id="app-config">
-{
-  "_comment": "Все изменяемые параметры sum-distribution. После правки обновите страницу.",
-  "pageTitle": "Распределение сумм (ТН)",
-  "defaultSliceMode": "all",
-  "defaultGroupLayout": "slice",
-  "defaultChartType": "bars",
-  "defaultShowChartLabels": true,
-  "defaultCompareLayout": "overlay",
-  "defaultMovableEdges": 3,
-  "_intervalsNote": "defaultMovableEdges / movableEdgesMax — это число ИНТЕРВАЛОВ (столбиков), не бегунков",
-  "movableEdgesMax": 40,
-  "tnPadLength": 20,
-  "exportTnLength": 8,
-  "amountFractionDigits": 2,
-  "freqTableMaxSeries": 12,
-  "tipOffsetPx": 14,
-  "maxBinEdges": 2000,
-  "csvDelimiters": [";", ",", "\t"],
-  "amountColumnAliases": ["сумма", "прирост", "прирос", "рост", "итог", "sum", "amount", "сумм"],
-  "tnColumnAliases": ["тн", "tn", "табельный", "таб.ном", "табельный номер", "emp_id"],
-  "tbColumnAliases": ["тб", "tb", "тербанк", "тер.банк"],
-  "gosbColumnAliases": ["госб", "gosb", "гос"],
-  "clusterColumnAliases": ["кластер", "cluster", "cluster_code"],
-  "chart": {
-    "barGapRatio": 0.12,
-    "seriesGapRatio": 0.04,
-    "maxLegendItems": 24,
-    "lineWidth": 2.5,
-    "pointRadius": 3.5,
-    "barOverlapRatio": 0.28,
-    "barOverlapAlpha": 0.7
-  },
-  "analysisScoreWeights": { "avg": 0.5, "median": 0.3, "sharePos": 0.2 },
-  "analysisBillion": 1000000000,
-  "compareColors": ["#007AFF", "#FF9500"],
-  "seriesColors": [
-    "#007AFF", "#34C759", "#FF9500", "#5856D6", "#FF3B30",
-    "#5AC8FA", "#AF52DE", "#FF2D55", "#64D2FF", "#30D158",
-    "#0b6bcb", "#0f8a6a", "#c27a00", "#8e3b8f", "#2c7a7b"
-  ],
-  "demoEnabled": false,
-  "demoSamplePath": "samples/sum-distribution-demo-20000.csv",
-  "demoSamplePathB": "samples/sum-distribution-demo-21000.csv",
-  "_demoNote": "samples/ не в git. Генерация: python3 tools/build_sum_demo_csv_20k.py и tools/build_sum_demo_csv_21k.py"
-}
-  </script>
-  <style>
-    :root {
-      --glass-bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 50%, #d4e0ed 100%);
-      --glass-white: rgba(255, 255, 255, 0.72);
-      --glass-white-light: rgba(255, 255, 255, 0.58);
-      --glass-white-border: rgba(255, 255, 255, 0.55);
-      --glass-white-border-light: rgba(255, 255, 255, 0.4);
-      --glass-text: #1d1d1f;
-      --glass-text-secondary: #6e6e73;
-      --glass-blue: #007AFF;
-      --glass-blue-light: rgba(0, 122, 255, 0.14);
-      --glass-purple: #5856D6;
-      --glass-red: #FF3B30;
-      --glass-green: #34C759;
-      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-      --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-      --radius: 16px;
-      --font: "Segoe UI", "PT Sans", "Helvetica Neue", sans-serif;
-      /* Общая высота области графика и списка ТБ/ГОСБ */
-      --panel-chart-h: min(560px, 62vh);
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--glass-text);
-      font-family: var(--font);
-      background: var(--glass-bg-gradient);
-    }
-
-    .wrap {
-      max-width: min(1680px, 98vw);
-      margin: 0 auto;
-      padding: 28px 20px 48px;
-    }
-
-    header.page-head { margin-bottom: 14px; }
-    header.page-head h1 {
-      margin: 0 0 8px;
-      font-size: clamp(1.55rem, 2.4vw, 2.1rem);
-      letter-spacing: -0.02em;
-      background: linear-gradient(135deg, var(--glass-blue) 0%, var(--glass-purple) 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-    header.page-head p { display: none; }
-
-    /* Вкладки режимов — всегда поверх прокрутки всей страницы */
-    .mode-tabs {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin: 0 0 12px;
-      padding: 4px;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid var(--glass-white-border-light);
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-      backdrop-filter: blur(16px) saturate(180%);
-      -webkit-backdrop-filter: blur(16px) saturate(180%);
-    }
-    .mode-tabs .btn {
-      flex: 1 1 140px;
-      background: transparent;
-      color: var(--glass-text);
-      border: 0;
-      box-shadow: none;
-    }
-    .mode-tabs .btn.is-active {
-      background: rgba(0, 122, 255, 0.14);
-      color: var(--glass-blue);
-    }
-
-    /* Всегда: данные сверху → график на всю ширину → бегунки снизу */
-    .grid {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      align-items: stretch;
-    }
-    .panel-chart-col {
-      display: contents;
-    }
-    .panel.stack {
-      order: 1;
-      width: 100%;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px 14px;
-      align-items: start;
-    }
-    .panel.stack > h2,
-    .panel.stack > details.section-block,
-    .panel.stack > .row,
-    .panel.stack > .status,
-    .panel.stack > details.help,
-    .panel.stack > .filter-hint,
-    .panel.stack > #orgTreeFilterBlock,
-    .panel.stack > #clusterFilterBlock {
-      grid-column: 1 / -1;
-    }
-    /* Один период — блок файла на всю ширину; сравнение — два столбца */
-    #periodBlockA { grid-column: 1 / -1; }
-    body.is-compare #periodBlockA { grid-column: 1; }
-    body.is-compare #periodBlockB { grid-column: 2; display: grid !important; }
-    .chart-sticky {
-      order: 2;
-      position: static;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    .chart-below {
-      order: 3;
-      width: 100%;
-      box-sizing: border-box;
-      padding: 12px 14px;
-      border-radius: var(--radius);
-      background: var(--glass-white);
-      border: 1px solid var(--glass-white-border);
-      box-shadow: var(--glass-shadow);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
-      display: grid;
-      gap: 10px;
-    }
-
-    .panel {
-      background: var(--glass-white);
-      border: 1px solid var(--glass-white-border);
-      border-radius: var(--radius);
-      box-shadow: var(--glass-shadow);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
-      padding: 16px 16px 14px;
-    }
-    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-      .panel { background: #f7f9fc; }
-    }
-
-    .panel h2 {
-      margin: 0 0 12px;
-      font-size: 1.05rem;
-    }
-    .panel h2 + .stack-gap,
-    .section-gap { margin-top: 18px; }
-
-    .stack:not(.panel) { display: flex; flex-direction: column; gap: 12px; }
-    .row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: end;
-    }
-
-    label.field {
-      display: grid;
-      gap: 6px;
-      font-size: 0.86rem;
-      color: var(--glass-text-secondary);
-      min-width: 120px;
-      flex: 1;
-    }
-    label.field > span { font-weight: 600; color: var(--glass-text); }
-
-    input[type="text"],
-    input[type="number"],
-    input[type="file"],
-    select,
-    textarea {
-      width: 100%;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      border-radius: 12px;
-      padding: 9px 11px;
-      font: inherit;
-      color: var(--glass-text);
-      background: rgba(255, 255, 255, 0.88);
-    }
-    textarea {
-      min-height: 130px;
-      resize: vertical;
-      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-      font-size: 0.84rem;
-      line-height: 1.4;
-    }
-
-    .btn {
-      border: 0;
-      border-radius: 12px;
-      padding: 10px 14px;
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-      background: var(--glass-blue);
-      color: #fff;
-      transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
-    }
-    .btn:hover { filter: brightness(1.05); transform: translateY(-1px); box-shadow: var(--glass-shadow-hover); }
-    .btn:active { transform: translateY(0); }
-    .btn.secondary {
-      background: rgba(255, 255, 255, 0.85);
-      color: var(--glass-text);
-      border: 1px solid rgba(0, 0, 0, 0.08);
-    }
-    .btn.ghost {
-      background: var(--glass-blue-light);
-      color: var(--glass-blue);
-    }
-    .btn.small { padding: 6px 10px; font-size: 0.82rem; }
-    .btn.is-active {
-      background: var(--glass-blue);
-      color: #fff;
-      border-color: transparent;
-    }
-
-    body.is-edge-dragging .panel,
-    body.is-edge-dragging .chart-wrap {
-      backdrop-filter: none !important;
-      -webkit-backdrop-filter: none !important;
-    }
-    body.is-edge-dragging .edge-rail__seg {
-      visibility: hidden;
-    }
-    body.is-analysis .chart-wrap-primary,
-    body.is-analysis .charts-dual,
-    body.is-analysis .chart-toolbar,
-    body.is-analysis #legend,
-    body.is-analysis #stats,
-    body.is-analysis #freqDetail {
-      display: none !important;
-    }
-    .analysis-panel {
-      display: none;
-      gap: 12px;
-    }
-    body.is-analysis .analysis-panel {
-      display: grid;
-    }
-    .analysis-guide {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--glass-white-border-light);
-      background: rgba(255, 255, 255, 0.5);
-      font-size: 0.88rem;
-      color: var(--glass-text-secondary);
-      line-height: 1.4;
-    }
-    .analysis-controls {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 8px;
-    }
-    .analysis-controls .toolbar-cell {
-      min-height: 56px;
-    }
-    .analysis-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-    .analysis-card {
-      border: 1px solid var(--glass-white-border-light);
-      border-radius: 12px;
-      padding: 8px;
-      background: rgba(255, 255, 255, 0.5);
-      display: grid;
-      gap: 6px;
-    }
-    .analysis-card h4 {
-      margin: 0;
-      font-size: 0.84rem;
-      color: var(--glass-text-secondary);
-      font-weight: 700;
-    }
-    .analysis-card canvas {
-      width: 100%;
-      height: 230px;
-      border-radius: 10px;
-      background: rgba(255,255,255,0.5);
-      border: 1px solid rgba(0,0,0,0.05);
-    }
-    .analysis-tables {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .analysis-tables .freq-block {
-      min-width: 0;
-    }
-    .analysis-tables .analysis-span-2 {
-      grid-column: 1 / -1;
-    }
-    @media (max-width: 1100px) {
-      .analysis-tables {
-        grid-template-columns: 1fr;
-      }
-    }
-    @media (max-width: 1200px) {
-      .analysis-controls {
-        grid-template-columns: 1fr;
-      }
-    }
-    @media (max-width: 900px) {
-      .analysis-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .period-block {
-      display: grid;
-      gap: 6px;
-      margin-bottom: 8px;
-      padding: 8px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.5);
-      border: 1px solid var(--glass-white-border-light);
-    }
-    .period-block__title {
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: var(--glass-text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .compare-only { display: none !important; }
-    body.is-compare .compare-only { display: block !important; }
-    body.is-compare .compare-only.field { display: grid !important; }
-    body.is-compare .toolbar-cell.compare-only { display: flex !important; }
-    body.is-compare .single-only { display: none !important; }
-
-    .file-overview {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4px;
-      margin-top: 2px;
-    }
-    .file-overview:empty { display: none; }
-    .ov-card {
-      display: grid;
-      grid-template-columns: 22px 1fr;
-      gap: 2px 6px;
-      align-items: start;
-      padding: 5px 7px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.72);
-      border: 1px solid var(--glass-white-border-light);
-    }
-    .ov-card.is-wide { grid-column: 1 / -1; }
-    .ov-card__icon {
-      width: 22px;
-      height: 22px;
-      border-radius: 6px;
-      display: grid;
-      place-items: center;
-      background: rgba(0, 122, 255, 0.12);
-      color: var(--glass-blue);
-      flex-shrink: 0;
-    }
-    .ov-card__icon svg { width: 12px; height: 12px; display: block; }
-    .ov-card__icon.is-green { background: rgba(52, 199, 89, 0.14); color: #1a9f4a; }
-    .ov-card__icon.is-orange { background: rgba(255, 149, 0, 0.16); color: #c26a00; }
-    .ov-card__icon.is-purple { background: rgba(88, 86, 214, 0.14); color: #5856D6; }
-    .ov-card__icon.is-teal { background: rgba(90, 200, 250, 0.18); color: #0a7ea4; }
-    .ov-card__label {
-      font-size: 0.6rem;
-      color: var(--glass-text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-      line-height: 1.2;
-    }
-    .ov-card__value {
-      font-size: 0.8rem;
-      font-weight: 700;
-      color: var(--glass-text);
-      line-height: 1.15;
-      word-break: break-word;
-    }
-    .ov-card__sub {
-      grid-column: 2;
-      font-size: 0.66rem;
-      color: var(--glass-text-secondary);
-      line-height: 1.25;
-    }
-    .ov-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 2px;
-      margin-top: 2px;
-    }
-    .ov-chip {
-      font-size: 0.6rem;
-      padding: 1px 5px;
-      border-radius: 999px;
-      background: rgba(0, 0, 0, 0.05);
-      color: var(--glass-text-secondary);
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .chart-toolbar {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px 14px;
-      align-items: stretch;
-      margin: 0 0 12px;
-    }
-    body.is-compare .chart-toolbar {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-    @media (max-width: 1100px) {
-      .chart-toolbar,
-      body.is-compare .chart-toolbar {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-    @media (max-width: 640px) {
-      .chart-toolbar,
-      body.is-compare .chart-toolbar {
-        grid-template-columns: 1fr;
-      }
-    }
-    .toolbar-cell {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      min-width: 0;
-    }
-    .toolbar-label {
-      font-size: 0.86rem;
-      font-weight: 600;
-      color: var(--glass-text);
-      line-height: 1.2;
-    }
-    .toolbar-cell > select {
-      min-height: 38px;
-      width: 100%;
-    }
-    /* Сегментный переключатель (в духе Apple) */
-    .seg {
-      display: flex;
-      width: 100%;
-      min-height: 38px;
-      padding: 3px;
-      box-sizing: border-box;
-      border-radius: 11px;
-      background: rgba(120, 120, 128, 0.14);
-      border: 1px solid rgba(0, 0, 0, 0.05);
-      gap: 2px;
-    }
-    .seg__btn {
-      flex: 1 1 0;
-      min-width: 0;
-      border: 0;
-      margin: 0;
-      padding: 7px 8px;
-      border-radius: 8px;
-      background: transparent;
-      color: var(--glass-text-secondary);
-      font: inherit;
-      font-size: 0.8rem;
-      font-weight: 650;
-      line-height: 1.15;
-      cursor: pointer;
-      transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .seg__btn.is-on {
-      background: rgba(255, 255, 255, 0.92);
-      color: var(--glass-text);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
-    }
-    .seg__btn.is-locked,
-    .seg__btn:disabled {
-      opacity: 0.38;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-    .seg__btn.is-locked.is-on {
-      opacity: 0.55;
-    }
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
-    .edge-tools {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px 12px;
-      align-items: end;
-      margin: 0 0 8px;
-    }
-    .edge-tools .field--edges {
-      flex: 0 0 auto;
-      min-width: 0;
-      width: 4.75rem;
-    }
-    .edge-tools .field--edges input {
-      text-align: center;
-      padding-left: 6px;
-      padding-right: 6px;
-      font-variant-numeric: tabular-nums;
-      font-weight: 650;
-    }
-    .edge-tools__btns {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      flex: 1 1 280px;
-      align-items: stretch;
-    }
-    .edge-tools__btns .btn-with-icon {
-      flex: 1 1 9.5rem;
-      justify-content: center;
-      min-height: 38px;
-      font-size: 0.86rem;
-    }
-    .btn-with-icon.is-edge-equal {
-      color: #0056b3;
-      border-color: rgba(0, 122, 255, 0.38);
-      background: rgba(0, 122, 255, 0.12);
-    }
-    .btn-with-icon.is-edge-ladder {
-      color: #b35a00;
-      border-color: rgba(255, 149, 0, 0.42);
-      background: rgba(255, 149, 0, 0.14);
-    }
-    .btn-with-icon.is-edge-even {
-      color: #3d3a9e;
-      border-color: rgba(88, 86, 214, 0.38);
-      background: rgba(88, 86, 214, 0.12);
-    }
-    .charts-dual {
-      display: none;
-      gap: 12px;
-      width: 100%;
-      min-width: 0;
-    }
-    /* Два графика: «рядом» — две колонки; «друг под другом» — одна */
-    .charts-dual.is-side {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .charts-dual.is-stack {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-    @media (max-width: 980px) {
-      .charts-dual.is-side {
-        grid-template-columns: 1fr;
-      }
-    }
-    .charts-dual > .chart-pane {
-      min-width: 0;
-      max-width: 100%;
-      overflow: hidden;
-    }
-    .chart-pane__title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin: 0 0 6px;
-      color: var(--glass-text-secondary);
-    }
-    body.is-compare-split .chart-wrap-primary { display: none; }
-    body.is-compare-split .charts-dual { display: grid; }
-    body:not(.is-compare-split) .charts-dual { display: none !important; }
-
-    /* Один общий график — на всю ширину окна */
-    body:not(.is-compare-split) .chart-wrap-primary {
-      width: 100%;
-    }
-    body:not(.is-compare-split) .chart-wrap-primary .chart-wrap,
-    body:not(.is-compare-split) .chart-wrap {
-      height: var(--panel-chart-h);
-    }
-    body.is-compare-split .charts-dual .chart-wrap {
-      height: min(400px, 42vh);
-      width: 100%;
-    }
-
-    .file-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-    .file-row input[type="file"] {
-      flex: 1 1 12rem;
-      min-width: 0;
-    }
-    .file-row .btn {
-      flex: 0 0 7.5rem;
-      width: 7.5rem;
-      min-width: 7.5rem;
-      padding: 9px 12px;
-      font-size: 0.9rem;
-      text-align: center;
-      white-space: nowrap;
-    }
-    #loadStatus {
-      display: block;
-      margin-top: 8px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    #loadStatus[hidden] {
-      display: none !important;
-    }
-
-    .status {
-      font-size: 0.88rem;
-      color: var(--glass-text-secondary);
-      padding: 8px 10px;
-      border-radius: 12px;
-      background: var(--glass-white-light);
-      border: 1px solid var(--glass-white-border-light);
-    }
-    .status.ok { color: #0b5; border-color: rgba(52, 199, 89, 0.35); }
-    .status.err { color: var(--glass-red); border-color: rgba(255, 59, 48, 0.3); }
-
-    .hint { font-size: 0.82rem; color: var(--glass-text-secondary); line-height: 1.4; }
-
-    .toolbar {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .filter-toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px 14px;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
-    }
-    .filter-toolbar__title {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-    }
-    .filter-toolbar__title strong {
-      font-size: 0.95rem;
-      color: var(--glass-text);
-    }
-    .filter-toolbar__sub {
-      font-size: 0.72rem;
-      color: var(--glass-text-secondary);
-      font-weight: 500;
-    }
-    .filter-toolbar__actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-    .btn-with-icon {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      min-height: 34px;
-      padding: 6px 12px;
-    }
-    .btn-with-icon .btn-ico {
-      display: inline-flex;
-      width: 15px;
-      height: 15px;
-      flex: 0 0 15px;
-    }
-    .btn-with-icon .btn-ico svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-    .btn-with-icon.is-select-all {
-      color: #0b7a3a;
-      border-color: rgba(52, 199, 89, 0.35);
-      background: rgba(52, 199, 89, 0.12);
-    }
-    .btn-with-icon.is-clear-all {
-      color: #8e8e93;
-      border-color: rgba(142, 142, 147, 0.35);
-      background: rgba(142, 142, 147, 0.10);
-    }
-    .toolbar--plain {
-      justify-content: center;
-      margin-bottom: 8px;
-    }
-    .toolbar--plain strong {
-      font-size: 0.95rem;
-    }
-
-    .filter-block {
-      border-radius: 14px;
-      padding: 10px 12px;
-      border: 1px solid var(--glass-white-border-light);
-      background: rgba(255, 255, 255, 0.35);
-      transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-    }
-    .filter-block.hidden { display: none; }
-    /* Все выбраны — зелёный */
-    .filter-block.is-sel-all {
-      background: rgba(52, 199, 89, 0.12);
-      border-color: rgba(52, 199, 89, 0.38);
-      box-shadow: inset 0 0 0 1px rgba(52, 199, 89, 0.08);
-    }
-    /* Частично — синий */
-    .filter-block.is-sel-partial {
-      background: rgba(0, 122, 255, 0.10);
-      border-color: rgba(0, 122, 255, 0.34);
-      box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.06);
-    }
-    /* Ничего не выбрано — нейтрально-серый */
-    .filter-block.is-sel-none {
-      background: rgba(142, 142, 147, 0.10);
-      border-color: rgba(142, 142, 147, 0.30);
-      box-shadow: none;
-    }
-
-    .checks {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      align-content: flex-start;
-      gap: 6px 10px;
-      max-height: 160px;
-      overflow: auto;
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.45);
-      border: 1px solid var(--glass-white-border-light);
-    }
-    .checks label {
-      display: flex;
-      gap: 6px;
-      align-items: flex-start;
-      font-size: 0.82rem;
-      color: var(--glass-text);
-      cursor: pointer;
-      min-width: 132px;
-      max-width: 220px;
-      flex: 0 1 auto;
-    }
-    .checks label.is-muted,
-    .filter-tree label.is-muted {
-      opacity: 0.45;
-      color: #8e8e93;
-    }
-    .checks label.is-muted { cursor: pointer; }
-    .checks .empty {
-      color: var(--glass-text-secondary);
-      font-size: 0.84rem;
-      width: 100%;
-      text-align: center;
-    }
-    .filter-hint {
-      font-size: 0.8rem;
-      color: #6e6e73;
-      min-height: 1.2em;
-    }
-
-    /* ТБ/ГОСБ — преимущественно 3 колонки, адаптив по ширине */
-    .filter-tree {
-      height: min(280px, 32vh);
-      max-height: min(280px, 32vh);
-      min-height: 180px;
-      overflow: auto;
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.45);
-      border: 1px solid var(--glass-white-border-light);
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 6px 16px;
-      align-content: start;
-    }
-    @media (max-width: 1280px) {
-      .filter-tree {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-    .filter-tree > .empty {
-      grid-column: 1 / -1;
-      text-align: center;
-      color: var(--glass-text-secondary);
-      font-size: 0.84rem;
-    }
-    #orgTreeFilterBlock {
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-    #orgTreeFilterBlock .filter-tree {
-      flex: 1 1 auto;
-    }
-    #clusterFilterBlock .toolbar {
-      justify-content: center;
-    }
-    @media (max-width: 980px) {
-      :root { --panel-chart-h: min(420px, 50vh); }
-      .filter-tree {
-        grid-template-columns: 1fr;
-        min-height: 160px;
-        height: min(240px, 30vh);
-        max-height: min(240px, 30vh);
-      }
-      .panel.stack {
-        grid-template-columns: 1fr;
-      }
-      #periodBlockA,
-      body.is-compare #periodBlockA,
-      body.is-compare #periodBlockB {
-        grid-column: 1;
-      }
-    }
-    .filter-tree__tb {
-      border-radius: 10px;
-      padding: 4px 6px 6px;
-      min-width: 0;
-      transition: background 0.15s ease, border-color 0.15s ease;
-      border: 1px solid transparent;
-    }
-    .filter-tree__tb.is-sel-all {
-      background: rgba(52, 199, 89, 0.10);
-      border-color: rgba(52, 199, 89, 0.22);
-    }
-    .filter-tree__tb.is-sel-partial {
-      background: rgba(255, 149, 0, 0.12);
-      border-color: rgba(255, 149, 0, 0.28);
-    }
-    .filter-tree__tb.is-sel-none {
-      background: rgba(142, 142, 147, 0.06);
-      border-color: transparent;
-    }
-    .filter-tree__row {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-      font-size: 0.84rem;
-      cursor: pointer;
-      color: var(--glass-text);
-      padding: 3px 2px;
-    }
-    .filter-tree__row span {
-      white-space: normal;
-      overflow-wrap: anywhere;
-      word-break: break-word;
-      line-height: 1.25;
-      min-width: 0;
-      flex: 1 1 auto;
-    }
-    .filter-tree__row--tb {
-      font-weight: 650;
-    }
-    .filter-tree__row--gosb {
-      margin-left: 22px;
-      font-weight: 500;
-      font-size: 0.8rem;
-      color: var(--glass-text-secondary);
-    }
-    .filter-tree__row--gosb.is-muted span,
-    .filter-tree__row--tb.is-muted span {
-      color: #8e8e93;
-    }
-    .filter-tree__row input {
-      margin-top: 2px;
-      flex: 0 0 auto;
-    }
-    .filter-tree__badge {
-      margin-left: auto;
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--glass-text-secondary);
-      opacity: 0.85;
-      white-space: nowrap;
-    }
-
-    .bin-editor { display: none; }
-    .bin-editor.visible { display: block; }
-
-    /* Multi-thumb edge slider */
-    .edge-rail-wrap { margin-top: 8px; }
-    .edge-rail {
-      position: relative;
-      height: 44px;
-      margin: 40px 8px 8px;
-      user-select: none;
-      touch-action: none;
-    }
-    .edge-rail.is-compare {
-      height: 56px;
-      margin: 44px 8px 52px;
-    }
-    .edge-rail__track {
-      position: absolute;
-      left: 0; right: 0; top: 50%;
-      height: 8px;
-      margin-top: -4px;
-      border-radius: 999px;
-      background: linear-gradient(90deg, rgba(0,122,255,0.18), rgba(88,86,214,0.22));
-      border: 1px solid rgba(255,255,255,0.65);
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
-    }
-    .edge-rail__fill {
-      position: absolute;
-      top: 0; bottom: 0;
-      border-radius: inherit;
-      background: linear-gradient(90deg, var(--glass-blue), var(--glass-purple));
-      opacity: 0.55;
-    }
-    .edge-rail__seg {
-      position: absolute;
-      left: 0;
-      transform: translateX(-50%);
-      pointer-events: none;
-      z-index: 1;
-      text-align: center;
-      line-height: 1.15;
-      max-width: 7.5rem;
-      padding: 2px 4px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.82);
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .edge-rail__seg--top {
-      bottom: calc(50% + 14px);
-    }
-    .edge-rail__seg--bottom {
-      top: calc(50% + 14px);
-    }
-    .edge-rail__seg-count {
-      display: block;
-      font-size: 11px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      color: var(--glass-text);
-    }
-    .edge-rail__seg-pct {
-      display: block;
-      font-size: 10px;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      color: var(--glass-text-secondary);
-    }
-    .edge-rail__seg.is-a .edge-rail__seg-count { color: #007AFF; }
-    .edge-rail__seg.is-b .edge-rail__seg-count { color: #FF9500; }
-    .edge-rail__seg.is-narrow {
-      max-width: 4.2rem;
-      padding: 1px 3px;
-    }
-    .edge-rail__seg.is-narrow .edge-rail__seg-count { font-size: 10px; }
-    .edge-rail__seg.is-narrow .edge-rail__seg-pct { font-size: 9px; }
-    .edge-rail__mark {
-      position: absolute;
-      top: 50%;
-      width: 2px;
-      height: 16px;
-      margin: -8px 0 0 -1px;
-      background: rgba(29, 29, 31, 0.25);
-      pointer-events: none;
-    }
-    .edge-rail__thumb {
-      position: absolute;
-      top: 50%;
-      width: 22px;
-      height: 22px;
-      margin: -11px 0 0 -11px;
-      border-radius: 50%;
-      background: #fff;
-      border: 2px solid var(--glass-blue);
-      box-shadow: 0 4px 14px rgba(0, 122, 255, 0.28);
-      cursor: grab;
-      z-index: 2;
-    }
-    .edge-rail__thumb.is-selected-main {
-      border-color: #0a84ff;
-      box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.24), 0 6px 16px rgba(10, 132, 255, 0.34);
-      transform: scale(1.06);
-      z-index: 4;
-    }
-    .edge-rail__thumb:active { cursor: grabbing; transform: scale(1.06); }
-    .edge-rail__thumb.is-fixed {
-      border-color: rgba(29,29,31,0.35);
-      background: #f2f2f7;
-      cursor: default;
-      box-shadow: none;
-      width: 14px;
-      height: 14px;
-      margin: -7px 0 0 -7px;
-      z-index: 1;
-    }
-    /* Номер группы внутри бегунка (верхняя граница группы N) */
-    .edge-rail__badge {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      min-width: 12px;
-      height: 12px;
-      padding: 0 2px;
-      border-radius: 999px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 8px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      line-height: 1;
-      color: #fff;
-      background: linear-gradient(145deg, #0a84ff, #5e5ce6);
-      box-shadow: 0 1px 3px rgba(10, 132, 255, 0.32);
-      pointer-events: none;
-      white-space: nowrap;
-    }
-    .edge-rail__thumb.is-fixed .edge-rail__badge {
-      background: linear-gradient(145deg, #8e8e93, #636366);
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-      min-width: 10px;
-      height: 10px;
-      font-size: 7px;
-    }
-    /* Текущее значение выбранной границы под основным бегунком */
-    .edge-rail__current {
-      position: absolute;
-      left: 50%;
-      top: calc(100% + 16px);
-      transform: translateX(-50%);
-      min-width: 48px;
-      padding: 2px 7px;
-      border-radius: 999px;
-      font-size: 10px;
-      line-height: 1.2;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      color: #0056b3;
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid rgba(0, 122, 255, 0.28);
-      box-shadow: 0 1px 4px rgba(0, 122, 255, 0.14);
-      white-space: nowrap;
-      pointer-events: none;
-    }
-    .edge-rail.is-compare .edge-rail__current {
-      top: calc(100% + 20px);
-    }
-    .edge-values {
-      display: grid;
-      grid-template-columns: repeat(var(--edge-count, 3), minmax(0, 1fr));
-      gap: 6px;
-      margin-top: 10px;
-      width: 100%;
-      box-sizing: border-box;
-      font-size: 0.82rem;
-      color: var(--glass-text-secondary);
-    }
-    .edge-values label {
-      display: grid;
-      gap: 4px;
-      justify-items: center;
-      text-align: center;
-      min-width: 0;
-      font-weight: 600;
-      color: var(--glass-text);
-    }
-    .edge-values label span {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--glass-text-secondary);
-      text-transform: lowercase;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 100%;
-    }
-    .edge-values input {
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-      box-sizing: border-box;
-      text-align: center;
-      font-variant-numeric: tabular-nums;
-      font-weight: 600;
-      font-size: 0.84rem;
-      padding: 6px 4px;
-    }
-    .edge-values input:disabled {
-      opacity: 0.85;
-      background: rgba(242, 242, 247, 0.9);
-    }
-    /* Тонкая настройка выбранной границы (мини-шкала в стиле основной) */
-    .edge-fine {
-      margin-top: 18px;
-      padding: 8px 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(0, 122, 255, 0.22);
-      background: rgba(0, 122, 255, 0.08);
-      display: grid;
-      gap: 6px;
-    }
-    .edge-fine.hidden {
-      display: none;
-    }
-    .edge-fine__head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 8px;
-      font-size: 0.74rem;
-      font-weight: 600;
-      color: var(--glass-text-secondary);
-    }
-    .edge-fine__left {
-      display: grid;
-      gap: 2px;
-    }
-    .edge-fine__title {
-      color: var(--glass-text);
-      font-weight: 700;
-    }
-    .edge-fine__switch {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 6px;
-      max-width: 60%;
-    }
-    .edge-fine__chip {
-      border: 1px solid rgba(0, 122, 255, 0.28);
-      background: rgba(255, 255, 255, 0.72);
-      color: var(--glass-text);
-      border-radius: 999px;
-      font-size: 0.7rem;
-      line-height: 1;
-      padding: 4px 8px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-    .edge-fine__chip.is-active {
-      background: rgba(0, 122, 255, 0.18);
-      border-color: rgba(0, 122, 255, 0.45);
-      color: #0056b3;
-    }
-    .edge-fine__chip.is-crowded::after {
-      content: " •";
-      color: #ff9500;
-    }
-    .edge-fine__rail {
-      position: relative;
-      width: 100%;
-      height: 56px;
-      user-select: none;
-      touch-action: none;
-      margin-top: 2px;
-    }
-    .edge-fine__track {
-      position: absolute;
-      left: 0; right: 0; top: 50%;
-      height: 8px;
-      margin-top: -4px;
-      border-radius: 999px;
-      background: linear-gradient(90deg, rgba(0,122,255,0.18), rgba(88,86,214,0.22));
-      border: 1px solid rgba(255,255,255,0.65);
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
-    }
-    .edge-fine__fill {
-      position: absolute;
-      top: 0; bottom: 0;
-      border-radius: inherit;
-      background: linear-gradient(90deg, var(--glass-blue), var(--glass-purple));
-      opacity: 0.55;
-    }
-    .edge-fine__thumb {
-      position: absolute;
-      top: 50%;
-      width: 18px;
-      height: 18px;
-      margin: -9px 0 0 -9px;
-      border-radius: 50%;
-      border: 2px solid rgba(29, 29, 31, 0.35);
-      background: #f2f2f7;
-      box-shadow: none;
-      pointer-events: none;
-      z-index: 2;
-    }
-    .edge-fine__thumb.is-selected {
-      width: 22px;
-      height: 22px;
-      margin: -11px 0 0 -11px;
-      border-color: var(--glass-blue);
-      background: #fff;
-      box-shadow: 0 4px 14px rgba(0, 122, 255, 0.28);
-      cursor: grab;
-      pointer-events: auto;
-      z-index: 3;
-    }
-    .edge-fine__thumb.is-selected:active {
-      cursor: grabbing;
-      transform: scale(1.05);
-    }
-    .edge-fine__current {
-      position: absolute;
-      left: 50%;
-      top: calc(100% + 8px);
-      transform: translateX(-50%);
-      font-size: 0.7rem;
-      line-height: 1.15;
-      font-weight: 700;
-      color: var(--glass-blue);
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid rgba(0, 122, 255, 0.25);
-      border-radius: 8px;
-      padding: 1px 6px;
-      white-space: nowrap;
-      pointer-events: none;
-      box-shadow: 0 2px 6px rgba(0, 122, 255, 0.16);
-    }
-    .edge-fine__hint {
-      font-size: 0.71rem;
-      color: var(--glass-text-secondary);
-      margin-top: 1px;
-    }
-    .edge-calc-mode {
-      display: grid;
-      gap: 4px;
-      min-width: 210px;
-      margin: 6px 0 2px;
-    }
-    .edge-calc-mode__label {
-      font-size: 0.74rem;
-      color: var(--glass-text-secondary);
-      font-weight: 600;
-    }
-    .edge-calc-mode .seg {
-      width: fit-content;
-      max-width: 100%;
-    }
-    .edge-fine__meta {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      font-size: 0.74rem;
-      color: var(--glass-text-secondary);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .export-panel {
-      margin-top: 14px;
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--glass-white-border-light);
-      background: rgba(255, 255, 255, 0.42);
-      display: grid;
-      gap: 10px;
-    }
-    .export-panel__head {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-    }
-    .export-panel__title {
-      margin: 0;
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--glass-text);
-    }
-    .export-panel__sub {
-      margin: 0;
-      font-size: 0.75rem;
-      color: var(--glass-text-secondary);
-      font-weight: 500;
-      line-height: 1.35;
-    }
-    .export-panel__btns {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: stretch;
-    }
-    .export-panel__btns .btn-with-icon {
-      flex: 1 1 11rem;
-      justify-content: center;
-      min-height: 40px;
-      font-size: 0.86rem;
-      font-weight: 600;
-    }
-    .btn-with-icon.is-export-raw {
-      color: #0b6e4f;
-      border-color: rgba(48, 176, 128, 0.40);
-      background: rgba(48, 176, 128, 0.12);
-    }
-    .btn-with-icon.is-export-tn {
-      color: #0056b3;
-      border-color: rgba(0, 122, 255, 0.38);
-      background: rgba(0, 122, 255, 0.12);
-    }
-    .btn-with-icon.is-export-groups {
-      color: #6b3fa0;
-      border-color: rgba(175, 82, 222, 0.36);
-      background: rgba(175, 82, 222, 0.11);
-    }
-    .btn-with-icon.is-export-filestats {
-      color: #8a5a00;
-      border-color: rgba(255, 149, 0, 0.40);
-      background: rgba(255, 149, 0, 0.12);
-    }
-    @media (max-width: 720px) {
-      .export-panel__btns .btn-with-icon {
-        flex: 1 1 100%;
-      }
-    }
-
-    .panel-chart-col {
-      /* порядок задаётся через display:contents у родителя .grid */
-      min-width: 0;
-    }
-    .chart-sticky {
-      z-index: 5;
-      padding: 12px 12px 10px;
-      border-radius: 14px;
-      background: rgba(247, 249, 252, 0.94);
-      border: 1px solid var(--glass-white-border);
-      box-shadow: var(--glass-shadow);
-      backdrop-filter: blur(16px) saturate(160%);
-      -webkit-backdrop-filter: blur(16px) saturate(160%);
-    }
-    .chart-sticky h2 { margin: 0 0 10px; font-size: 1.05rem; }
-    .chart-wrap {
-      width: 100%;
-      max-width: 100%;
-      height: var(--panel-chart-h);
-      position: relative;
-      border-radius: 14px;
-      background: rgba(255,255,255,0.4);
-      border: 1px solid var(--glass-white-border-light);
-      overflow: hidden;
-      box-sizing: border-box;
-    }
-    canvas#chart,
-    canvas#chartA,
-    canvas#chartB {
-      width: 100% !important;
-      height: 100% !important;
-      max-width: 100%;
-      display: block;
-      border-radius: 14px;
-      box-sizing: border-box;
-    }
-    @media (max-width: 980px) {
-      .chart-sticky { position: static; top: auto; }
-    }
-
-    .legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 14px;
-      margin-top: 10px;
-      padding: 8px 2px 2px;
-      font-size: 0.82rem;
-    }
-    .legend span {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .legend i {
-      width: 10px; height: 10px; border-radius: 3px; display: inline-block;
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 8px;
-      margin-top: 12px;
-    }
-    .stat {
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: rgba(255,255,255,0.55);
-      border: 1px solid var(--glass-white-border-light);
-    }
-    .stat .k { font-size: 0.75rem; color: var(--glass-text-secondary); }
-    .stat .v { font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
-
-    .table-wrap {
-      margin-top: 0;
-      max-height: 320px;
-      overflow: auto;
-      border-radius: 12px;
-      border: 1px solid var(--glass-white-border-light);
-      background: rgba(255,255,255,0.5);
-    }
-    .freq-detail {
-      display: grid;
-      gap: 14px;
-      margin-top: 12px;
-    }
-    .freq-block__title {
-      font-size: 0.92rem;
-      font-weight: 700;
-      margin: 0 0 6px;
-      color: var(--glass-text);
-    }
-    .freq-block__meta {
-      font-size: 0.78rem;
-      color: var(--glass-text-secondary);
-      margin: 0 0 8px;
-      line-height: 1.35;
-    }
-    .freq-block table tr.freq-total td {
-      font-weight: 700;
-      border-top: 1px solid rgba(0, 0, 0, 0.12);
-      background: rgba(247, 249, 252, 0.85);
-    }
-    .freq-block table th:not(:first-child),
-    .freq-block table td:not(:first-child) {
-      font-variant-numeric: tabular-nums;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.82rem;
-    }
-    th, td {
-      padding: 7px 10px;
-      border-bottom: 1px solid rgba(0,0,0,0.05);
-      text-align: right;
-      white-space: nowrap;
-    }
-    th:first-child, td:first-child { text-align: left; }
-    th { position: sticky; top: 0; background: rgba(247,249,252,0.95); z-index: 1; }
-
-    details.help {
-      border: 1px dashed rgba(0,0,0,0.1);
-      border-radius: 12px;
-      padding: 8px 10px;
-      background: rgba(255,255,255,0.45);
-    }
-    details.help summary { cursor: pointer; font-weight: 600; }
-    details.section-block {
-      border: 1px dashed rgba(0,0,0,0.1);
-      border-radius: 12px;
-      padding: 8px 10px;
-      background: rgba(255,255,255,0.45);
-    }
-    details.section-block > summary {
-      cursor: pointer;
-      font-weight: 700;
-      font-size: 1rem;
-      list-style: none;
-    }
-    details.section-block > summary::-webkit-details-marker { display: none; }
-    details.section-block > summary::after {
-      content: "▾";
-      float: right;
-      color: var(--glass-text-secondary);
-      font-size: 0.9rem;
-    }
-    details.section-block:not([open]) > summary::after { content: "▸"; }
-    .section-block__content {
-      margin-top: 10px;
-      display: grid;
-      gap: 10px;
-    }
-
-    /* Liquid Glass tooltip */
-    .glass-tip {
-      position: fixed;
-      z-index: 10000;
-      left: 0; top: 0;
-      pointer-events: none;
-      display: none;
-      max-width: min(380px, 90vw);
-      padding: 10px 12px;
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(12px) saturate(160%);
-      -webkit-backdrop-filter: blur(12px) saturate(160%);
-      border: 1px solid rgba(255, 255, 255, 0.55);
-      border-radius: 14px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.88);
-      font-size: 12px;
-      line-height: 1.45;
-      color: var(--glass-text);
-      white-space: pre-line;
-    }
-    .glass-tip.show { display: block; }
-    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-      .glass-tip { background: rgba(255,255,255,0.94); }
-    }
-  </style>
-</head>
-<body>
-    <div class="wrap">
-    <header class="page-head">
-      <h1>Распределение сумм</h1>
-    </header>
-
-    <div class="mode-tabs" role="tablist" aria-label="Режим работы">
-      <button class="btn is-active" type="button" id="tabSingle" role="tab" aria-selected="true"
-        data-tip="Один файл — распределение и фильтры">Один период</button>
-      <button class="btn secondary" type="button" id="tabCompare" role="tab" aria-selected="false"
-        data-tip="Текущий и прошлый периоды на общих интервалах">Сравнение периодов</button>
-      <button class="btn secondary" type="button" id="tabAnalysis" role="tab" aria-selected="false"
-        data-tip="Расширенная аналитика по текущему файлу с графиками и таблицами">Статистика и анализ</button>
-    </div>
-
-    <div class="grid">
-      <section class="panel stack">
-        <details class="section-block" id="dataBlock" open>
-          <summary>1. Данные</summary>
-          <div class="section-block__content">
-            <div class="period-block" id="periodBlockA">
-              <div class="period-block__title" id="periodTitleA">Текущий период</div>
-              <div class="file-row">
-                <input id="fileInput" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt"
-                  data-tip="CSV/TSV текущего периода. Обязательны колонки ТН и сумма.">
-                <button class="btn secondary" type="button" id="btnClear"
-                  data-tip="Очистить данные этого периода">Очистить</button>
-              </div>
-              <div id="fileOverviewA" class="file-overview" aria-live="polite"></div>
-            </div>
-
-            <div class="period-block compare-only" id="periodBlockB">
-              <div class="period-block__title" id="periodTitleB">Прошлый период</div>
-              <div class="file-row">
-                <input id="fileInputB" type="file" accept=".csv,text/csv,text/plain,.tsv,.txt"
-                  data-tip="CSV прошлого периода для сравнения.">
-                <button class="btn secondary" type="button" id="btnClearB"
-                  data-tip="Очистить данные этого периода">Очистить</button>
-              </div>
-              <div id="fileOverviewB" class="file-overview" aria-live="polite"></div>
-            </div>
-
-            <div class="row">
-              <button class="btn ghost" type="button" id="btnRebuild" data-tip="Пересчитать фильтры, интервалы и график">Обновить график</button>
-            </div>
-
-            <div id="loadStatus" class="status" hidden role="status" aria-live="polite"></div>
-
-            <details class="help">
-              <summary data-tip="Подсказка по алиасам колонок">Формат и алиасы колонок</summary>
-              <p class="hint" style="margin:8px 0 0">
-                Регистр заголовков не важен. Если несколько колонок из одного списка алиасов —
-                берётся та, чьё имя раньше в списке алиасов.<br>
-                <strong>сумма:</strong> сумма, прирост, прирос, рост, итог, sum, amount<br>
-                <strong>ТН:</strong> тн, tn, табельный, таб.ном, табельный номер<br>
-                <strong>ТБ:</strong> тб, tb, тербанк · <strong>ГОСБ:</strong> госб, gosb ·
-                <strong>кластер:</strong> кластер, cluster<br>
-                Кодировка: UTF-8, windows-1251 и др. определяются автоматически.<br>
-                Демо сравнения: <code>python3 tools/build_sum_demo_csv_20k.py</code> и
-                <code>python3 tools/build_sum_demo_csv_21k.py</code> → samples/
-              </p>
-            </details>
-          </div>
-        </details>
-
-        <details class="section-block" id="filtersBlock">
-          <summary>2. Фильтры</summary>
-          <div class="section-block__content">
-            <div id="filterHint" class="filter-hint" aria-live="polite"></div>
-
-            <div class="filter-block" id="orgTreeFilterBlock">
-              <div class="filter-toolbar">
-                <div class="filter-toolbar__title">
-                  <strong>ТБ / ГОСБ</strong>
-                  <span class="filter-toolbar__sub">кнопки действуют и на кластеры</span>
-                </div>
-                <div class="filter-toolbar__actions">
-                  <button class="btn secondary small btn-with-icon is-select-all" type="button" id="btnFilterSelectAll"
-                    data-tip="Отметить все ТБ, ГОСБ и кластеры">
-                    <span class="btn-ico" aria-hidden="true"></span>
-                    <span>Выбрать всё</span>
-                  </button>
-                  <button class="btn secondary small btn-with-icon is-clear-all" type="button" id="btnFilterClearAll"
-                    data-tip="Снять все отметки в ТБ, ГОСБ и кластерах">
-                    <span class="btn-ico" aria-hidden="true"></span>
-                    <span>Снять всё</span>
-                  </button>
-                </div>
-              </div>
-              <p class="hint" style="margin:0 0 6px">Порядок фиксированный. Невыбранные — серые; их тоже можно выбрать — подтянутся связанные значения. В сравнении фильтр общий для обоих периодов.</p>
-              <div id="orgTree" class="filter-tree"><div class="empty">Загрузите данные</div></div>
-            </div>
-
-            <div class="filter-block" id="clusterFilterBlock">
-              <div class="toolbar toolbar--plain">
-                <strong>Кластер</strong>
-              </div>
-              <div id="clusterChecks" class="checks"><div class="empty">Загрузите данные</div></div>
-            </div>
-          </div>
-        </details>
-      </section>
-
-      <section class="panel panel-chart-col">
-        <div class="chart-sticky">
-          <h2 id="chartHeading">Гистограмма</h2>
-          <div class="chart-toolbar">
-            <div class="toolbar-cell" data-tip="Гистограмма — интервалы по числу ТН; линия — форма; свечи — распределение сумм; свечи·ТН — те же границы по суммам, подписи у границ показывают число ТН. «Наложение с перекрытием» только для гистограммы.">
-              <span class="toolbar-label">Вид графика</span>
-              <div class="seg" id="chartTypeSeg" role="group" aria-label="Вид графика">
-                <button type="button" class="seg__btn is-on" data-value="bars">Гистограмма</button>
-                <button type="button" class="seg__btn" data-value="line">Линия</button>
-                <button type="button" class="seg__btn" data-value="candles">Свечи</button>
-                <button type="button" class="seg__btn" data-value="candles_tn">Свечи·ТН</button>
-              </div>
-              <select id="chartType" class="sr-only" tabindex="-1" aria-hidden="true">
-                <option value="bars" selected>Гистограмма</option>
-                <option value="line">Линия</option>
-                <option value="candles">Свечи</option>
-                <option value="candles_tn">Свечи·ТН</option>
-              </select>
-            </div>
-            <div class="toolbar-cell" data-tip="Подписи на графике: число ТН на столбиках; у свечей — зоны или суммы+ТН у границ тела">
-              <span class="toolbar-label">Подписи данных</span>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-                <input id="showChartLabels" type="checkbox" checked>
-                <span>Показывать</span>
-              </label>
-            </div>
-            <div class="toolbar-cell compare-only" data-tip="Наложение и наложение с перекрытием — один график; рядом / друг под другом — два. Перекрытие только с гистограммой.">
-              <span class="toolbar-label">Компоновка</span>
-              <select id="compareLayout">
-                <option value="overlay" selected>Наложение</option>
-                <option value="overlap">Наложение с перекрытием</option>
-                <option value="side">Рядом</option>
-                <option value="stack">Друг под другом</option>
-              </select>
-            </div>
-            <div class="toolbar-cell" data-tip="Серии гистограммы после агрегации по ТН">
-              <span class="toolbar-label">Разрез</span>
-              <select id="sliceMode">
-                <option value="all">Вся выборка</option>
-                <option value="tb">В разрезе ТБ</option>
-                <option value="cluster">В разрезе кластера</option>
-              </select>
-            </div>
-            <div class="toolbar-cell" data-tip="Ось X: интервалы или значения разреза. «Значения» доступны, когда выбран разрез ТБ/кластер.">
-              <span class="toolbar-label">Группы на графике</span>
-              <div class="seg" id="groupLayoutSeg" role="group" aria-label="Группы на графике">
-                <button type="button" class="seg__btn" data-value="bin">Интервалы</button>
-                <button type="button" class="seg__btn is-on" data-value="slice">Значения</button>
-              </div>
-              <select id="groupLayout" class="sr-only" tabindex="-1" aria-hidden="true">
-                <option value="bin">Интервалы сумм</option>
-                <option value="slice" selected>Значения разреза</option>
-              </select>
-            </div>
-          </div>
-          <div class="chart-wrap chart-wrap-primary" data-tip="Ось X зависит от режима; ось Y — число ТН">
-            <canvas id="chart" aria-label="Гистограмма распределения сумм"></canvas>
-          </div>
-          <div class="charts-dual" id="chartsDual">
-            <div class="chart-pane">
-              <div class="chart-pane__title" id="chartTitleA">Текущий период</div>
-              <div class="chart-wrap">
-                <canvas id="chartA" aria-label="Текущий период"></canvas>
-              </div>
-            </div>
-            <div class="chart-pane">
-              <div class="chart-pane__title" id="chartTitleB">Прошлый период</div>
-              <div class="chart-wrap">
-                <canvas id="chartB" aria-label="Прошлый период"></canvas>
-              </div>
-            </div>
-          </div>
-          <div id="legend" class="legend" data-tip="Цвета серий / периодов"></div>
-        </div>
-        <div class="chart-below">
-          <div id="binCustomRow">
-            <div class="edge-tools">
-              <label class="field field--edges" data-tip="Число интервалов (столбиков). В режиме «Только положительные» — число положительных интервалов; отрицательные — отдельная колонка слева и в это число не входят.">
-                <span>Интервалов</span>
-                <input id="movableEdgeCount" type="number" min="1" max="40" step="1" value="3">
-              </label>
-              <div class="edge-tools__btns">
-                <button class="btn secondary btn-with-icon is-edge-equal" type="button" id="btnEqualCountEdges"
-                  data-tip="Равное число ТН во всех заданных интервалах. «Только положительные»: колонка ≤0 не участвует; выравниваются все K положительных с первого после 0. Только текущий период.">
-                  <span class="btn-ico" aria-hidden="true"></span>
-                  <span>Равно по ТН</span>
-                </button>
-                <button class="btn secondary btn-with-icon is-edge-ladder" type="button" id="btnLadderCountEdges"
-                  data-tip="Лесенка K…1 по числу ТН слева направо по всем интервалам. При многих одинаковых суммах (нули) точные доли невозможны — граница перескакивает на следующее различное значение. «Только положительные»: ≤0 не участвует. Только текущий период.">
-                  <span class="btn-ico" aria-hidden="true"></span>
-                  <span>Лесенка</span>
-                </button>
-                <button class="btn secondary btn-with-icon is-edge-even" type="button" id="btnEvenWidthEdges"
-                  data-tip="Равная ширина по шкале сумм среди заданных интервалов (в positive — среди положительных на 0…max). В сравнении шкала охватывает оба периода.">
-                  <span class="btn-ico" aria-hidden="true"></span>
-                  <span>Равные интервалы</span>
-                </button>
-              </div>
-            </div>
-            <p class="hint">Число в поле — интервалы (столбики), не бегунки. В «Только положительные»: колонка «≤ 0» слева не входит в K и не участвует в равно/лесенке; выравниваются все K положительных начиная с первого после 0.</p>
-            <div class="edge-calc-mode" data-tip="Все значения — K интервалов по всему диапазону, отрицательные тоже участвуют в равно/лесенке. Только положительные — колонка «≤ 0» вне K + K положительных с первого после 0.">
-              <span class="edge-calc-mode__label">Авторасчёт границ</span>
-              <div class="seg" id="edgeCalcModeSeg" role="group" aria-label="Авторасчёт границ">
-                <button type="button" class="seg__btn is-on" data-value="positive">Только положительные</button>
-                <button type="button" class="seg__btn" data-value="all">Все значения</button>
-              </div>
-              <select id="edgeCalcMode" class="sr-only" tabindex="-1" aria-hidden="true">
-                <option value="positive" selected>Только положительные</option>
-                <option value="all">Все значения</option>
-              </select>
-            </div>
-            <div class="edge-rail-wrap">
-              <div id="edgeRail" class="edge-rail" aria-label="Шкала границ интервалов"></div>
-              <div id="edgeFineTune" class="edge-fine hidden" aria-live="polite"></div>
-              <div id="edgeValues" class="edge-values"></div>
-            </div>
-          </div>
-          <div id="stats" class="stats"></div>
-          <div id="freqDetail" class="freq-detail" aria-label="Статистика по интервалам"></div>
-          <div class="export-panel" aria-label="Скачивание результатов">
-            <div class="export-panel__head">
-              <h3 class="export-panel__title">Скачать результаты</h3>
-              <p class="export-panel__sub" id="exportPanelSub">По текущим интервалам и фильтрам (группа = интервал суммы после агрегации по ТН)</p>
-            </div>
-            <div class="export-panel__btns">
-              <button class="btn secondary btn-with-icon is-export-raw" type="button" id="btnExportRaw"
-                data-tip="Исходные строки CSV + колонка «Группа» (группа по сумме ТН)">
-                <span class="btn-ico" aria-hidden="true"></span>
-                <span>CSV исходный + группа</span>
-              </button>
-              <button class="btn secondary btn-with-icon is-export-tn" type="button" id="btnExportTn"
-                data-tip="Уникальные ТН (8 знаков) и группа">
-                <span class="btn-ico" aria-hidden="true"></span>
-                <span>CSV ТН + группа</span>
-              </button>
-              <button class="btn secondary btn-with-icon is-export-groups" type="button" id="btnExportGroups"
-                data-tip="Текстовый файл: группы → список ТН (8 знаков)">
-                <span class="btn-ico" aria-hidden="true"></span>
-                <span>TXT группы</span>
-              </button>
-              <button class="btn secondary btn-with-icon is-export-filestats" type="button" id="btnExportFileStats"
-                data-tip="JSON-профиль текущего файла (без фильтров): ТБ/ГОСБ/кластер; худшие/лучшие ~10% по сумме (больше = лучше); связи оргструктуры">
-                <span class="btn-ico" aria-hidden="true"></span>
-                <span>Статистика по файлу</span>
-              </button>
-            </div>
-          </div>
-          <section id="analysisPanel" class="analysis-panel" aria-label="Аналитика по текущему периоду">
-            <div class="analysis-guide">
-              Режим использует только текущий файл (один период). Второй файл для сравнения не нужен.
-              Для подбора границ используйте бегунки выше: ориентируйтесь на кумулятивную кривую и таблицу интервалов.
-              Рекомендуется избегать интервалов с очень малым числом ТН и проверять концентрацию по ТБ/ГОСБ/кластеру.
-            </div>
-            <div class="analysis-controls">
-              <div class="toolbar-cell" data-tip="Базовый разрез: ТБ / ГОСБ / кластер / ТН (табельные)">
-                <span class="toolbar-label">Разрез аналитики</span>
-                <select id="analysisDim">
-                  <option value="tb" selected>ТБ</option>
-                  <option value="gosb">ГОСБ</option>
-                  <option value="cluster">Кластер</option>
-                  <option value="tn">ТН</option>
-                </select>
-              </div>
-              <div class="toolbar-cell" data-tip="Метрика ранжирования: N, Σ, средняя, медиана, доля >0, композитный score">
-                <span class="toolbar-label">Метрика</span>
-                <select id="analysisMetric">
-                  <option value="count">N (ТН)</option>
-                  <option value="sum" selected>Σ сумма</option>
-                  <option value="avg">Средняя</option>
-                  <option value="median">Медиана</option>
-                  <option value="share_pos">Доля >0</option>
-                  <option value="score">Score</option>
-                </select>
-              </div>
-              <div class="toolbar-cell" data-tip="Режим отбора лучших: Top-N, Top-X% или «шишки» (выбросы)">
-                <span class="toolbar-label">Режим лучших</span>
-                <select id="analysisRankMode">
-                  <option value="top_n" selected>Top-N</option>
-                  <option value="top_pct">Top-X%</option>
-                  <option value="outliers">Шишки</option>
-                </select>
-              </div>
-              <div class="toolbar-cell" data-tip="Размер Top-N / порог % / порог шишек (зависит от режима)">
-                <span class="toolbar-label">N / % / порог</span>
-                <div class="seg" id="analysisTopNSeg" role="group" aria-label="Размер top выборки">
-                  <button type="button" class="seg__btn is-on" data-value="5">5</button>
-                  <button type="button" class="seg__btn" data-value="10">10</button>
-                  <button type="button" class="seg__btn" data-value="20">20</button>
-                  <button type="button" class="seg__btn" data-value="50">50</button>
-                </div>
-                <select id="analysisTopN" class="sr-only" tabindex="-1" aria-hidden="true">
-                  <option value="5" selected>5</option>
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                </select>
-              </div>
-              <div class="toolbar-cell" data-tip="Тип «шишек»: процентиль / z-score / абсолютный порог средней (млрд)">
-                <span class="toolbar-label">Тип шишек</span>
-                <select id="analysisOutlierType">
-                  <option value="percentile" selected>Процентиль</option>
-                  <option value="zscore">Z-score</option>
-                  <option value="abs">Abs (млрд)</option>
-                </select>
-              </div>
-            </div>
-            <div id="analysisRankHint" class="analysis-guide" style="margin-top:-4px"></div>
-            <div class="analysis-grid">
-              <div class="analysis-card" data-tip="Распределение ТН по текущим интервалам">
-                <h4>1) Распределение по интервалам</h4>
-                <canvas id="anChartBins"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Накопленная доля ТН: помогает выставлять границы по целевым процентам">
-                <h4>2) Кумулятивная доля ТН (CDF)</h4>
-                <canvas id="anChartCdf"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Топ ТБ по выбранной метрике">
-                <h4>3) Топ ТБ</h4>
-                <canvas id="anChartTb"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Топ ГОСБ по выбранной метрике">
-                <h4>4) Топ ГОСБ</h4>
-                <canvas id="anChartGosb"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Топ кластеров по выбранной метрике">
-                <h4>5) Топ кластеров</h4>
-                <canvas id="anChartCluster"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Децили сумм: профиль распределения">
-                <h4>6) Децили сумм</h4>
-                <canvas id="anChartDeciles"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Рейтинг отобранных лучших по метрике (sorted bar)">
-                <h4>7) Рейтинг лучших</h4>
-                <canvas id="anChartTop"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Худшие по выбранной метрике">
-                <h4>8) Bottom (худшие)</h4>
-                <canvas id="anChartBottom"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Доли лучших по Σ сумме">
-                <h4>9) Структура лучших (круговая по Σ)</h4>
-                <canvas id="anChartPie"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Boxplot: Q1/медиана/Q3 и усы 1.5×IQR по категориям разреза">
-                <h4>10) Boxplot по разрезу</h4>
-                <canvas id="anChartBand"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Средние (или выбранная метрика) по категориям — bar chart">
-                <h4>11) Средние / медианы (bar)</h4>
-                <canvas id="anChartAvgBar"></canvas>
-              </div>
-              <div class="analysis-card" data-tip="Тепловая карта avg по пересечению ГОСБ × ТБ (top ключи)">
-                <h4>12) Heatmap avg: ГОСБ × ТБ</h4>
-                <canvas id="anChartHeat"></canvas>
-              </div>
-            </div>
-            <div class="analysis-tables">
-              <div class="freq-block" data-tip="Интервальные метрики: количество, доля, средняя сумма">
-                <h3>Таблица A: интервальный профиль</h3>
-                <div id="analysisTableIntervals" class="table-wrap"></div>
-              </div>
-              <div class="freq-block analysis-span-2" data-tip="Полные метрики ТЗ по выбранному разрезу: N, Σ, avg, median, std, Q1/Q3/IQR, доли знака, score">
-                <h3>Таблица B: метрики категорий (полный профиль)</h3>
-                <div id="analysisTableCategories" class="table-wrap"></div>
-              </div>
-              <div class="freq-block" data-tip="Процентили и сводные коэффициенты">
-                <h3>Таблица C: процентили и коэффициенты</h3>
-                <div id="analysisTablePercentiles" class="table-wrap"></div>
-              </div>
-              <div class="freq-block analysis-span-2" data-tip="Top/Bottom по ТБ, ГОСБ и кластеру одновременно">
-                <h3>Таблица D: топ и худшие по всем разрезам</h3>
-                <div id="analysisTableTopBottomAllDims" class="table-wrap"></div>
-              </div>
-              <div class="freq-block analysis-span-2" data-tip="Матрица ТБ × кластер: где сконцентрированы ТН">
-                <h3>Таблица E: матрица ТБ × кластер</h3>
-                <div id="analysisTableTbClusterMatrix" class="table-wrap"></div>
-              </div>
-              <div class="freq-block analysis-span-2" data-tip="Стабильность + score: min/Q1/median/Q3/max, IQR, CV, score">
-                <h3>Таблица F: стабильность и score</h3>
-                <div id="analysisTableStability" class="table-wrap"></div>
-              </div>
-              <div class="freq-block analysis-span-2" data-tip="Состав каждого интервала по выбранному разрезу: топ категорий внутри столбика">
-                <h3>Таблица G: интервал × разрез (состав столбиков)</h3>
-                <div id="analysisTableBinByDim" class="table-wrap"></div>
-              </div>
-              <div class="freq-block analysis-span-2" data-tip="Матрица ТБ × ГОСБ по числу ТН (top категорий)">
-                <h3>Таблица H: матрица ТБ × ГОСБ</h3>
-                <div id="analysisTableTbGosbMatrix" class="table-wrap"></div>
-              </div>
-              <div class="freq-block analysis-span-2" data-tip="Матрица ГОСБ × кластер по числу ТН (top категорий)">
-                <h3>Таблица I: матрица ГОСБ × кластер</h3>
-                <div id="analysisTableGosbClusterMatrix" class="table-wrap"></div>
-              </div>
-              <div class="freq-block" data-tip="По выбранному разрезу: сколько ТН ≤0 и >0, доля неположительных, средняя среди положительных">
-                <h3>Таблица J: профиль знака по разрезу (≤0 / >0)</h3>
-                <div id="analysisTableSignByDim" class="table-wrap"></div>
-              </div>
-              <div class="freq-block analysis-span-2" data-tip="Кто доминирует в верхнем хвосте (последний интервал и суммы ≥ P90)">
-                <h3>Таблица K: владельцы хвоста (верх)</h3>
-                <div id="analysisTableTailOwners" class="table-wrap"></div>
-              </div>
-              <div class="freq-block analysis-span-2" data-tip="Полный список категорий выбранного разреза с долями и модальным интервалом">
-                <h3>Таблица L: полный разрез (все категории)</h3>
-                <div id="analysisTableFullDim" class="table-wrap"></div>
-              </div>
-            </div>
-          </section>
-        </div>
-      </section>
-    </div>
-  </div>
-
-  <div id="glassTip" class="glass-tip" aria-hidden="true"></div>
-
-  <script src="src/csv_encoding.js"></script>
-  <script>
-    /** Конфиг из #app-config в начале HTML (JSON). */
+/** Конфиг из #app-config в начале HTML (JSON). */
     const APP_CONFIG = (function loadAppConfig() {
+      if (window.CONTEST_CRITERIA_CONFIG && typeof window.CONTEST_CRITERIA_CONFIG === "object") {
+        return window.CONTEST_CRITERIA_CONFIG;
+      }
       const node = document.getElementById("app-config");
-      if (!node) throw new Error("Не найден #app-config — блок настроек в начале HTML.");
+      if (!node) throw new Error("Не найден CONTEST_CRITERIA_CONFIG / #app-config.");
       try {
         return JSON.parse(node.textContent);
       } catch (err) {
-        throw new Error("Ошибка JSON в #app-config: " + ((err && err.message) || err));
+        throw new Error("Ошибка конфига: " + ((err && err.message) || err));
       }
     })();
 
-    /** @typedef {{ tn: string, amount: number, tb: string, gosb: string, cluster: string }} DataRow */
+    /** @typedef {{ tn: string, amount: number, tb: string, gosb: string, cluster: string, extras?: Record<string, number> }} DataRow */
 
     /**
      * Подписи периодов сравнения.
@@ -2035,11 +48,628 @@
     let fileNameA = "";
     let fileNameB = "";
 
-    /** @type {"single"|"compare"|"analysis"} */
+    /** @type {"single"} страница только одного периода */
     let viewMode = "single";
     /** Пока вкладка анализа закрыта — не считаем тяжёлую статистику; при открытии пересчитаем. */
     let analysisDirty = true;
     let analysisRenderTimer = 0;
+
+    /** Сырой файл для перепарсинга при смене показателя */
+    /** @type {{ text: string, headers: string[], delimiter: string, rawLines: string[], fileName: string } | null} */
+    let lastParsed = null;
+
+    /** Мультислоты данных (до 12) */
+    /** @type {"months"|"quarters"|"pair"|"custom"} */
+    let slotMode = String(APP_CONFIG.defaultSlotMode || "pair");
+    let customSlotCount = 3;
+    /** @type {{ id: string, label: string, fileName: string, text: string, rawRows: DataRow[], allRows: DataRow[], presence: object }[]} */
+    let dataSlots = [];
+    let activeSlotId = "";
+    /** @type {object|null} */
+    let diversityReport = null;
+    /** @type {"tb"|"gosb"|"cluster"} */
+    let diversityOrgDim = "tb";
+    /** Снимок фильтров/границ для «применить ко всем» */
+    let sharedSettings = null;
+
+    const CI = (typeof ContestInterest !== "undefined") ? ContestInterest : null;
+
+    function maxDataSlots() {
+      const n = Number(APP_CONFIG.maxDataSlots);
+      return Number.isFinite(n) && n > 0 ? Math.min(12, Math.round(n)) : 12;
+    }
+
+    function defaultLabelsForMode(mode, count) {
+      if (mode === "months") return (APP_CONFIG.monthLabels || []).slice(0, 12);
+      if (mode === "quarters") return (APP_CONFIG.quarterLabels || ["Q1", "Q2", "Q3", "Q4"]).slice(0, 4);
+      if (mode === "pair") return (APP_CONFIG.pairLabels || ["Прошлый", "Текущий"]).slice(0, 2);
+      const n = Math.max(1, Math.min(maxDataSlots(), count || 1));
+      const labels = [];
+      for (let i = 0; i < n; i += 1) labels.push("Файл " + (i + 1));
+      return labels;
+    }
+
+    function slotCountForMode(mode) {
+      if (mode === "months") return 12;
+      if (mode === "quarters") return 4;
+      if (mode === "pair") return 2;
+      return Math.max(1, Math.min(maxDataSlots(), customSlotCount || 1));
+    }
+
+    function rebuildDataSlots(preserveData) {
+      const labels = defaultLabelsForMode(slotMode, slotCountForMode(slotMode));
+      const prev = preserveData ? dataSlots.slice() : [];
+      const next = labels.map((label, i) => {
+        const id = "slot-" + i;
+        const old = prev[i];
+        if (old && preserveData) {
+          // Месяцы/кварталы/пара — подписи режима; в custom оставляем ручное имя слота
+          const keepCustomLabel = slotMode === "custom" && old.label;
+          return {
+            id,
+            label: keepCustomLabel ? old.label : label,
+            fileName: old.fileName || "",
+            text: old.text || "",
+            rawRows: old.rawRows || [],
+            allRows: old.allRows || [],
+            presence: old.presence || { hasTb: false, hasGosb: false, hasCluster: false }
+          };
+        }
+        return {
+          id,
+          label,
+          fileName: "",
+          text: "",
+          rawRows: [],
+          allRows: [],
+          presence: { hasTb: false, hasGosb: false, hasCluster: false }
+        };
+      });
+      dataSlots = next;
+      if (!dataSlots.some((s) => s.id === activeSlotId)) {
+        activeSlotId = dataSlots[0] ? dataSlots[0].id : "";
+      }
+      renderSlotsRail();
+      syncActiveSlotToGlobals(false);
+    }
+
+    function getActiveSlot() {
+      return dataSlots.find((s) => s.id === activeSlotId) || dataSlots[0] || null;
+    }
+
+    function loadedSlots() {
+      return dataSlots.filter((s) => s.allRows && s.allRows.length);
+    }
+
+    function syncActiveSlotToGlobals(doRebuild) {
+      const slot = getActiveSlot();
+      if (!slot) {
+        rawRows = [];
+        allRows = [];
+        presenceA = { hasTb: false, hasGosb: false, hasCluster: false };
+        fileNameA = "";
+        lastParsed = null;
+        return;
+      }
+      rawRows = slot.rawRows || [];
+      allRows = slot.allRows || [];
+      presenceA = slot.presence || { hasTb: false, hasGosb: false, hasCluster: false };
+      fileNameA = slot.fileName || "";
+      if (slot.text) {
+        lastParsed = {
+          text: slot.text,
+          headers: [],
+          delimiter: ";",
+          rawLines: [],
+          fileName: slot.fileName || ""
+        };
+      } else {
+        lastParsed = null;
+      }
+      if (doRebuild) {
+        refreshPresenceAndFilters(true);
+        initEdgeStateFromData(true);
+        rebuild();
+      }
+    }
+
+    function setActiveSlot(id) {
+      if (!dataSlots.some((s) => s.id === id)) return;
+      activeSlotId = id;
+      renderSlotsRail();
+      syncActiveSlotToGlobals(true);
+      renderFileOverview(el.fileOverviewA, {
+        fileName: fileNameA,
+        rawCount: rawRows.length,
+        tnCount: allRows.length,
+        rows: allRows,
+        presence: presenceA,
+        skipped: 0
+      });
+    }
+
+    function renderSlotsRail() {
+      const rail = document.getElementById("slotsRail");
+      if (!rail) return;
+      rail.innerHTML = dataSlots.map((slot) => {
+        const loaded = slot.allRows && slot.allRows.length;
+        const status = loaded
+          ? (escapeHtml(slot.fileName || "файл") + "<br>" + slot.allRows.length + " уч.")
+          : "Пусто — загрузите CSV";
+        return (
+          '<div class="slot-card' + (slot.id === activeSlotId ? " is-active" : "") +
+          (loaded ? " is-loaded" : "") + '" data-slot-id="' + escapeHtml(slot.id) + '">' +
+            '<div class="slot-card__label" contenteditable="true" spellcheck="false" data-slot-label="' +
+              escapeHtml(slot.id) + '">' + escapeHtml(slot.label) + '</div>' +
+            '<div class="slot-card__status">' + status + '</div>' +
+            '<div class="slot-card__actions">' +
+              '<label class="btn secondary slot-card__file-btn">Файл' +
+                '<input type="file" accept=".csv,text/csv,text/plain,.tsv,.txt" data-slot-file="' +
+                  escapeHtml(slot.id) + '">' +
+              '</label>' +
+              '<button type="button" class="btn ghost" data-slot-clear="' + escapeHtml(slot.id) + '">✕</button>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join("");
+    }
+
+    /** Алиасы для скоринга кодировки при чтении файла. */
+    function encodingDetectOpts() {
+      const indAliases = getIndicatorAliases();
+      const amount = APP_CONFIG.amountColumnAliases || [];
+      const hints = []
+        .concat(APP_CONFIG.tbColumnAliases || [])
+        .concat(APP_CONFIG.gosbColumnAliases || [])
+        .concat(APP_CONFIG.clusterColumnAliases || []);
+      return {
+        requiredAliases: [indAliases, amount],
+        hintAliases: hints
+      };
+    }
+
+    async function loadFileIntoSlot(slotId, file) {
+      const slot = dataSlots.find((s) => s.id === slotId);
+      if (!slot || !file) return;
+      const sizeKb = Math.max(1, Math.round((file.size || 0) / 1024));
+      setLoadStatus(
+        "Читаю «" + (file.name || "файл") + "» (" + sizeKb + " КБ)…\nОпределяю кодировку и заголовки…",
+        "ok"
+      );
+      try {
+        const decoded = await readFileAsText(file);
+        const fileText = decoded.text;
+        const encoding = decoded.encoding || "utf-8";
+        setLoadStatus(
+          "Файл прочитан («" + encoding + "»). Разбираю таблицу…",
+          "ok"
+        );
+        const parsed = parseTableText(fileText);
+        slot.text = fileText;
+        slot.fileName = file.name || "";
+        slot.encoding = encoding;
+        slot.rawRows = parsed.rows;
+        slot.presence = {
+          hasTb: !!parsed.meta.hasTb,
+          hasGosb: !!parsed.meta.hasGosb,
+          hasCluster: !!parsed.meta.hasCluster
+        };
+        slot.allRows = aggregateByTn(slot.rawRows);
+        activeSlotId = slotId;
+        renderSlotsRail();
+        syncActiveSlotToGlobals(false);
+        renderFileOverview(el.fileOverviewA, {
+          fileName: fileNameA,
+          rawCount: rawRows.length,
+          tnCount: allRows.length,
+          rows: allRows,
+          presence: presenceA,
+          skipped: parsed.meta.skipped || 0
+        });
+        refreshPresenceAndFilters(true);
+        initEdgeStateFromData(true);
+        rebuild();
+        const headers = (parsed.meta.headers || []).join(", ");
+        const skipped = parsed.meta.skipped || 0;
+        syncParticipationUiFromConfig();
+        setLoadStatus(
+          "✓ Загружено в «" + slot.label + "»\n" +
+            "Файл: " + (slot.fileName || "—") + "\n" +
+            "Кодировка: " + encoding + "\n" +
+            "Заголовки: " + headers + "\n" +
+            "Строк данных: " + (parsed.meta.totalLines || slot.rawRows.length) +
+            "; валидных: " + slot.rawRows.length +
+            "; уникальных уч.: " + slot.allRows.length +
+            (skipped ? "; пропущено: " + skipped : ""),
+          "ok"
+        );
+      } catch (err) {
+        const msg = (err && err.message) ? err.message : String(err);
+        setLoadStatus(
+          "✗ Не удалось загрузить в «" + slot.label + "»\n" +
+            "Файл: " + (file.name || "—") + "\n" +
+            msg + "\n" +
+            "Подсказка: проверьте, что есть колонки показателя (ТН/КПК/ИНН) и «сумма»; " +
+            "если файл из Excel/Windows — кодировка должна определиться сама (UTF-8 / windows-1251).",
+          "err"
+        );
+        throw err;
+      }
+    }
+
+    function clearSlot(slotId) {
+      const slot = dataSlots.find((s) => s.id === slotId);
+      if (!slot) return;
+      slot.fileName = "";
+      slot.text = "";
+      slot.rawRows = [];
+      slot.allRows = [];
+      slot.presence = { hasTb: false, hasGosb: false, hasCluster: false };
+      renderSlotsRail();
+      if (slotId === activeSlotId) {
+        syncActiveSlotToGlobals(false);
+        resetUiAfterDataClear();
+      }
+    }
+
+    function clearAllSlots() {
+      dataSlots.forEach((s) => {
+        s.fileName = "";
+        s.text = "";
+        s.rawRows = [];
+        s.allRows = [];
+        s.presence = { hasTb: false, hasGosb: false, hasCluster: false };
+      });
+      renderSlotsRail();
+      syncActiveSlotToGlobals(false);
+      clearPeriodA();
+      clearPeriodB();
+      resetUiAfterDataClear();
+      diversityReport = null;
+      renderDiversityPanel();
+    }
+
+    function reparseAllSlotsFromText() {
+      let errors = 0;
+      dataSlots.forEach((slot) => {
+        if (!slot.text) return;
+        try {
+          const parsed = parseTableText(slot.text);
+          slot.rawRows = parsed.rows;
+          slot.presence = {
+            hasTb: !!parsed.meta.hasTb,
+            hasGosb: !!parsed.meta.hasGosb,
+            hasCluster: !!parsed.meta.hasCluster
+          };
+          slot.allRows = aggregateByTn(slot.rawRows);
+        } catch (e) {
+          errors += 1;
+        }
+      });
+      renderSlotsRail();
+      syncActiveSlotToGlobals(true);
+      if (errors) setLoadStatus("Не удалось перепарсить слотов: " + errors, "err");
+    }
+
+    function captureSharedSettingsFromUi() {
+      sharedSettings = {
+        filterSelections: {
+          tb: new Set(filterSelections.tb),
+          gosb: new Set(filterSelections.gosb),
+          cluster: new Set(filterSelections.cluster)
+        },
+        edges: (edgeState.edges || []).slice(),
+        min: edgeState.min,
+        max: edgeState.max
+      };
+      return sharedSettings;
+    }
+
+    function applySharedSettingsToUi() {
+      if (!sharedSettings) return;
+      filterSelections = {
+        tb: new Set(sharedSettings.filterSelections.tb),
+        gosb: new Set(sharedSettings.filterSelections.gosb),
+        cluster: new Set(sharedSettings.filterSelections.cluster)
+      };
+      if (sharedSettings.edges && sharedSettings.edges.length >= 2) {
+        edgeState.edges = sharedSettings.edges.slice();
+        edgeState.min = sharedSettings.min;
+        edgeState.max = sharedSettings.max;
+        renderEdgeRail();
+      }
+      rebuildFilterOptions(false);
+      rebuild();
+    }
+
+    function filteredRowsForSlot(slot) {
+      const rows = slot.allRows || [];
+      if (!rows.length) return [];
+      return filteredRowsFrom(rows);
+    }
+
+    function computeWinnersForAllSlots() {
+      const edges = (lastChartState && lastChartState.edges) || edgeState.edges || [];
+      const labels = (lastChartState && lastChartState.hist && lastChartState.hist.labels) || [];
+      /** @type {Map<string, object>} */
+      const bySlot = new Map();
+      loadedSlots().forEach((slot) => {
+        const rows = filteredRowsForSlot(slot);
+        const result = computeWinnersResult(rows, edges, labels);
+        bySlot.set(slot.id, result);
+      });
+      return bySlot;
+    }
+
+    function buildDiversityFromSlots(winnersBySlot) {
+      if (!CI) return null;
+      const slotsData = loadedSlots().map((slot) => {
+        const res = winnersBySlot.get(slot.id);
+        const map = res && res.map;
+        const winnerIds = CI.winnerIdsFromMap(map || new Map());
+        return {
+          slotId: slot.id,
+          label: slot.label,
+          winnerIds,
+          rows: filteredRowsForSlot(slot),
+          totalParticipants: res ? res.totalParticipants : 0,
+          totalWinners: res ? res.totalWinners : 0
+        };
+      });
+      if (slotsData.length < 1) return null;
+      const report = CI.computeWinnersDiversity(slotsData);
+      const scored = CI.scoreContestInterest(
+        report.metrics,
+        APP_CONFIG.interestTargets,
+        APP_CONFIG.interestWeights
+      );
+      report.interestScore = scored.score;
+      report.scoreParts = scored.parts;
+      report.narrative = CI.buildDiversityNarrative(report);
+      return report;
+    }
+
+    function renderDiversityPanel() {
+      const hero = document.getElementById("diversityHero");
+      const narrative = document.getElementById("diversityNarrative");
+      if (narrative) {
+        narrative.textContent = (diversityReport && diversityReport.narrative) ||
+          "Загрузите 2+ файла, задайте критерии и пересчитайте — здесь будет вывод.";
+      }
+      if (!hero) return;
+      if (!diversityReport) {
+        hero.innerHTML = "";
+        drawDiversityCharts(null);
+        return;
+      }
+      const r = diversityReport;
+      const card = (n, l) =>
+        '<div class="diversity-stat"><div class="diversity-stat__n">' + n +
+        '</div><div class="diversity-stat__l">' + l + "</div></div>";
+      hero.innerHTML =
+        card(r.interestScore != null ? r.interestScore : "—", "Interest Score") +
+        card(r.uniqueWinners, "уникальных победителей") +
+        card(Math.round((r.repeatShare || 0) * 100) + "%", "повторники") +
+        card(Math.round((r.personDiversity || 0) * 100) + "%", "разнообразие людей") +
+        card(Math.round((r.orgSticky.gosb || 0) * 100) + "%", "липкость ГОСБ") +
+        card(Math.round((r.coverageTb || 0) * 100) + "%", "покрытие ТБ");
+      drawDiversityCharts(r);
+    }
+
+    function drawDiversityCharts(report) {
+      const churnCanvas = document.getElementById("diversityChurnChart");
+      const heatCanvas = document.getElementById("diversityHeatChart");
+      if (churnCanvas) {
+        const ctx = churnCanvas.getContext("2d");
+        const w = churnCanvas.width;
+        const h = churnCanvas.height;
+        ctx.clearRect(0, 0, w, h);
+        if (report && report.perSlot && report.perSlot.length) {
+          const items = report.perSlot;
+          const maxV = Math.max(1, ...items.map((x) => x.newCount + x.repeatCount));
+          const gap = 8;
+          const barW = Math.max(12, (w - 40 - gap * items.length) / items.length);
+          items.forEach((it, i) => {
+            const x = 28 + i * (barW + gap);
+            const total = it.newCount + it.repeatCount;
+            const bh = (total / maxV) * (h - 36);
+            const y = h - 24 - bh;
+            const repH = total ? (it.repeatCount / total) * bh : 0;
+            ctx.fillStyle = "rgba(0,122,255,0.85)";
+            ctx.fillRect(x, y, barW, bh - repH);
+            ctx.fillStyle = "rgba(88,86,214,0.85)";
+            ctx.fillRect(x, y + (bh - repH), barW, repH);
+            ctx.fillStyle = "#6e6e73";
+            ctx.font = "10px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(String(it.label).slice(0, 8), x + barW / 2, h - 8);
+          });
+          ctx.fillStyle = "#1d1d1f";
+          ctx.font = "11px sans-serif";
+          ctx.textAlign = "left";
+          ctx.fillText("новые", 8, 14);
+          ctx.fillStyle = "#5856D6";
+          ctx.fillText("повторные", 60, 14);
+        }
+      }
+      if (heatCanvas) {
+        const ctx = heatCanvas.getContext("2d");
+        const w = heatCanvas.width;
+        const h = heatCanvas.height;
+        ctx.clearRect(0, 0, w, h);
+        if (report && report.perSlot && report.perSlot.length) {
+          const dim = diversityOrgDim;
+          /** @type {Map<string, number>} */
+          const keyTotals = new Map();
+          report.perSlot.forEach((ps) => {
+            const heat = (ps.orgHeat && ps.orgHeat[dim]) || {};
+            Object.keys(heat).forEach((k) => keyTotals.set(k, (keyTotals.get(k) || 0) + heat[k]));
+          });
+          const keys = [...keyTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map((x) => x[0]);
+          const cols = report.perSlot;
+          const maxCell = Math.max(1, ...cols.flatMap((ps) => keys.map((k) => ((ps.orgHeat[dim] || {})[k] || 0))));
+          const left = 90;
+          const top = 8;
+          const cw = (w - left - 8) / Math.max(1, cols.length);
+          const rh = (h - top - 20) / Math.max(1, keys.length);
+          keys.forEach((key, ri) => {
+            ctx.fillStyle = "#6e6e73";
+            ctx.font = "10px sans-serif";
+            ctx.textAlign = "right";
+            ctx.fillText(String(key).slice(0, 14), left - 6, top + ri * rh + rh * 0.65);
+            cols.forEach((ps, ci) => {
+              const v = ((ps.orgHeat[dim] || {})[key] || 0);
+              const a = 0.12 + 0.78 * (v / maxCell);
+              ctx.fillStyle = "rgba(0,122,255," + a.toFixed(3) + ")";
+              ctx.fillRect(left + ci * cw + 1, top + ri * rh + 1, cw - 2, rh - 2);
+              if (v > 0) {
+                ctx.fillStyle = "#1d1d1f";
+                ctx.font = "10px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(String(v), left + ci * cw + cw / 2, top + ri * rh + rh * 0.65);
+              }
+            });
+          });
+          cols.forEach((ps, ci) => {
+            ctx.fillStyle = "#6e6e73";
+            ctx.font = "10px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(String(ps.label).slice(0, 8), left + ci * cw + cw / 2, h - 4);
+          });
+        }
+      }
+    }
+
+    function amountQuantilesFromActive() {
+      const rows = allRows.length ? allRows : (getActiveSlot() && getActiveSlot().allRows) || [];
+      const vals = rows.map((r) => Number(r.amount) || 0).sort((a, b) => a - b);
+      if (!vals.length) return {};
+      const q = (p) => {
+        const pos = (vals.length - 1) * p;
+        const lo = Math.floor(pos);
+        const hi = Math.ceil(pos);
+        if (lo === hi) return vals[lo];
+        return vals[lo] * (1 - (pos - lo)) + vals[hi] * (pos - lo);
+      };
+      return { p70: q(0.7), p80: q(0.8), p90: q(0.9) };
+    }
+
+    function runSuggestBetter() {
+      const box = document.getElementById("suggestCards");
+      if (!box) return;
+      if (!CI) {
+        box.innerHTML = '<p class="winners-level-empty">Модуль ContestInterest не загружен.</p>';
+        return;
+      }
+      if (!loadedSlots().length) {
+        box.innerHTML = '<p class="winners-level-empty">Сначала загрузите хотя бы один файл.</p>';
+        return;
+      }
+      winnersConfigFromDom();
+      const winnersBySlot = computeWinnersForAllSlots();
+      const baselineDiv = buildDiversityFromSlots(winnersBySlot);
+      if (!baselineDiv) {
+        box.innerHTML = '<p class="winners-level-empty">Недостаточно данных для оценки.</p>';
+        return;
+      }
+      diversityReport = baselineDiv;
+      renderDiversityPanel();
+
+      const alts = CI.enumerateCriteriaAlternatives(winnersConfig, amountQuantilesFromActive());
+      const prevCfg = JSON.parse(JSON.stringify(winnersConfig));
+      const candidates = [];
+      alts.forEach((alt) => {
+        winnersConfig = sanitizeWinnersConfig(alt.patch);
+        const wb = computeWinnersForAllSlots();
+        const div = buildDiversityFromSlots(wb);
+        if (!div) return;
+        candidates.push({
+          label: alt.label,
+          why: alt.why,
+          patch: alt.patch,
+          metrics: div.metrics,
+          score: div.interestScore,
+          totalWinnersAvg: loadedSlots().reduce((a, s) => {
+            const r = wb.get(s.id);
+            return a + (r ? r.totalWinners : 0);
+          }, 0) / Math.max(1, loadedSlots().length)
+        });
+      });
+      winnersConfig = sanitizeWinnersConfig(prevCfg);
+      renderWinnersList();
+
+      const ranked = CI.rankSuggestions(baselineDiv.metrics, baselineDiv.interestScore, candidates);
+      if (!ranked.length) {
+        box.innerHTML = '<p class="winners-level-empty">Не удалось найти вариант лучше текущего. Критерии уже сбалансированы.</p>';
+        return;
+      }
+      box.innerHTML = ranked.map((c, idx) => {
+        const d = c.deltas || {};
+        return (
+          '<div class="suggest-card" data-suggest-idx="' + idx + '">' +
+            '<p class="suggest-card__title">' + escapeHtml(c.label) + "</p>" +
+            '<p class="suggest-card__meta">' + escapeHtml(c.why || "") +
+            " · score " + baselineDiv.interestScore + " → " + c.score +
+            " (" + (d.score >= 0 ? "+" : "") + d.score + ")" +
+            " · inclusivity " + ((d.inclusivity || 0) >= 0 ? "+" : "") + Math.round((d.inclusivity || 0) * 1000) / 10 + " п.п." +
+            " · покрытие ТБ " + ((d.coverageTb || 0) >= 0 ? "+" : "") + Math.round((d.coverageTb || 0) * 1000) / 10 + " п.п.</p>" +
+            '<div class="suggest-card__actions">' +
+              '<button type="button" class="btn secondary small" data-suggest-apply="' + idx + '">Применить</button>' +
+              '<button type="button" class="btn ghost small" data-suggest-preview="' + idx + '">Как на активном</button>' +
+            "</div></div>"
+        );
+      }).join("");
+      box._suggestRanked = ranked;
+    }
+
+    function applySuggestPatch(patch, persist) {
+      if (!patch) return;
+      winnersConfig = sanitizeWinnersConfig(patch);
+      if (persist !== false) persistWinnersConfig();
+      renderWinnersList();
+      if (allRows.length) rebuild({ light: false });
+      else refreshWinnersPreview();
+    }
+
+    function getIndicatorVariants() {
+      const list = APP_CONFIG.indicatorVariants;
+      if (Array.isArray(list) && list.length) return list;
+      return [{
+        id: "tn",
+        label: "ТН",
+        aliases: APP_CONFIG.tnColumnAliases || ["тн", "tn"]
+      }];
+    }
+
+    function getSelectedIndicatorId() {
+      const sel = document.getElementById("indicatorSelect");
+      const raw = (sel && sel.value) || APP_CONFIG.defaultIndicatorId || "tn";
+      const variants = getIndicatorVariants();
+      if (variants.some((v) => v.id === raw)) return raw;
+      return (variants[0] && variants[0].id) || "tn";
+    }
+
+    function getSelectedIndicator() {
+      const id = getSelectedIndicatorId();
+      const variants = getIndicatorVariants();
+      return variants.find((v) => v.id === id) || variants[0] || {
+        id: "tn",
+        label: "Показатель",
+        aliases: APP_CONFIG.tnColumnAliases || ["тн"]
+      };
+    }
+
+    function getIndicatorAliases(optionalAliases) {
+      if (Array.isArray(optionalAliases) && optionalAliases.length) return optionalAliases;
+      const ind = getSelectedIndicator();
+      if (ind && Array.isArray(ind.aliases) && ind.aliases.length) return ind.aliases;
+      return APP_CONFIG.tnColumnAliases || ["тн", "tn"];
+    }
+
+    function indicatorLabel() {
+      const ind = getSelectedIndicator();
+      return (ind && ind.label) || "Показатель";
+    }
 
     /** Состояние ручных границ */
     const edgeState = {
@@ -2071,6 +701,1072 @@
     /** Последний расчёт для экспорта */
     let lastChartState = null;
 
+    /* —— Параметры победителей (память + расчёт) —— */
+    const WINNERS_STORAGE_KEY = "contestCriteria.winners.v2";
+    const COMPARE_OPS = {
+      gt: { label: ">", fn: (a, b) => a > b },
+      gte: { label: "≥", fn: (a, b) => a >= b },
+      lt: { label: "<", fn: (a, b) => a < b },
+      lte: { label: "≤", fn: (a, b) => a <= b },
+      eq: { label: "=", fn: (a, b) => a === b }
+    };
+    const DIGNITY_META = {
+      1: { label: "Золото", cls: "gold" },
+      2: { label: "Серебро", cls: "silver" },
+      3: { label: "Бронза", cls: "bronze" }
+    };
+    const SCOPE_LABELS = {
+      country: "Вся страна",
+      tb: "Среди ТБ",
+      gosb: "Среди ГОСБ",
+      cluster: "Среди кластера",
+      group: "Среди группы (интервал)"
+    };
+
+    function winnersUid() {
+      return "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    /** @returns {{ type: string, awardItems: object[], tournamentItems: object[], participation: object }} */
+    function defaultWinnersConfig() {
+      return {
+        type: "award",
+        participation: {
+          primary: { enabled: false, op: "gt", value: 0 },
+          secondary: { enabled: false, column: "", op: "gte", value: 85 }
+        },
+        awardItems: [
+          { id: winnersUid(), criterion: 1 },
+          { id: winnersUid(), criterion: 2 },
+          { id: winnersUid(), criterion: 3 }
+        ],
+        tournamentItems: [
+          {
+            id: winnersUid(),
+            dignity: 1,
+            scope: "country",
+            direction: "more",
+            selectMode: "topN",
+            topN: 1,
+            topPct: 10
+          },
+          {
+            id: winnersUid(),
+            dignity: 2,
+            scope: "country",
+            direction: "more",
+            selectMode: "topN",
+            topN: 2,
+            topPct: 10
+          },
+          {
+            id: winnersUid(),
+            dignity: 3,
+            scope: "tb",
+            direction: "more",
+            selectMode: "topPct",
+            topN: 1,
+            topPct: 10
+          }
+        ]
+      };
+    }
+
+    /** @type {{ type: string, awardItems: object[], tournamentItems: object[], participation: object }} */
+    let winnersConfig = loadWinnersConfig();
+
+    function sanitizeCompareOp(op) {
+      return (op && COMPARE_OPS[op]) ? op : "gte";
+    }
+
+    function sanitizeParticipation(raw) {
+      const base = defaultWinnersConfig().participation;
+      const src = (raw && typeof raw === "object") ? raw : {};
+      const primary = (src.primary && typeof src.primary === "object") ? src.primary : {};
+      const secondary = (src.secondary && typeof src.secondary === "object") ? src.secondary : {};
+      return {
+        primary: {
+          enabled: !!(primary.enabled),
+          op: sanitizeCompareOp(primary.op || base.primary.op),
+          value: Number.isFinite(Number(primary.value)) ? Number(primary.value) : base.primary.value
+        },
+        secondary: {
+          enabled: !!(secondary.enabled),
+          column: secondary.column != null ? String(secondary.column).trim() : "",
+          op: sanitizeCompareOp(secondary.op || base.secondary.op),
+          value: Number.isFinite(Number(secondary.value)) ? Number(secondary.value) : base.secondary.value
+        }
+      };
+    }
+
+    function sanitizeWinnersConfig(raw) {
+      const base = defaultWinnersConfig();
+      if (!raw || typeof raw !== "object") return base;
+      const type = raw.type === "tournament" ? "tournament" : "award";
+      const awardItems = Array.isArray(raw.awardItems) ? raw.awardItems : base.awardItems;
+      const tournamentItems = Array.isArray(raw.tournamentItems) ? raw.tournamentItems : base.tournamentItems;
+      return {
+        type,
+        participation: sanitizeParticipation(raw.participation),
+        awardItems: awardItems.map((it) => ({
+          id: String((it && it.id) || winnersUid()),
+          criterion: Number.isFinite(Number(it && it.criterion)) ? Number(it.criterion) : 0,
+          title: it && it.title ? String(it.title) : ""
+        })).filter(Boolean),
+        tournamentItems: tournamentItems.map((it) => {
+          const dig = Number(it && it.dignity);
+          const scope = (it && SCOPE_LABELS[it.scope]) ? it.scope : "country";
+          const direction = (it && it.direction === "less") ? "less" : "more";
+          const selectMode = (it && it.selectMode === "topPct") ? "topPct" : "topN";
+          return {
+            id: String((it && it.id) || winnersUid()),
+            dignity: (dig === 2 || dig === 3) ? dig : 1,
+            scope,
+            direction,
+            selectMode,
+            topN: Math.max(1, Math.round(Number(it && it.topN) || 1)),
+            topPct: Math.max(0.01, Math.min(100, Number(it && it.topPct) || 10)),
+            title: it && it.title ? String(it.title) : ""
+          };
+        }).filter(Boolean)
+      };
+    }
+
+    function loadWinnersConfig() {
+      try {
+        let raw = localStorage.getItem(WINNERS_STORAGE_KEY);
+        if (!raw) raw = localStorage.getItem("contestCriteria.winners.v1");
+        if (!raw) return defaultWinnersConfig();
+        return sanitizeWinnersConfig(JSON.parse(raw));
+      } catch (_err) {
+        return defaultWinnersConfig();
+      }
+    }
+
+    function saveWinnersConfig() {
+      try {
+        localStorage.setItem(WINNERS_STORAGE_KEY, JSON.stringify(winnersConfig));
+      } catch (_err) {
+        /* quota / private mode — память сессии всё равно есть */
+      }
+    }
+
+    function awardPrizeLabel(item) {
+      const title = (item.title || "").trim();
+      if (title) return title;
+      const c = Number(item.criterion);
+      return "Награда ≥ " + (Number.isFinite(c) ? formatAmount(c) : String(item.criterion));
+    }
+
+    function tournamentPrizeLabel(item) {
+      const title = (item.title || "").trim();
+      if (title) return title;
+      const dig = DIGNITY_META[item.dignity] || DIGNITY_META[1];
+      const scope = SCOPE_LABELS[item.scope] || item.scope;
+      const dir = item.direction === "less" ? "меньше = лучше" : "больше = лучше";
+      const sel = item.selectMode === "topPct"
+        ? ("топ " + item.topPct + "%")
+        : ("топ " + item.topN);
+      return dig.label + " · " + scope + " · " + sel + " (" + dir + ")";
+    }
+
+    /**
+     * Значение второстепенной колонки у строки (по имени заголовка).
+     * @param {DataRow} row
+     * @param {string} column
+     * @returns {number|null}
+     */
+    function extraValueForColumn(row, column) {
+      const want = normalizeHeader(column);
+      if (!want || !row || !row.extras) return null;
+      const keys = Object.keys(row.extras);
+      for (let i = 0; i < keys.length; i += 1) {
+        if (normalizeHeader(keys[i]) === want) {
+          const v = Number(row.extras[keys[i]]);
+          return Number.isFinite(v) ? v : null;
+        }
+      }
+      return null;
+    }
+
+    /**
+     * Есть ли колонка среди extras хотя бы у одной строки.
+     * @param {DataRow[]} rows
+     * @param {string} column
+     */
+    function rowsHaveExtraColumn(rows, column) {
+      const want = normalizeHeader(column);
+      if (!want || !rows || !rows.length) return false;
+      for (let i = 0; i < rows.length; i += 1) {
+        if (extraValueForColumn(rows[i], column) != null) return true;
+        const extras = rows[i] && rows[i].extras;
+        if (!extras) continue;
+        const keys = Object.keys(extras);
+        for (let k = 0; k < keys.length; k += 1) {
+          if (normalizeHeader(keys[k]) === want) return true;
+        }
+      }
+      return false;
+    }
+
+    /**
+     * Фильтр участников по критериям участия.
+     * Второстепенный: если колонки нет в данных — не применяется (участвуют все по этому пункту).
+     * @param {DataRow[]} rows
+     * @returns {{ rows: DataRow[], meta: object }}
+     */
+    function filterParticipationRows(rows) {
+      const safe = Array.isArray(rows) ? rows : [];
+      const part = (winnersConfig && winnersConfig.participation)
+        ? winnersConfig.participation
+        : defaultWinnersConfig().participation;
+      const primary = part.primary || {};
+      const secondary = part.secondary || {};
+      const primaryOp = COMPARE_OPS[sanitizeCompareOp(primary.op)] || COMPARE_OPS.gt;
+      const secondaryOp = COMPARE_OPS[sanitizeCompareOp(secondary.op)] || COMPARE_OPS.gte;
+      const primaryEnabled = !!primary.enabled;
+      const secondaryWanted = !!secondary.enabled && !!(secondary.column && String(secondary.column).trim());
+      const secondaryPresent = secondaryWanted && rowsHaveExtraColumn(safe, secondary.column);
+      const secondaryApplied = secondaryWanted && secondaryPresent;
+      const secondarySkippedMissing = secondaryWanted && !secondaryPresent;
+
+      /** @type {DataRow[]} */
+      const out = [];
+      for (let i = 0; i < safe.length; i += 1) {
+        const row = safe[i];
+        if (primaryEnabled) {
+          const amt = Number(row.amount) || 0;
+          if (!primaryOp.fn(amt, Number(primary.value))) continue;
+        }
+        if (secondaryApplied) {
+          const v = extraValueForColumn(row, secondary.column);
+          if (v == null || !secondaryOp.fn(v, Number(secondary.value))) continue;
+        }
+        out.push(row);
+      }
+      return {
+        rows: out,
+        meta: {
+          before: safe.length,
+          after: out.length,
+          primaryApplied: primaryEnabled,
+          secondaryApplied,
+          secondarySkippedMissing,
+          secondaryColumn: secondary.column ? String(secondary.column).trim() : ""
+        }
+      };
+    }
+
+    /**
+     * Карта победителей + отчёт по уровням.
+     * @param {DataRow[]} rows
+     * @param {number[]} edges
+     * @param {string[]} labels
+     * @returns {{
+     *   map: Map<string, { won: boolean, prizes: string[] }>,
+     *   totalParticipants: number,
+     *   totalWinners: number,
+     *   type: string,
+     *   rules: object[],
+     *   participation: object
+     * }}
+     */
+    function computeWinnersResult(rows, edges, labels) {
+      /** @type {Map<string, { won: boolean, prizes: string[] }>} */
+      const map = new Map();
+      const ensure = (tn) => {
+        if (!map.has(tn)) map.set(tn, { won: false, prizes: [] });
+        return map.get(tn);
+      };
+      const addPrize = (tn, prize) => {
+        const rec = ensure(tn);
+        if (!rec.prizes.includes(prize)) rec.prizes.push(prize);
+        rec.won = true;
+      };
+
+      /** @type {object[]} */
+      const rules = [];
+      const filtered = filterParticipationRows(rows);
+      const safeRows = filtered.rows;
+      const participationMeta = filtered.meta;
+
+      /**
+       * @param {DataRow} row
+       * @param {string} scope
+       */
+      function scopeKey(row, scope) {
+        if (scope === "tb") return (row.tb || "").trim() || "(пусто)";
+        if (scope === "gosb") return (row.gosb || "").trim() || "(пусто)";
+        if (scope === "cluster") return (row.cluster || "").trim() || "(пусто)";
+        if (scope === "group") {
+          return groupNameForAmount(row.amount, edges, labels || []) || "(без группы)";
+        }
+        return "Вся страна";
+      }
+
+      /**
+       * @param {string} scope
+       * @param {DataRow[]} winners
+       * @param {DataRow[]} allInScope
+       */
+      function buildLevels(scope, winners, allInScope) {
+        /** @type {Map<string, { key: string, participants: number, winners: DataRow[] }>} */
+        const buckets = new Map();
+        const bump = (key, field, row) => {
+          if (!buckets.has(key)) buckets.set(key, { key, participants: 0, winners: [] });
+          const b = buckets.get(key);
+          if (field === "p") b.participants += 1;
+          else b.winners.push(row);
+        };
+        for (let i = 0; i < allInScope.length; i += 1) {
+          bump(scopeKey(allInScope[i], scope), "p", allInScope[i]);
+        }
+        for (let i = 0; i < winners.length; i += 1) {
+          bump(scopeKey(winners[i], scope), "w", winners[i]);
+        }
+        const levels = [...buckets.values()].map((b) => ({
+          key: b.key,
+          label: b.key,
+          participants: b.participants,
+          winnerCount: b.winners.length,
+          winners: b.winners
+            .slice()
+            .sort((a, c) => (Number(c.amount) || 0) - (Number(a.amount) || 0))
+            .map((r) => ({
+              tn: r.tn,
+              amount: Number(r.amount) || 0,
+              tb: r.tb || "",
+              gosb: r.gosb || "",
+              cluster: r.cluster || ""
+            }))
+        }));
+        levels.sort((a, b) => b.winnerCount - a.winnerCount || a.label.localeCompare(b.label, "ru"));
+        return levels;
+      }
+
+      if (winnersConfig.type === "award") {
+        const items = winnersConfig.awardItems || [];
+        for (let i = 0; i < items.length; i += 1) {
+          const item = items[i];
+          const thr = Number(item.criterion);
+          if (!Number.isFinite(thr)) continue;
+          const prize = awardPrizeLabel(item);
+          /** @type {DataRow[]} */
+          const winners = [];
+          for (let r = 0; r < safeRows.length; r += 1) {
+            const row = safeRows[r];
+            if ((Number(row.amount) || 0) >= thr) {
+              addPrize(row.tn, prize);
+              winners.push(row);
+            }
+          }
+          rules.push({
+            id: item.id,
+            kind: "award",
+            label: prize,
+            scope: "country",
+            winnerCount: winners.length,
+            // для награды показываем разбивку и по ТБ / ГОСБ / кластеру
+            breakdowns: {
+              country: buildLevels("country", winners, safeRows),
+              tb: buildLevels("tb", winners, safeRows),
+              gosb: buildLevels("gosb", winners, safeRows),
+              cluster: buildLevels("cluster", winners, safeRows),
+              group: buildLevels("group", winners, safeRows)
+            }
+          });
+        }
+      } else {
+        // Турнир: награды с одним и тем же кругом (scope) идут каскадом по достоинству
+        // (золото → серебро → …): топ‑N берётся из ещё не награждённых на этом круге.
+        // Пример: страна топ‑2 золото + страна топ‑5 серебро → 2 золота, следующие 5 серебро.
+        const rawItems = winnersConfig.tournamentItems || [];
+        const items = rawItems
+          .map((it, idx) => ({ it, idx }))
+          .sort((a, b) => {
+            const da = Number(a.it && a.it.dignity) || 99;
+            const db = Number(b.it && b.it.dignity) || 99;
+            if (da !== db) return da - db;
+            return a.idx - b.idx;
+          })
+          .map((x) => x.it);
+
+        /** Уже получившие награду на данном круге (tn) — для каскада. */
+        /** @type {Map<string, Set<string>>} */
+        const awardedByScope = new Map();
+
+        for (let i = 0; i < items.length; i += 1) {
+          const item = items[i];
+          const prize = tournamentPrizeLabel(item);
+          const scope = item.scope || "country";
+          if (!awardedByScope.has(scope)) awardedByScope.set(scope, new Set());
+          const awarded = awardedByScope.get(scope);
+
+          /** @type {Map<string, DataRow[]>} */
+          const buckets = new Map();
+          for (let r = 0; r < safeRows.length; r += 1) {
+            const row = safeRows[r];
+            const key = scopeKey(row, scope);
+            if (!buckets.has(key)) buckets.set(key, []);
+            buckets.get(key).push(row);
+          }
+          /** @type {DataRow[]} */
+          const winners = [];
+          /** @type {object[]} */
+          const levels = [];
+          for (const [key, groupRows] of buckets.entries()) {
+            const sorted = groupRows.slice().sort((a, b) => {
+              const da = Number(a.amount) || 0;
+              const db = Number(b.amount) || 0;
+              if (item.direction === "less") return da - db;
+              return db - da;
+            });
+            const nAll = sorted.length;
+            if (!nAll) continue;
+            // Кандидаты: ещё не взяли награду этого же круга (каскад)
+            const eligible = sorted.filter((row) => !awarded.has(row.tn));
+            const n = eligible.length;
+            if (!n) {
+              levels.push({
+                key,
+                label: key,
+                participants: nAll,
+                winnerCount: 0,
+                winners: []
+              });
+              continue;
+            }
+            let take = 1;
+            if (item.selectMode === "topPct") {
+              // % от полного состава уровня; берём столько из ещё не награждённых
+              take = Math.max(1, Math.ceil((nAll * Number(item.topPct)) / 100));
+            } else {
+              take = Math.max(1, Math.round(Number(item.topN) || 1));
+            }
+            take = Math.min(take, n);
+            const cutoff = Number(eligible[take - 1].amount) || 0;
+            /** @type {DataRow[]} */
+            const levelWinners = [];
+            for (let k = 0; k < n; k += 1) {
+              if (k < take) {
+                levelWinners.push(eligible[k]);
+                continue;
+              }
+              const amt = Number(eligible[k].amount) || 0;
+              if (amt === cutoff) levelWinners.push(eligible[k]);
+              else break;
+            }
+            for (let w = 0; w < levelWinners.length; w += 1) {
+              const row = levelWinners[w];
+              addPrize(row.tn, prize);
+              awarded.add(row.tn);
+              winners.push(row);
+            }
+            levels.push({
+              key,
+              label: key,
+              participants: nAll,
+              winnerCount: levelWinners.length,
+              winners: levelWinners.map((r) => ({
+                tn: r.tn,
+                amount: Number(r.amount) || 0,
+                tb: r.tb || "",
+                gosb: r.gosb || "",
+                cluster: r.cluster || ""
+              }))
+            });
+          }
+          levels.sort((a, b) => b.winnerCount - a.winnerCount || a.label.localeCompare(b.label, "ru"));
+          rules.push({
+            id: item.id,
+            kind: "tournament",
+            label: prize,
+            scope,
+            scopeLabel: SCOPE_LABELS[scope] || scope,
+            winnerCount: winners.length,
+            levels
+          });
+        }
+      }
+
+      let totalWinners = 0;
+      for (const rec of map.values()) {
+        if (rec.won) totalWinners += 1;
+      }
+      return {
+        map,
+        totalParticipants: safeRows.length,
+        totalCandidates: participationMeta.before,
+        totalWinners,
+        type: winnersConfig.type,
+        rules,
+        participation: participationMeta
+      };
+    }
+
+    /** Обратная совместимость: только карта tn → награды. */
+    function computeWinnersMap(rows, edges, labels) {
+      return computeWinnersResult(rows, edges, labels).map;
+    }
+
+    function winnersLookup(map, tn) {
+      const rec = map && map.get(tn);
+      if (!rec || !rec.won) return { won: false, prize: "" };
+      return { won: true, prize: (rec.prizes || []).join("; ") };
+    }
+
+    /** @type {string} активный разрез в сводке для режима «награда» */
+    let winnersAwardBreakdown = "tb";
+    let winnersRecalcTimer = 0;
+
+    function formatWinnerChip(w) {
+      return (
+        '<span class="winners-chip">' +
+          '<span>' + escapeHtml(formatTn8(w.tn)) + '</span>' +
+          '<span class="winners-chip__amt">' + escapeHtml(formatAmount(w.amount)) + '</span>' +
+        '</span>'
+      );
+    }
+
+    function renderWinnerChips(list, limit) {
+      const lim = limit || 8;
+      if (!list || !list.length) return '<span class="winners-level-empty">нет</span>';
+      const shown = list.slice(0, lim);
+      const rest = list.length - shown.length;
+      return (
+        '<div class="winners-chips">' +
+          shown.map(formatWinnerChip).join("") +
+          (rest > 0 ? '<span class="winners-chip is-more">+' + rest + '</span>' : "") +
+        '</div>'
+      );
+    }
+
+    /**
+     * @param {object[]} levels
+     * @param {string} levelTitle
+     */
+    function renderLevelsTable(levels, levelTitle) {
+      if (!levels || !levels.length) {
+        return '<p class="winners-level-empty">Нет уровней для отображения.</p>';
+      }
+      const withWinners = levels.filter((l) => l.winnerCount > 0);
+      if (!withWinners.length) {
+        return '<p class="winners-level-empty">По этому правилу никто не проходит.</p>';
+      }
+      const hiddenEmpty = levels.length - withWinners.length;
+      const rowsHtml = withWinners.map((lv) => (
+        '<tr>' +
+          '<td>' + escapeHtml(lv.label) + '</td>' +
+          '<td class="num">' + lv.participants + '</td>' +
+          '<td class="num">' + lv.winnerCount + '</td>' +
+          '<td>' + renderWinnerChips(lv.winners, 6) + '</td>' +
+        '</tr>'
+      )).join("");
+      return (
+        '<table class="winners-level-table">' +
+          '<thead><tr>' +
+            '<th>' + escapeHtml(levelTitle) + '</th>' +
+            '<th class="num">Участников</th>' +
+            '<th class="num">Победителей</th>' +
+            '<th>Кто</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rowsHtml + '</tbody>' +
+        '</table>' +
+        (hiddenEmpty > 0
+          ? '<p class="winners-level-empty">Без победителей скрыто уровней: ' + hiddenEmpty + '</p>'
+          : '')
+      );
+    }
+
+    function refreshWinnersPreview() {
+      const reportEl = document.getElementById("winnersReport");
+      const body = document.getElementById("winnersReportBody");
+      const meta = document.getElementById("winnersReportMeta");
+      const multiMeta = document.getElementById("winnersMultiMeta");
+      if (!reportEl || !body || !meta) return;
+
+      if (!lastChartState || !lastChartState.rows || !lastChartState.rows.length) {
+        reportEl.className = "winners-report is-empty";
+        meta.textContent = "Загрузите данные — здесь будет разбивка по уровням (страна / ТБ / ГОСБ / кластер / группа).";
+        body.innerHTML = "";
+        if (multiMeta) multiMeta.textContent = "Победители пересчитываются по каждому загруженному слоту отдельно.";
+        diversityReport = null;
+        renderDiversityPanel();
+        return;
+      }
+
+      const edges = lastChartState.edges || [];
+      const labels = (lastChartState.hist && lastChartState.hist.labels) || [];
+      const result = computeWinnersResult(lastChartState.rows, edges, labels);
+      reportEl.className = "winners-report";
+
+      const winnersBySlot = computeWinnersForAllSlots();
+      const loadedN = loadedSlots().length;
+      const doneN = winnersBySlot.size;
+      if (multiMeta) {
+        multiMeta.textContent =
+          "Победители пересчитаны для " + doneN + " из " + Math.max(loadedN, 1) +
+          " загруженных слотов (критерии общие, результат по каждому файлу свой).";
+      }
+
+      if (loadedN >= 1 && CI) {
+        diversityReport = buildDiversityFromSlots(winnersBySlot);
+        renderDiversityPanel();
+      }
+
+      const part = result.participation || {};
+      const partBits = [];
+      if (part.primaryApplied) partBits.push("основной");
+      if (part.secondaryApplied) partBits.push("второстеп.«" + (part.secondaryColumn || "") + "»");
+      if (part.secondarySkippedMissing) {
+        partBits.push("второстеп. пропущен (нет колонки «" + (part.secondaryColumn || "") + "»)");
+      }
+      const cand = (result.totalCandidates != null) ? result.totalCandidates : result.totalParticipants;
+      meta.textContent =
+        "Активный слот · кандидатов: " + cand +
+        " → участников: " + result.totalParticipants +
+        (partBits.length ? (" [" + partBits.join("; ") + "]") : "") +
+        " · уникальных победителей: " + result.totalWinners +
+        " · правил/наград: " + result.rules.length +
+        " · пересчёт при любом изменении критериев.";
+
+      const statsHtml =
+        '<div class="winners-report__stats">' +
+          '<div class="winners-stat"><span class="winners-stat__n">' + cand + '</span><span class="winners-stat__l">кандидатов</span></div>' +
+          '<div class="winners-stat"><span class="winners-stat__n">' + result.totalParticipants + '</span><span class="winners-stat__l">участников</span></div>' +
+          '<div class="winners-stat"><span class="winners-stat__n">' + result.totalWinners + '</span><span class="winners-stat__l">победителей</span></div>' +
+          '<div class="winners-stat"><span class="winners-stat__n">' + result.rules.length + '</span><span class="winners-stat__l">наград</span></div>' +
+        '</div>';
+
+      if (!result.rules.length) {
+        body.innerHTML = statsHtml + '<p class="winners-level-empty">Добавьте хотя бы одну награду.</p>';
+        return;
+      }
+
+      /** @type {Set<string>} */
+      const openIds = new Set();
+      body.querySelectorAll("details.winners-rule[open]").forEach((d) => {
+        const id = d.getAttribute("data-rule-id");
+        if (id) openIds.add(id);
+      });
+      const keepOpen = openIds.size > 0;
+
+      const breakdownKeys = [
+        { id: "country", label: "Страна" },
+        { id: "tb", label: "ТБ" },
+        { id: "gosb", label: "ГОСБ" },
+        { id: "cluster", label: "Кластер" },
+        { id: "group", label: "Группа" }
+      ];
+      if (!breakdownKeys.some((k) => k.id === winnersAwardBreakdown)) winnersAwardBreakdown = "tb";
+
+      const rulesHtml = result.rules.map((rule, idx) => {
+        let inner = "";
+        if (rule.kind === "award") {
+          const tabs = breakdownKeys.map((k) =>
+            '<button type="button" class="seg__btn' + (winnersAwardBreakdown === k.id ? " is-on" : "") +
+            '" data-breakdown="' + k.id + '">' + k.label + "</button>"
+          ).join("");
+          const levels = (rule.breakdowns && rule.breakdowns[winnersAwardBreakdown]) || [];
+          const title = (breakdownKeys.find((k) => k.id === winnersAwardBreakdown) || {}).label || "Уровень";
+          inner =
+            '<div class="winners-breakdown-tabs" role="group" aria-label="Разбивка по уровню">' + tabs + "</div>" +
+            renderLevelsTable(levels, title);
+        } else {
+          inner =
+            '<p class="winners-report__meta" style="margin:0">Круг: ' + escapeHtml(rule.scopeLabel || rule.scope) +
+            " · уровней: " + (rule.levels ? rule.levels.length : 0) + "</p>" +
+            renderLevelsTable(rule.levels || [], rule.scopeLabel || "Уровень");
+        }
+        const isOpen = keepOpen ? openIds.has(rule.id) : idx === 0;
+        return (
+          '<details class="winners-rule" data-rule-id="' + escapeHtml(rule.id) + '"' + (isOpen ? " open" : "") + '>' +
+            '<summary>' +
+              '<span>' + escapeHtml(rule.label) + '</span>' +
+              '<span class="winners-rule__count">' + rule.winnerCount + ' побед.</span>' +
+            '</summary>' +
+            '<div class="winners-rule__body">' + inner + '</div>' +
+          '</details>'
+        );
+      }).join("");
+
+      body.innerHTML = statsHtml + rulesHtml;
+    }
+
+    function scheduleWinnersRecalc() {
+      if (winnersRecalcTimer) clearTimeout(winnersRecalcTimer);
+      winnersRecalcTimer = setTimeout(() => {
+        winnersRecalcTimer = 0;
+        persistWinnersFromUi();
+      }, 120);
+    }
+
+    function renderWinnersList() {
+      syncParticipationUiFromConfig();
+      const list = document.getElementById("winnersList");
+      const panel = document.getElementById("winnersPanel");
+      if (!list || !panel) return;
+      panel.setAttribute("data-type", winnersConfig.type);
+      const typeSel = document.getElementById("winnersType");
+      if (typeSel) typeSel.value = winnersConfig.type;
+      syncSegFromSelect(document.getElementById("winnersTypeSeg"), typeSel);
+
+      if (winnersConfig.type === "award") {
+        const items = winnersConfig.awardItems;
+        if (!items.length) {
+          list.innerHTML = '<div class="empty">Нет наград — нажмите «+ Награда».</div>';
+          return;
+        }
+        list.innerHTML = items.map((item, idx) => `
+          <div class="winners-card" data-id="${escapeHtml(item.id)}">
+            <div class="winners-card__top">
+              <span class="winners-card__badge"><span class="dot award"></span>Награда ${idx + 1}</span>
+              <button type="button" class="btn ghost small winners-card__remove" data-act="remove" data-tip="Удалить награду">✕</button>
+            </div>
+            <div class="winners-card__grid">
+              <label class="field">
+                <span>Критерий (достиг ≥)</span>
+                <input type="number" step="any" data-field="criterion" value="${escapeHtml(String(item.criterion))}">
+              </label>
+              <label class="field">
+                <span>Подпись в экспорте (необяз.)</span>
+                <input type="text" data-field="title" placeholder="например «Приз 10»" value="${escapeHtml(item.title || "")}">
+              </label>
+            </div>
+          </div>
+        `).join("");
+        return;
+      }
+
+      const items = winnersConfig.tournamentItems;
+      if (!items.length) {
+        list.innerHTML = '<div class="empty">Нет наград — нажмите «+ Награда».</div>';
+        return;
+      }
+      list.innerHTML = items.map((item, idx) => {
+        const dig = DIGNITY_META[item.dignity] || DIGNITY_META[1];
+        const scopeOpts = Object.keys(SCOPE_LABELS).map((k) =>
+          `<option value="${k}"${item.scope === k ? " selected" : ""}>${SCOPE_LABELS[k]}</option>`
+        ).join("");
+        return `
+          <div class="winners-card" data-id="${escapeHtml(item.id)}">
+            <div class="winners-card__top">
+              <span class="winners-card__badge"><span class="dot ${dig.cls}"></span>Награда ${idx + 1} · ${dig.label}</span>
+              <button type="button" class="btn ghost small winners-card__remove" data-act="remove" data-tip="Удалить награду">✕</button>
+            </div>
+            <div class="winners-card__grid">
+              <label class="field">
+                <span>Достоинство</span>
+                <select data-field="dignity">
+                  <option value="1"${item.dignity === 1 ? " selected" : ""}>1 — Золото</option>
+                  <option value="2"${item.dignity === 2 ? " selected" : ""}>2 — Серебро</option>
+                  <option value="3"${item.dignity === 3 ? " selected" : ""}>3 — Бронза</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Круг отбора</span>
+                <select data-field="scope">${scopeOpts}</select>
+              </label>
+              <label class="field">
+                <span>Лучший — кто</span>
+                <select data-field="direction">
+                  <option value="more"${item.direction === "more" ? " selected" : ""}>Сделал больше</option>
+                  <option value="less"${item.direction === "less" ? " selected" : ""}>Сделал меньше</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Отбор</span>
+                <select data-field="selectMode">
+                  <option value="topN"${item.selectMode === "topN" ? " selected" : ""}>Лучшие N</option>
+                  <option value="topPct"${item.selectMode === "topPct" ? " selected" : ""}>Лучшие %</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Число лучших (N)</span>
+                <input type="number" min="1" step="1" data-field="topN" value="${escapeHtml(String(item.topN))}">
+              </label>
+              <label class="field">
+                <span>Процент лучших (%)</span>
+                <input type="number" min="0.01" max="100" step="0.01" data-field="topPct" value="${escapeHtml(String(item.topPct))}">
+              </label>
+              <label class="field">
+                <span>Подпись в экспорте (необяз.)</span>
+                <input type="text" data-field="title" placeholder="например «Золото страны»" value="${escapeHtml(item.title || "")}">
+              </label>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function collectExtraColumnNames() {
+      /** @type {Set<string>} */
+      const set = new Set();
+      loadedSlots().forEach((slot) => {
+        const rows = slot.allRows || [];
+        for (let i = 0; i < rows.length; i += 1) {
+          const extras = rows[i] && rows[i].extras;
+          if (!extras) continue;
+          Object.keys(extras).forEach((k) => {
+            if (k) set.add(k);
+          });
+        }
+      });
+      if (lastParsed && Array.isArray(lastParsed.headers)) {
+        // подсказки из заголовков активного файла (кроме известных служебных)
+        const skip = new Set(
+          []
+            .concat(getIndicatorAliases())
+            .concat(APP_CONFIG.amountColumnAliases || [])
+            .concat(APP_CONFIG.tbColumnAliases || [])
+            .concat(APP_CONFIG.gosbColumnAliases || [])
+            .concat(APP_CONFIG.clusterColumnAliases || [])
+            .map(normalizeHeader)
+        );
+        lastParsed.headers.forEach((h) => {
+          const name = String(h || "").trim();
+          if (!name) return;
+          if (skip.has(normalizeHeader(name))) return;
+          set.add(name);
+        });
+      }
+      return [...set].sort((a, b) => a.localeCompare(b, "ru"));
+    }
+
+    function syncParticipationUiFromConfig() {
+      const part = winnersConfig.participation || defaultWinnersConfig().participation;
+      const pEn = document.getElementById("partPrimaryEnabled");
+      const pOp = document.getElementById("partPrimaryOp");
+      const pVal = document.getElementById("partPrimaryValue");
+      const sEn = document.getElementById("partSecondaryEnabled");
+      const sCol = document.getElementById("partSecondaryColumn");
+      const sOp = document.getElementById("partSecondaryOp");
+      const sVal = document.getElementById("partSecondaryValue");
+      const pSw = document.getElementById("partPrimarySwitch");
+      const sSw = document.getElementById("partSecondarySwitch");
+      if (pEn) {
+        pEn.checked = !!(part.primary && part.primary.enabled);
+        pEn.setAttribute("aria-checked", pEn.checked ? "true" : "false");
+      }
+      if (pSw) pSw.classList.toggle("is-on", !!(part.primary && part.primary.enabled));
+      if (pOp) pOp.value = sanitizeCompareOp(part.primary && part.primary.op);
+      if (pVal) pVal.value = String((part.primary && part.primary.value) != null ? part.primary.value : 0);
+      if (sEn) {
+        sEn.checked = !!(part.secondary && part.secondary.enabled);
+        sEn.setAttribute("aria-checked", sEn.checked ? "true" : "false");
+      }
+      if (sSw) sSw.classList.toggle("is-on", !!(part.secondary && part.secondary.enabled));
+      if (sCol) sCol.value = (part.secondary && part.secondary.column) ? String(part.secondary.column) : "";
+      if (sOp) sOp.value = sanitizeCompareOp(part.secondary && part.secondary.op);
+      if (sVal) sVal.value = String((part.secondary && part.secondary.value) != null ? part.secondary.value : 85);
+
+      const list = document.getElementById("partSecondaryColumnsList");
+      if (list) {
+        const cols = collectExtraColumnNames();
+        list.innerHTML = cols.map((c) => '<option value="' + escapeHtml(c) + '"></option>').join("");
+      }
+    }
+
+    function participationFromDom() {
+      const pEn = document.getElementById("partPrimaryEnabled");
+      const pOp = document.getElementById("partPrimaryOp");
+      const pVal = document.getElementById("partPrimaryValue");
+      const sEn = document.getElementById("partSecondaryEnabled");
+      const sCol = document.getElementById("partSecondaryColumn");
+      const sOp = document.getElementById("partSecondaryOp");
+      const sVal = document.getElementById("partSecondaryValue");
+      winnersConfig.participation = sanitizeParticipation({
+        primary: {
+          enabled: !!(pEn && pEn.checked),
+          op: pOp ? pOp.value : "gt",
+          value: pVal ? Number(pVal.value) : 0
+        },
+        secondary: {
+          enabled: !!(sEn && sEn.checked),
+          column: sCol ? String(sCol.value || "") : "",
+          op: sOp ? sOp.value : "gte",
+          value: sVal ? Number(sVal.value) : 85
+        }
+      });
+    }
+
+    function winnersConfigFromDom() {
+      participationFromDom();
+      const typeSel = document.getElementById("winnersType");
+      const type = (typeSel && typeSel.value === "tournament") ? "tournament" : "award";
+      const list = document.getElementById("winnersList");
+      if (!list) return;
+      if (type === "award") {
+        const next = [];
+        list.querySelectorAll(".winners-card").forEach((card) => {
+          const id = card.getAttribute("data-id") || winnersUid();
+          const criterionEl = card.querySelector('[data-field="criterion"]');
+          const titleEl = card.querySelector('[data-field="title"]');
+          next.push({
+            id,
+            criterion: Number(criterionEl && criterionEl.value),
+            title: titleEl ? String(titleEl.value || "") : ""
+          });
+        });
+        winnersConfig.type = "award";
+        winnersConfig.awardItems = next;
+      } else {
+        const next = [];
+        list.querySelectorAll(".winners-card").forEach((card) => {
+          const id = card.getAttribute("data-id") || winnersUid();
+          const dig = Number((card.querySelector('[data-field="dignity"]') || {}).value);
+          const scope = (card.querySelector('[data-field="scope"]') || {}).value || "country";
+          const direction = (card.querySelector('[data-field="direction"]') || {}).value || "more";
+          const selectMode = (card.querySelector('[data-field="selectMode"]') || {}).value || "topN";
+          const topN = Number((card.querySelector('[data-field="topN"]') || {}).value);
+          const topPct = Number((card.querySelector('[data-field="topPct"]') || {}).value);
+          const titleEl = card.querySelector('[data-field="title"]');
+          next.push({
+            id,
+            dignity: (dig === 2 || dig === 3) ? dig : 1,
+            scope: SCOPE_LABELS[scope] ? scope : "country",
+            direction: direction === "less" ? "less" : "more",
+            selectMode: selectMode === "topPct" ? "topPct" : "topN",
+            topN: Math.max(1, Math.round(topN || 1)),
+            topPct: Math.max(0.01, Math.min(100, topPct || 10)),
+            title: titleEl ? String(titleEl.value || "") : ""
+          });
+        });
+        winnersConfig.type = "tournament";
+        winnersConfig.tournamentItems = next;
+      }
+    }
+
+    function persistWinnersFromUi() {
+      winnersConfigFromDom();
+      winnersConfig = sanitizeWinnersConfig(winnersConfig);
+      saveWinnersConfig();
+      refreshWinnersPreview();
+    }
+
+    function initWinnersUi() {
+      const typeSel = document.getElementById("winnersType");
+      const typeSeg = document.getElementById("winnersTypeSeg");
+      const list = document.getElementById("winnersList");
+      const btnAdd = document.getElementById("btnWinnersAdd");
+      const btnReset = document.getElementById("btnWinnersReset");
+      const btnRecalc = document.getElementById("btnWinnersRecalc");
+      const reportBody = document.getElementById("winnersReportBody");
+      renderWinnersList();
+      refreshWinnersPreview();
+
+      const partBox = document.getElementById("participationBox");
+      if (partBox) {
+        const syncSwitch = (inputId, wrapId) => {
+          const input = document.getElementById(inputId);
+          const wrap = document.getElementById(wrapId);
+          if (!input || !wrap) return;
+          wrap.classList.toggle("is-on", !!input.checked);
+          input.setAttribute("aria-checked", input.checked ? "true" : "false");
+        };
+        partBox.addEventListener("change", (ev) => {
+          const t = ev.target;
+          if (t && t.id === "partPrimaryEnabled") syncSwitch("partPrimaryEnabled", "partPrimarySwitch");
+          if (t && t.id === "partSecondaryEnabled") syncSwitch("partSecondaryEnabled", "partSecondarySwitch");
+          persistWinnersFromUi();
+        });
+        partBox.addEventListener("input", (ev) => {
+          const t = ev.target;
+          if (t && (t.tagName === "SELECT" || t.type === "checkbox")) {
+            persistWinnersFromUi();
+            return;
+          }
+          scheduleWinnersRecalc();
+        });
+      }
+
+      bindSegmentedControl(typeSeg, typeSel, () => {
+        winnersConfig.type = (typeSel && typeSel.value === "tournament") ? "tournament" : "award";
+        saveWinnersConfig();
+        renderWinnersList();
+        refreshWinnersPreview();
+      });
+
+      if (btnRecalc) {
+        btnRecalc.addEventListener("click", () => {
+          persistWinnersFromUi();
+          // если график уже есть — убедимся, что фильтры актуальны
+          if (allRows.length) rebuild({ light: false });
+          else refreshWinnersPreview();
+        });
+      }
+
+      if (reportBody) {
+        reportBody.addEventListener("click", (ev) => {
+          const btn = ev.target && ev.target.closest ? ev.target.closest("[data-breakdown]") : null;
+          if (!btn) return;
+          const id = btn.getAttribute("data-breakdown");
+          if (!id || id === winnersAwardBreakdown) return;
+          winnersAwardBreakdown = id;
+          refreshWinnersPreview();
+        });
+      }
+
+      if (btnAdd) {
+        btnAdd.addEventListener("click", () => {
+          winnersConfigFromDom();
+          if (winnersConfig.type === "award") {
+            winnersConfig.awardItems.push({ id: winnersUid(), criterion: 10, title: "" });
+          } else {
+            winnersConfig.tournamentItems.push({
+              id: winnersUid(),
+              dignity: 1,
+              scope: "country",
+              direction: "more",
+              selectMode: "topN",
+              topN: 1,
+              topPct: 10,
+              title: ""
+            });
+          }
+          saveWinnersConfig();
+          renderWinnersList();
+          refreshWinnersPreview();
+        });
+      }
+      if (btnReset) {
+        btnReset.addEventListener("click", () => {
+          winnersConfig = defaultWinnersConfig();
+          saveWinnersConfig();
+          renderWinnersList();
+          refreshWinnersPreview();
+        });
+      }
+      if (list) {
+        list.addEventListener("click", (ev) => {
+          const btn = ev.target && ev.target.closest ? ev.target.closest("[data-act=remove]") : null;
+          if (!btn) return;
+          const card = btn.closest(".winners-card");
+          if (!card) return;
+          const id = card.getAttribute("data-id");
+          winnersConfigFromDom();
+          if (winnersConfig.type === "award") {
+            winnersConfig.awardItems = winnersConfig.awardItems.filter((x) => x.id !== id);
+          } else {
+            winnersConfig.tournamentItems = winnersConfig.tournamentItems.filter((x) => x.id !== id);
+          }
+          saveWinnersConfig();
+          renderWinnersList();
+          refreshWinnersPreview();
+        });
+        // select/change — сразу; ввод чисел — с лёгкой задержкой
+        list.addEventListener("change", () => persistWinnersFromUi());
+        list.addEventListener("input", (ev) => {
+          const t = ev.target;
+          if (t && t.tagName === "SELECT") {
+            persistWinnersFromUi();
+            return;
+          }
+          scheduleWinnersRecalc();
+        });
+      }
+    }
+
     /** Области столбиков для hover-подсказки (координаты CSS-пикселей canvas). */
     /** @type {{ x: number, y: number, w: number, h: number, tip: string, canvas?: HTMLCanvasElement }[]} */
     let chartHitBars = [];
@@ -2082,6 +1778,8 @@
       tabCompare: document.getElementById("tabCompare"),
       tabAnalysis: document.getElementById("tabAnalysis"),
       fileInput: document.getElementById("fileInput"),
+      indicatorSelect: document.getElementById("indicatorSelect"),
+      indicatorSeg: document.getElementById("indicatorSeg"),
       fileInputB: document.getElementById("fileInputB"),
       fileOverviewA: document.getElementById("fileOverviewA"),
       fileOverviewB: document.getElementById("fileOverviewB"),
@@ -2372,7 +2070,8 @@
             amount: row.amount,
             tb: row.tb || "",
             gosb: row.gosb || "",
-            cluster: row.cluster || ""
+            cluster: row.cluster || "",
+            extras: row.extras ? Object.assign({}, row.extras) : {}
           });
           continue;
         }
@@ -2380,11 +2079,27 @@
         if (!prev.tb && row.tb) prev.tb = row.tb;
         if (!prev.gosb && row.gosb) prev.gosb = row.gosb;
         if (!prev.cluster && row.cluster) prev.cluster = row.cluster;
+        // Второстепенные: первое конечное значение по каждому ключу (как у ТБ/ГОСБ)
+        if (row.extras) {
+          if (!prev.extras) prev.extras = {};
+          const keys = Object.keys(row.extras);
+          for (let i = 0; i < keys.length; i += 1) {
+            const k = keys[i];
+            if (prev.extras[k] == null || !Number.isFinite(Number(prev.extras[k]))) {
+              const v = Number(row.extras[k]);
+              if (Number.isFinite(v)) prev.extras[k] = v;
+            }
+          }
+        }
       }
       return [...map.values()];
     }
 
-    function parseTableText(text) {
+    /**
+     * @param {string} text
+     * @param {string[]=} indicatorAliases необязательные алиасы показателя (иначе — из UI/config)
+     */
+    function parseTableText(text, indicatorAliases) {
       const cleaned = String(text || "").replace(/^\uFEFF/, "").trim();
       if (!cleaned) throw new Error("Пустой ввод: вставьте таблицу или выберите CSV-файл.");
 
@@ -2393,7 +2108,10 @@
       if (lines.length < 2) throw new Error("Нужна строка заголовков и хотя бы одна строка данных.");
 
       const headers = splitCsvLine(lines[0], delimiter);
-      const tnIdx = findColumnIndex(headers, APP_CONFIG.tnColumnAliases);
+      const ind = getSelectedIndicator();
+      const indAliases = getIndicatorAliases(indicatorAliases);
+      const indLabel = (ind && ind.label) || "Показатель";
+      const tnIdx = findColumnIndex(headers, indAliases);
       const amountIdx = findColumnIndex(headers, APP_CONFIG.amountColumnAliases);
       const tbIdx = findColumnIndex(headers, APP_CONFIG.tbColumnAliases);
       const gosbIdx = findColumnIndex(headers, APP_CONFIG.gosbColumnAliases);
@@ -2401,8 +2119,13 @@
 
       if (tnIdx < 0 || amountIdx < 0) {
         const missing = [];
-        if (tnIdx < 0) missing.push("ТН (алиасы: тн, tn, табельный, emp_id, …)");
-        if (amountIdx < 0) missing.push("сумма (алиасы: сумма, прирост, sum, amount, …)");
+        if (tnIdx < 0) {
+          missing.push(indLabel + " (алиасы: " + indAliases.slice(0, 6).join(", ") + (indAliases.length > 6 ? ", …" : "") + ")");
+        }
+        if (amountIdx < 0) {
+          const aa = APP_CONFIG.amountColumnAliases || [];
+          missing.push("сумма (алиасы: " + aa.slice(0, 6).join(", ") + (aa.length > 6 ? ", …" : "") + ")");
+        }
         const seen = headers.map((h) => String(h || "").trim()).filter(Boolean);
         throw new Error(
           "Не найдены обязательные столбцы: " + missing.join("; ")
@@ -2414,6 +2137,19 @@
       /** @type {DataRow[]} */
       const rows = [];
       let skipped = 0;
+      const reservedIdx = new Set(
+        [tnIdx, amountIdx, tbIdx, gosbIdx, clusterIdx].filter((x) => x >= 0)
+      );
+      /** Индексы прочих колонок → имя заголовка (для критериев участия). */
+      /** @type {{ idx: number, name: string }[]} */
+      const extraCols = [];
+      for (let h = 0; h < headers.length; h += 1) {
+        if (reservedIdx.has(h)) continue;
+        const name = String(headers[h] || "").trim();
+        if (!name) continue;
+        extraCols.push({ idx: h, name });
+      }
+
       for (let i = 1; i < lines.length; i += 1) {
         const cells = splitCsvLine(lines[i], delimiter);
         const amount = normalizeAmount(cells[amountIdx]);
@@ -2422,26 +2158,41 @@
           skipped += 1;
           continue;
         }
+        /** @type {Record<string, number>} */
+        const extras = {};
+        for (let e = 0; e < extraCols.length; e += 1) {
+          const col = extraCols[e];
+          const v = normalizeAmount(cells[col.idx]);
+          if (v != null) extras[col.name] = v;
+        }
         rows.push({
           tn,
           amount,
           tb: tbIdx >= 0 ? String(cells[tbIdx] || "").trim() : "",
           gosb: gosbIdx >= 0 ? String(cells[gosbIdx] || "").trim() : "",
-          cluster: clusterIdx >= 0 ? String(cells[clusterIdx] || "").trim() : ""
+          cluster: clusterIdx >= 0 ? String(cells[clusterIdx] || "").trim() : "",
+          extras
         });
       }
 
-      if (!rows.length) throw new Error("Не удалось прочитать ни одной валидной строки (нужны ТН и сумма).");
+      if (!rows.length) {
+        throw new Error("Не удалось прочитать ни одной валидной строки (нужны " + indLabel + " и сумма).");
+      }
 
       return {
         rows,
         meta: {
           delimiter,
+          headers: headers.slice(),
+          extraColumns: extraCols.map((c) => c.name),
+          rawLines: lines.slice(),
           totalLines: lines.length - 1,
           skipped,
           hasTb: tbIdx >= 0,
           hasGosb: gosbIdx >= 0,
-          hasCluster: clusterIdx >= 0
+          hasCluster: clusterIdx >= 0,
+          indicatorId: getSelectedIndicatorId(),
+          indicatorLabel: indLabel
         }
       };
     }
@@ -2601,12 +2352,13 @@
         Array.isArray(lastChartState.rowsB) && rawRowsB.length);
     }
 
-    function pushRawCsvRows(lines, periodLabel, sourceRows, tnGroup, edges, labels) {
+    function pushRawCsvRows(lines, periodLabel, sourceRows, tnGroup, edges, labels, winnersMap) {
       for (const row of sourceRows) {
         const group = tnGroup.get(row.tn) || groupNameForAmount(row.amount, edges, labels);
+        const w = winnersLookup(winnersMap, row.tn);
         const cells = periodLabel
-          ? [periodLabel, row.tn, row.tb, row.gosb, row.cluster, row.amount, group]
-          : [row.tn, row.tb, row.gosb, row.cluster, row.amount, group];
+          ? [periodLabel, row.tn, row.tb, row.gosb, row.cluster, row.amount, group, w.won ? "да" : "нет", w.prize]
+          : [row.tn, row.tb, row.gosb, row.cluster, row.amount, group, w.won ? "да" : "нет", w.prize];
         lines.push(cells.map(csvEscape).join(";"));
       }
     }
@@ -2669,18 +2421,21 @@
         const edges = st.edges;
         const labels = (st.hist && st.hist.labels) || [];
         const both = exportIncludesBothPeriods();
+        const ind = indicatorLabel();
+        const winA = computeWinnersMap(st.rows, edges, labels);
         const lines = [];
         if (both) {
-          lines.push(["Период", "ТН", "ТБ", "ГОСБ", "кластер", "сумма", "Группа"].join(";"));
+          const winB = computeWinnersMap(st.rowsB || [], edges, labels);
+          lines.push(["Период", ind, "ТБ", "ГОСБ", "кластер", "сумма", "Группа", "Победитель", "Награда"].join(";"));
           const mapA = buildTnGroupMapFromRows(st.rows, edges, labels);
           const mapB = buildTnGroupMapFromRows(st.rowsB, edges, labels);
-          pushRawCsvRows(lines, PERIOD_CUR.label, rawRows, mapA, edges, labels);
-          pushRawCsvRows(lines, PERIOD_PREV.label, rawRowsB, mapB, edges, labels);
+          pushRawCsvRows(lines, PERIOD_CUR.label, rawRows, mapA, edges, labels, winA);
+          pushRawCsvRows(lines, PERIOD_PREV.label, rawRowsB, mapB, edges, labels, winB);
           downloadTextFile("sum_source_with_group_compare_" + stamp() + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
         } else {
-          lines.push(["ТН", "ТБ", "ГОСБ", "кластер", "сумма", "Группа"].join(";"));
+          lines.push([ind, "ТБ", "ГОСБ", "кластер", "сумма", "Группа", "Победитель", "Награда"].join(";"));
           const mapA = buildTnGroupMapFromRows(st.rows, edges, labels);
-          pushRawCsvRows(lines, null, rawRows, mapA, edges, labels);
+          pushRawCsvRows(lines, null, rawRows, mapA, edges, labels, winA);
           downloadTextFile("sum_source_with_group_" + stamp() + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
         }
       } catch (err) {
@@ -2694,26 +2449,50 @@
         const edges = st.edges;
         const labels = (st.hist && st.hist.labels) || [];
         const both = exportIncludesBothPeriods();
+        const ind = indicatorLabel();
         const lines = [];
         if (both) {
-          lines.push("Период;ТН;Группа");
+          const winA = computeWinnersMap(st.rows, edges, labels);
+          const winB = computeWinnersMap(st.rowsB || [], edges, labels);
+          lines.push(["Период", ind, "Группа", "Победитель", "Награда"].join(";"));
           const mapA = buildTnGroupMapFromRows(st.rows, edges, labels);
           const mapB = buildTnGroupMapFromRows(st.rowsB, edges, labels);
           const sortedA = [...mapA.entries()].sort((a, b) => a[0].localeCompare(b[0]));
           const sortedB = [...mapB.entries()].sort((a, b) => a[0].localeCompare(b[0]));
           for (const [tn, group] of sortedA) {
-            lines.push([csvEscape(PERIOD_CUR.label), csvEscape(formatTn8(tn)), csvEscape(group)].join(";"));
+            const w = winnersLookup(winA, tn);
+            lines.push([
+              csvEscape(PERIOD_CUR.label),
+              csvEscape(formatTn8(tn)),
+              csvEscape(group),
+              csvEscape(w.won ? "да" : "нет"),
+              csvEscape(w.prize)
+            ].join(";"));
           }
           for (const [tn, group] of sortedB) {
-            lines.push([csvEscape(PERIOD_PREV.label), csvEscape(formatTn8(tn)), csvEscape(group)].join(";"));
+            const w = winnersLookup(winB, tn);
+            lines.push([
+              csvEscape(PERIOD_PREV.label),
+              csvEscape(formatTn8(tn)),
+              csvEscape(group),
+              csvEscape(w.won ? "да" : "нет"),
+              csvEscape(w.prize)
+            ].join(";"));
           }
           downloadTextFile("sum_tn8_groups_compare_" + stamp() + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
         } else {
+          const winA = computeWinnersMap(st.rows, edges, labels);
           const tnGroup = buildTnGroupMapFromRows(st.rows, edges, labels);
-          lines.push("ТН;Группа");
+          lines.push([ind, "Группа", "Победитель", "Награда"].join(";"));
           const sorted = [...tnGroup.entries()].sort((a, b) => a[0].localeCompare(b[0]));
           for (const [tn, group] of sorted) {
-            lines.push(csvEscape(formatTn8(tn)) + ";" + csvEscape(group));
+            const w = winnersLookup(winA, tn);
+            lines.push([
+              csvEscape(formatTn8(tn)),
+              csvEscape(group),
+              csvEscape(w.won ? "да" : "нет"),
+              csvEscape(w.prize)
+            ].join(";"));
           }
           downloadTextFile("sum_tn8_groups_" + stamp() + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
         }
@@ -3089,11 +2868,17 @@
       else el.loadStatus.setAttribute("hidden", "");
     }
     function setChartStatus(msg, kind) {
-      // Ошибки — в блоке загрузки; успех графика не затирает итог загрузки файла
+      // Ошибки графика — в статус; успех графика не затирает подробный итог загрузки файла
       if (kind === "err" && msg) setLoadStatus(msg, "err");
       else if (kind === "ok" && msg) {
         const cur = el.loadStatus && el.loadStatus.textContent ? String(el.loadStatus.textContent) : "";
-        if (cur.indexOf("✓ Загружено") === 0 || cur.indexOf("Читаю «") === 0) return;
+        if (
+          cur.indexOf("✓ Загружено") === 0 ||
+          cur.indexOf("Читаю «") === 0 ||
+          cur.indexOf("Файл прочитан") === 0
+        ) {
+          return;
+        }
         setLoadStatus(msg, "ok");
       }
     }
@@ -3102,15 +2887,8 @@
       applyParsedToPeriod("a", parsed, sourceLabel);
     }
 
-    /**
-     * @param {"a"|"b"} which
-     * @param {*} parsed
-     * @param {string} sourceLabel
-     * @param {{ encoding?: string }=} loadMeta
-     */
-    function applyParsedToPeriod(which, parsed, sourceLabel, loadMeta) {
+    function applyParsedToPeriod(which, parsed, sourceLabel) {
       const skipped = parsed.meta.skipped || 0;
-      const encoding = (loadMeta && loadMeta.encoding) || "";
       if (which === "b") {
         rawRowsB = parsed.rows;
         presenceB = {
@@ -3138,6 +2916,15 @@
         };
         allRows = aggregateByTn(rawRows);
         fileNameA = sourceLabel || "";
+        const slot = getActiveSlot();
+        if (slot) {
+          slot.rawRows = rawRows;
+          slot.allRows = allRows;
+          slot.presence = presenceA;
+          slot.fileName = fileNameA;
+          if (lastParsed && lastParsed.text) slot.text = lastParsed.text;
+        }
+        renderSlotsRail();
         renderFileOverview(el.fileOverviewA, {
           fileName: fileNameA,
           rawCount: rawRows.length,
@@ -3151,19 +2938,9 @@
       const otherHasData = which === "b" ? allRows.length > 0 : allRowsB.length > 0;
       const resetFilters = !(viewMode === "compare" && otherHasData);
       refreshPresenceAndFilters(resetFilters);
+      setLoadStatus("", "");
       initEdgeStateFromData(true);
       rebuild();
-      const periodLabel = which === "b" ? (PERIOD_PREV.label || "Прошлый") : (PERIOD_CUR.label || "Текущий");
-      const tnCount = which === "b" ? allRowsB.length : allRows.length;
-      const rawCount = which === "b" ? rawRowsB.length : rawRows.length;
-      setLoadStatus(
-        "✓ Загружено («" + periodLabel + "»)\n" +
-          "Файл: " + (sourceLabel || "—") + "\n" +
-          (encoding ? ("Кодировка: " + encoding + "\n") : "") +
-          "Валидных строк: " + rawCount + "; уникальных ТН: " + tnCount +
-          (skipped ? "; пропущено: " + skipped : ""),
-        "ok"
-      );
     }
 
     function refreshPresenceAndFilters(initial) {
@@ -3314,7 +3091,7 @@
           (info.skipped ? `<div class="ov-card__sub">проп. ${info.skipped}</div>` : "") +
           `</div></div>` +
         `<div class="ov-card"><div class="ov-card__icon is-teal">${svgIcon("users")}</div>` +
-          `<div><div class="ov-card__label">ТН</div><div class="ov-card__value">${formatInt(info.tnCount)}</div></div></div>` +
+          `<div><div class="ov-card__label">${escapeHtml(indicatorLabel())}</div><div class="ov-card__value">${formatInt(info.tnCount)}</div></div></div>` +
         `<div class="ov-card"><div class="ov-card__icon is-orange">${svgIcon("sum")}</div>` +
           `<div><div class="ov-card__label">Суммы</div><div class="ov-card__value">${formatAmount(avg)} ср.</div>` +
           `<div class="ov-card__sub">${formatAmountExact(min)}…${formatAmountExact(max)} · Σ ${formatAmount(sum)}</div></div></div>` +
@@ -4281,7 +4058,7 @@
         const d = Math.abs(counts[i] - target);
         if (d > maxAbs) maxAbs = d;
       }
-      return `Равно по ТН: всего ${total} ТН, цель ≈ ${target.toFixed(1)} ТН/интервал, max |Δ| ≈ ${maxAbs.toFixed(1)} ТН.`;
+      return `Равно по показателю: всего ${total}, цель ≈ ${target.toFixed(1)} /интервал, max |Δ| ≈ ${maxAbs.toFixed(1)}.`;
     }
 
     /**
@@ -5238,9 +5015,10 @@
           renderLegend(hist, layout, chartType);
           renderStats(rowsA, hist);
           renderFrequencyTable(hist, rowsA, slice);
+          refreshWinnersPreview();
         }
         setChartStatus(
-          `Интервалов: ${hist.labels.length}; ТН на графике: ${hist.total}` +
+          `Интервалов: ${hist.labels.length}; ${indicatorLabel()} на графике: ${hist.total}` +
             (hist.below || hist.above ? ` (вне границ: ниже ${hist.below}, выше ${hist.above})` : "") +
             ` · ${chartType}.`,
           "ok"
@@ -5304,42 +5082,14 @@
     }
 
     function syncViewModeUi() {
-      document.body.classList.toggle("is-compare", viewMode === "compare");
-      document.body.classList.toggle("is-analysis", viewMode === "analysis");
-      if (el.tabSingle) {
-        el.tabSingle.classList.toggle("is-active", viewMode === "single");
-        el.tabSingle.classList.toggle("secondary", viewMode !== "single");
-        el.tabSingle.setAttribute("aria-selected", viewMode === "single" ? "true" : "false");
-      }
-      if (el.tabCompare) {
-        el.tabCompare.classList.toggle("is-active", viewMode === "compare");
-        el.tabCompare.classList.toggle("secondary", viewMode !== "compare");
-        el.tabCompare.setAttribute("aria-selected", viewMode === "compare" ? "true" : "false");
-      }
-      if (el.tabAnalysis) {
-        el.tabAnalysis.classList.toggle("is-active", viewMode === "analysis");
-        el.tabAnalysis.classList.toggle("secondary", viewMode !== "analysis");
-        el.tabAnalysis.setAttribute("aria-selected", viewMode === "analysis" ? "true" : "false");
-      }
-      if (el.periodTitleA) el.periodTitleA.textContent = viewMode === "compare" ? PERIOD_CUR.label : "Файл данных";
-      if (el.periodTitleB) el.periodTitleB.textContent = PERIOD_PREV.label;
-      if (el.chartHeading) {
-        if (viewMode === "compare") el.chartHeading.textContent = "Сравнение распределений";
-        else if (viewMode === "analysis") el.chartHeading.textContent = "Статистика и аналитика";
-        else el.chartHeading.textContent = "Гистограмма";
-      }
+      viewMode = "single";
+      document.body.classList.remove("is-compare", "is-analysis", "is-compare-split");
+      if (el.periodTitleA) el.periodTitleA.textContent = "Файл данных";
+      if (el.chartHeading) el.chartHeading.textContent = "Гистограмма";
       if (el.exportPanelSub) {
-        el.exportPanelSub.textContent = viewMode === "compare"
-          ? "Общие интервалы и фильтры. В сравнении в файл попадают оба периода (колонка «Период» / секции текущего и прошлого)."
-          : (viewMode === "analysis"
-            ? "Аналитика по текущему файлу и фильтрам (второй период не используется)."
-            : "По текущим интервалам и фильтрам (группа = интервал суммы после агрегации по ТН)");
+        el.exportPanelSub.textContent =
+          "По текущим интервалам и фильтрам (группа = интервал суммы после агрегации по показателю)";
       }
-      // Компоновка сравнения — только во вкладке сравнения
-      if (viewMode !== "compare") {
-        document.body.classList.remove("is-compare-split");
-      }
-      syncChartModeConstraints();
     }
 
     function drawHistogram(hist, groupLayout, rows, sliceMode, opts) {
@@ -6413,7 +6163,7 @@
       const items = [
         ["Сырых строк", String(rawRows.length)],
         ["Уник. ТН", String(allRows.length)],
-        ["ТН на графике", String(hist.total)],
+        [indicatorLabel() + " на графике", String(hist.total)],
         ["Мин. сумма", formatAmountExact(min)],
         ["Макс. сумма", formatAmountExact(max)],
         ["Среднее", formatAmount(avg)],
@@ -7676,19 +7426,6 @@
       });
     })();
 
-    function encodingDetectOpts() {
-      return {
-        requiredAliases: [
-          APP_CONFIG.tnColumnAliases || ["тн", "tn"],
-          APP_CONFIG.amountColumnAliases || ["сумма", "sum"]
-        ],
-        hintAliases: []
-          .concat(APP_CONFIG.tbColumnAliases || [])
-          .concat(APP_CONFIG.gosbColumnAliases || [])
-          .concat(APP_CONFIG.clusterColumnAliases || [])
-      };
-    }
-
     /**
      * @param {Blob} file
      * @returns {Promise<{ text: string, encoding: string, score: number, byteLength: number }>}
@@ -7711,78 +7448,45 @@
       });
     }
 
-    function setViewMode(mode) {
-      const next = mode === "compare" ? "compare" : (mode === "analysis" ? "analysis" : "single");
-      const prev = viewMode;
-      viewMode = next;
-      // Сбрасываем предупреждение сравнения при уходе со вкладки «Сравнение»
-      if (viewMode !== "compare") setLoadStatus("", "");
+    function setViewMode(_mode) {
+      viewMode = "single";
+      document.body.classList.remove("is-compare", "is-analysis", "is-compare-split");
       syncViewModeUi();
-      // Уход с анализа — отменить отложенный расчёт
-      if (prev === "analysis" && viewMode !== "analysis") {
-        if (analysisRenderTimer) {
-          clearTimeout(analysisRenderTimer);
-          analysisRenderTimer = 0;
-        }
-        analysisDirty = true;
-      }
-      refreshPresenceAndFilters(false);
-      // При открытии анализа — сначала показать панель, потом полный пересчёт
-      if (viewMode === "analysis") {
-        analysisDirty = true;
-        requestAnimationFrame(() => {
-          initEdgeStateFromData(true);
-          rebuild();
-        });
-        return;
-      }
-      initEdgeStateFromData(true);
-      rebuild();
     }
 
-    if (el.tabSingle) el.tabSingle.addEventListener("click", () => setViewMode("single"));
-    if (el.tabCompare) el.tabCompare.addEventListener("click", () => setViewMode("compare"));
-    if (el.tabAnalysis) el.tabAnalysis.addEventListener("click", () => setViewMode("analysis"));
+    function storeLastParsed(fileText, parsed, fileName) {
+      const meta = parsed && parsed.meta ? parsed.meta : {};
+      lastParsed = {
+        text: String(fileText || ""),
+        headers: (meta.headers || []).slice(),
+        delimiter: meta.delimiter || ";",
+        rawLines: (meta.rawLines || []).slice(),
+        fileName: fileName || ""
+      };
+      const slot = getActiveSlot();
+      if (slot) {
+        slot.text = lastParsed.text;
+        slot.fileName = lastParsed.fileName;
+      }
+    }
+
+    function reparseFromLastParsed() {
+      reparseAllSlotsFromText();
+    }
 
     el.fileInput.addEventListener("change", async () => {
       const file = el.fileInput.files && el.fileInput.files[0];
       if (!file) return;
-      const sizeKb = Math.max(1, Math.round((file.size || 0) / 1024));
-      setLoadStatus("Читаю «" + (file.name || "файл") + "» (" + sizeKb + " КБ)…", "ok");
       try {
-        const decoded = await readFileAsText(file);
-        applyParsedToPeriod("a", parseTableText(decoded.text), file.name, { encoding: decoded.encoding });
+        const slot = getActiveSlot();
+        if (!slot) throw new Error("Нет активного слота.");
+        await loadFileIntoSlot(slot.id, file);
       } catch (err) {
-        setLoadStatus(
-          "✗ Не удалось загрузить текущий период\n" +
-            "Файл: " + (file.name || "—") + "\n" +
-            ((err && err.message) ? err.message : String(err)) + "\n" +
-            "Подсказка: нужны колонки ТН и сумма; кодировка UTF-8 / windows-1251 определяется автоматически.",
-          "err"
-        );
+        setLoadStatus((err && err.message) ? err.message : String(err), "err");
+      } finally {
+        el.fileInput.value = "";
       }
     });
-
-    if (el.fileInputB) {
-      el.fileInputB.addEventListener("change", async () => {
-        const file = el.fileInputB.files && el.fileInputB.files[0];
-        if (!file) return;
-        const sizeKb = Math.max(1, Math.round((file.size || 0) / 1024));
-        setLoadStatus("Читаю «" + (file.name || "файл") + "» (" + sizeKb + " КБ)…", "ok");
-        try {
-          const decoded = await readFileAsText(file);
-          applyParsedToPeriod("b", parseTableText(decoded.text), file.name, { encoding: decoded.encoding });
-        } catch (err) {
-          setLoadStatus(
-            "✗ Не удалось загрузить прошлый период\n" +
-              "Файл: " + (file.name || "—") + "\n" +
-              ((err && err.message) ? err.message : String(err)) + "\n" +
-              "Подсказка: нужны колонки ТН и сумма; кодировка UTF-8 / windows-1251 определяется автоматически.",
-            "err"
-          );
-        }
-      });
-    }
 
     el.btnRebuild.addEventListener("click", rebuild);
 
@@ -7810,6 +7514,7 @@
       allRows = [];
       presenceA = { hasTb: false, hasGosb: false, hasCluster: false };
       fileNameA = "";
+      lastParsed = null;
       if (el.fileInput) el.fileInput.value = "";
       if (el.fileOverviewA) el.fileOverviewA.innerHTML = "";
       chartHitBars = [];
@@ -7831,6 +7536,7 @@
         renderEdgeRail();
         setChartStatus("", "");
         document.body.classList.remove("is-compare-split");
+        refreshWinnersPreview();
         [el.chart, el.chartA, el.chartB].forEach((c) => {
           if (!c) return;
           const ctx = c.getContext("2d");
@@ -7845,18 +7551,8 @@
     }
 
     el.btnClear.addEventListener("click", () => {
-      clearPeriodA();
-      // В одиночном режиме очищаем всё; в сравнении — только текущий период
-      if (viewMode !== "compare") clearPeriodB();
-      resetUiAfterDataClear();
+      clearAllSlots();
     });
-
-    if (el.btnClearB) {
-      el.btnClearB.addEventListener("click", () => {
-        clearPeriodB();
-        resetUiAfterDataClear();
-      });
-    }
 
     el.sliceMode.addEventListener("change", () => {
       syncGroupLayoutUi();
@@ -7874,6 +7570,11 @@
     }
     if (el.showChartLabels) {
       el.showChartLabels.addEventListener("change", () => {
+        const wrap = document.getElementById("showChartLabelsSwitch");
+        if (wrap) {
+          wrap.classList.toggle("is-on", !!el.showChartLabels.checked);
+          el.showChartLabels.setAttribute("aria-checked", el.showChartLabels.checked ? "true" : "false");
+        }
         rebuild();
       });
     }
@@ -7885,9 +7586,6 @@
     }
     bindSegmentedControl(el.chartTypeSeg, el.chartType, rebuild);
     bindSegmentedControl(el.groupLayoutSeg, el.groupLayout, rebuild);
-    bindSegmentedControl(el.analysisTopNSeg, el.analysisTopN, () => {
-      if (viewMode === "analysis") rebuild();
-    });
     bindSegmentedControl(el.edgeCalcModeSeg, el.edgeCalcMode, () => {
       initEdgeStateFromData(true);
       rebuild();
@@ -7896,13 +7594,6 @@
       initEdgeStateFromData(true);
       rebuild();
     });
-    function rebuildAnalysisIfOpen() {
-      if (viewMode === "analysis") rebuild();
-    }
-    if (el.analysisDim) el.analysisDim.addEventListener("change", rebuildAnalysisIfOpen);
-    if (el.analysisMetric) el.analysisMetric.addEventListener("change", rebuildAnalysisIfOpen);
-    if (el.analysisRankMode) el.analysisRankMode.addEventListener("change", rebuildAnalysisIfOpen);
-    if (el.analysisOutlierType) el.analysisOutlierType.addEventListener("change", rebuildAnalysisIfOpen);
 
     function runBulkFilterSelection(selectAll) {
       applyBulkFilterSelection(selectAll);
@@ -7943,18 +7634,184 @@
     el.groupLayout.value = APP_CONFIG.defaultGroupLayout || "slice";
     if (el.chartType) el.chartType.value = APP_CONFIG.defaultChartType || "bars";
     if (el.showChartLabels) el.showChartLabels.checked = APP_CONFIG.defaultShowChartLabels !== false;
-    if (el.compareLayout) el.compareLayout.value = APP_CONFIG.defaultCompareLayout || "overlay";
+    {
+      const wrap = document.getElementById("showChartLabelsSwitch");
+      if (wrap && el.showChartLabels) {
+        wrap.classList.toggle("is-on", !!el.showChartLabels.checked);
+        el.showChartLabels.setAttribute("aria-checked", el.showChartLabels.checked ? "true" : "false");
+      }
+    }
     if (el.edgeCalcMode) el.edgeCalcMode.value = "positive";
     el.movableEdgeCount.value = String(APP_CONFIG.defaultMovableEdges);
     el.movableEdgeCount.max = String(APP_CONFIG.movableEdgesMax || 40);
+
+    // Мультислоты
+    (function initSlotsUi() {
+      slotMode = String(APP_CONFIG.defaultSlotMode || "pair");
+      const modeSel = document.getElementById("slotModeSelect");
+      const modeSeg = document.getElementById("slotModeSeg");
+      const customRow = document.getElementById("slotCustomNRow");
+      const customInput = document.getElementById("slotCustomCount");
+      if (modeSel) modeSel.value = slotMode;
+      if (modeSeg) {
+        modeSeg.querySelectorAll(".seg__btn").forEach((btn) => {
+          btn.classList.toggle("is-on", btn.getAttribute("data-value") === slotMode);
+        });
+      }
+      if (customRow) customRow.classList.toggle("is-on", slotMode === "custom");
+      if (customInput) {
+        customInput.value = String(customSlotCount);
+        customInput.addEventListener("change", () => {
+          customSlotCount = Math.max(1, Math.min(maxDataSlots(), Number(customInput.value) || 1));
+          customInput.value = String(customSlotCount);
+          if (slotMode === "custom") rebuildDataSlots(true);
+        });
+      }
+      bindSegmentedControl(modeSeg, modeSel, () => {
+        slotMode = (modeSel && modeSel.value) || "pair";
+        if (customRow) customRow.classList.toggle("is-on", slotMode === "custom");
+        rebuildDataSlots(true);
+      });
+      const rail = document.getElementById("slotsRail");
+      if (rail) {
+        rail.addEventListener("click", (ev) => {
+          const t = ev.target;
+          if (!(t instanceof Element)) return;
+          const clearBtn = t.closest("[data-slot-clear]");
+          if (clearBtn) {
+            clearSlot(clearBtn.getAttribute("data-slot-clear"));
+            ev.preventDefault();
+            return;
+          }
+          if (t.closest("[data-slot-label]") || t.closest(".slot-card__file-btn") || t.closest("input[type='file']")) {
+            return;
+          }
+          const card = t.closest(".slot-card");
+          if (card) setActiveSlot(card.getAttribute("data-slot-id"));
+        });
+        rail.addEventListener("change", async (ev) => {
+          const t = ev.target;
+          if (!(t instanceof HTMLInputElement) || t.type !== "file") return;
+          const id = t.getAttribute("data-slot-file");
+          const file = t.files && t.files[0];
+          if (!id || !file) {
+            setLoadStatus("Файл не выбран или слот не найден.", "err");
+            return;
+          }
+          try {
+            await loadFileIntoSlot(id, file);
+          } catch (_err) {
+            /* сообщение уже в setLoadStatus */
+          } finally {
+            t.value = "";
+          }
+        });
+        rail.addEventListener("blur", (ev) => {
+          const t = ev.target;
+          if (!(t instanceof HTMLElement)) return;
+          const id = t.getAttribute("data-slot-label");
+          if (!id) return;
+          const slot = dataSlots.find((s) => s.id === id);
+          if (slot) slot.label = (t.textContent || "").trim() || slot.label;
+        }, true);
+      }
+      const btnApply = document.getElementById("btnApplySettingsAll");
+      if (btnApply) {
+        btnApply.addEventListener("click", () => {
+          captureSharedSettingsFromUi();
+          applySharedSettingsToUi();
+          setLoadStatus("Настройки активного слота применены ко всем (фильтры и границы).", "ok");
+          refreshWinnersPreview();
+        });
+      }
+      rebuildDataSlots(false);
+    })();
+
+    const orgSeg = document.getElementById("diversityOrgSeg");
+    if (orgSeg) {
+      orgSeg.addEventListener("click", (ev) => {
+        const btn = ev.target.closest(".seg__btn");
+        if (!btn) return;
+        const v = btn.getAttribute("data-value");
+        if (!v) return;
+        diversityOrgDim = v;
+        orgSeg.querySelectorAll(".seg__btn").forEach((b) => {
+          b.classList.toggle("is-on", b.getAttribute("data-value") === v);
+        });
+        drawDiversityCharts(diversityReport);
+      });
+    }
+
+    function wireSuggestButtons() {
+      const run = () => runSuggestBetter();
+      const b1 = document.getElementById("btnSuggestBetter");
+      const b2 = document.getElementById("btnSuggestBetter2");
+      if (b1) b1.addEventListener("click", run);
+      if (b2) b2.addEventListener("click", run);
+      const box = document.getElementById("suggestCards");
+      if (box) {
+        box.addEventListener("click", (ev) => {
+          const t = ev.target;
+          if (!(t instanceof Element)) return;
+          const applyBtn = t.closest("[data-suggest-apply]");
+          const previewBtn = t.closest("[data-suggest-preview]");
+          const ranked = box._suggestRanked || [];
+          if (applyBtn) {
+            const idx = Number(applyBtn.getAttribute("data-suggest-apply"));
+            const item = ranked[idx];
+            if (item) applySuggestPatch(item.patch, true);
+            return;
+          }
+          if (previewBtn) {
+            const idx = Number(previewBtn.getAttribute("data-suggest-preview"));
+            const item = ranked[idx];
+            if (!item) return;
+            applySuggestPatch(item.patch, false);
+            setLoadStatus("Превью на активном слоте (не сохранено). Нажмите «Применить» в карточке, чтобы запомнить.", "ok");
+          }
+        });
+      }
+    }
+    wireSuggestButtons();
+
+    // Переключатель показателя из #app-config
+    (function initIndicatorUi() {
+      const variants = getIndicatorVariants();
+      const defId = APP_CONFIG.defaultIndicatorId || (variants[0] && variants[0].id) || "tn";
+      if (el.indicatorSelect) {
+        el.indicatorSelect.innerHTML = variants.map((v) =>
+          `<option value="${escapeHtml(v.id)}">${escapeHtml(v.label || v.id)}</option>`
+        ).join("");
+        el.indicatorSelect.value = variants.some((v) => v.id === defId) ? defId : variants[0].id;
+      }
+      if (el.indicatorSeg) {
+        el.indicatorSeg.innerHTML = variants.map((v) =>
+          `<button type="button" class="seg__btn${v.id === (el.indicatorSelect && el.indicatorSelect.value) ? " is-on" : ""}" data-value="${escapeHtml(v.id)}">${escapeHtml(v.label || v.id)}</button>`
+        ).join("");
+      }
+    })();
+
+    if (el.indicatorSelect) {
+      el.indicatorSelect.addEventListener("change", () => {
+        if (lastParsed && lastParsed.text) reparseFromLastParsed();
+        else if (allRows.length) rebuild();
+      });
+    }
+    bindSegmentedControl(el.indicatorSeg, el.indicatorSelect, () => {
+      if (lastParsed && lastParsed.text) reparseFromLastParsed();
+      else if (allRows.length) rebuild();
+    });
+
+    initWinnersUi();
+
     syncViewModeUi();
     syncGroupLayoutUi();
     syncChartModeConstraints();
     syncSegFromSelect(el.edgeCalcModeSeg, el.edgeCalcMode);
-    syncSegFromSelect(el.analysisTopNSeg, el.analysisTopN);
+    syncSegFromSelect(el.indicatorSeg, el.indicatorSelect);
 
     // Экспорт для тестов в Node (если страница открыта как модуль — не используется)
-    window.SumDistribution = {
+    window.ContestCriteria = window.SumDistribution = {
       normalizeAmount,
       normalizeEmpId,
       findColumnIndex,
@@ -7972,12 +7829,18 @@
       binIndexForAmount,
       collectBinUniques,
       parseTableText,
+      getSelectedIndicator,
+      getIndicatorAliases,
+      indicatorLabel,
+      computeWinnersMap,
+      computeWinnersResult,
+      winnersLookup,
+      getWinnersConfig: () => winnersConfig,
+      ContestInterest: CI,
+      getDataSlots: () => dataSlots,
       computeAllowedValues,
       computeAllAllowed,
       expandSelectionOnCheck,
       orderFilterValues,
       FILTER_DIMS
     };
-  </script>
-</body>
-</html>
