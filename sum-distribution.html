@@ -4281,8 +4281,7 @@
 
     /**
      * Общий обработчик кнопок распределения по числу ТН.
-     * Квантили всегда только по текущему периоду; прошлый не участвует в долях,
-     * но шкала min/max в сравнении охватывает оба периода.
+     * В режиме «Все значения» в сравнении участвуют оба периода.
      */
     function applyWeightedCountEdges(kind) {
       if (!allRows.length) {
@@ -4290,12 +4289,16 @@
         return;
       }
       const rowsAFull = filteredRows();
-      if (!rowsAFull.length) {
-        setChartStatus("После фильтров в текущем периоде ТН не осталось — нечего распределять.", "err");
+      const rowsAll = edgeSourceRows();
+      const sourceForCalc = (!includePositiveOnlyForAutoEdges() && viewMode === "compare" && allRowsB.length)
+        ? rowsAll
+        : rowsAFull;
+      if (!sourceForCalc.length) {
+        setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
         return;
       }
       const k = readIntervalCount();
-      const edges = buildAutoEdges(rowsAFull, k, kind);
+      const edges = buildAutoEdges(sourceForCalc, k, kind);
       edgeState.min = edges[0];
       edgeState.max = edges[edges.length - 1];
       edgeState.edges = edges;
@@ -4361,7 +4364,9 @@
       const expectPts = expectedEdgePointCount(k, baseRows);
       const sameRange = edgeState.min === scaleFull.min && edgeState.max === scaleFull.max;
       if (forceReset || !edgeState.edges.length || !sameRange || edgeState.edges.length !== expectPts) {
-        const initRows = filteredRows().length ? filteredRows() : baseRows;
+        const initRows = (!includePositiveOnlyForAutoEdges() && viewMode === "compare" && allRowsB.length)
+          ? (rows.length ? rows : baseRows)
+          : (filteredRows().length ? filteredRows() : baseRows);
         const edges = buildAutoEdges(initRows, k, "even");
         edgeState.min = edges[0];
         edgeState.max = edges[edges.length - 1];
