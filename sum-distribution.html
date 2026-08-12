@@ -16,7 +16,6 @@
   "defaultGroupLayout": "slice",
   "defaultChartType": "bars",
   "defaultShowChartLabels": true,
-  "defaultShowCandleZoneLabels": true,
   "defaultCompareLayout": "overlay",
   "defaultMovableEdges": 3,
   "_intervalsNote": "defaultMovableEdges / movableEdgesMax — это число ИНТЕРВАЛОВ (столбиков), не бегунков",
@@ -1672,28 +1671,26 @@
         <div class="chart-sticky">
           <h2 id="chartHeading">Гистограмма</h2>
           <div class="chart-toolbar">
-            <div class="toolbar-cell" data-tip="Гистограмма — дискретные интервалы; линия — форма по центрам; свечи — распределение сумм (low/q1/median/q3/high). «Наложение с перекрытием» доступно только для гистограммы.">
+            <div class="toolbar-cell" data-tip="Гистограмма — интервалы по числу ТН; линия — форма; свечи — распределение сумм; свечи·ТН — те же границы по суммам, подписи у границ показывают число ТН. «Наложение с перекрытием» только для гистограммы.">
               <span class="toolbar-label">Вид графика</span>
               <div class="seg" id="chartTypeSeg" role="group" aria-label="Вид графика">
                 <button type="button" class="seg__btn is-on" data-value="bars">Гистограмма</button>
                 <button type="button" class="seg__btn" data-value="line">Линия</button>
                 <button type="button" class="seg__btn" data-value="candles">Свечи</button>
+                <button type="button" class="seg__btn" data-value="candles_tn">Свечи·ТН</button>
               </div>
               <select id="chartType" class="sr-only" tabindex="-1" aria-hidden="true">
                 <option value="bars" selected>Гистограмма</option>
                 <option value="line">Линия</option>
                 <option value="candles">Свечи</option>
+                <option value="candles_tn">Свечи·ТН</option>
               </select>
             </div>
-            <div class="toolbar-cell" data-tip="Включает/выключает подписи данных (ТН и статистика свечей) на графике">
+            <div class="toolbar-cell" data-tip="Подписи на графике: число ТН на столбиках; у свечей — зоны или суммы+ТН у границ тела">
               <span class="toolbar-label">Подписи данных</span>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
                 <input id="showChartLabels" type="checkbox" checked>
                 <span>Показывать</span>
-              </label>
-              <label id="showCandleZoneLabelsWrap" style="display:none;align-items:center;gap:6px;cursor:pointer;margin-top:6px;" data-tip="Только для свечей: показывать подписи зон ↓/↔/↑">
-                <input id="showCandleZoneLabels" type="checkbox" checked>
-                <span>Зоны свечи ↓/↔/↑</span>
               </label>
             </div>
             <div class="toolbar-cell compare-only" data-tip="Наложение и наложение с перекрытием — один график; рядом / друг под другом — два. Перекрытие только с гистограммой.">
@@ -2095,8 +2092,6 @@
       chartType: document.getElementById("chartType"),
       chartTypeSeg: document.getElementById("chartTypeSeg"),
       showChartLabels: document.getElementById("showChartLabels"),
-      showCandleZoneLabels: document.getElementById("showCandleZoneLabels"),
-      showCandleZoneLabelsWrap: document.getElementById("showCandleZoneLabelsWrap"),
       compareLayout: document.getElementById("compareLayout"),
       chartHeading: document.getElementById("chartHeading"),
       chartsDual: document.getElementById("chartsDual"),
@@ -2230,7 +2225,7 @@
         return comparePaletteColor(si);
       }
       if (layout === "bin") return seriesPaletteColor(si);
-      if (chartType === "line" || chartType === "candles") return seriesPaletteColor(si);
+      if (chartType === "line" || isCandleChartType(chartType)) return seriesPaletteColor(si);
       return seriesPaletteColor(bi);
     }
 
@@ -2243,19 +2238,19 @@
       }
       if (t === "line") return "line";
       if (t === "candles") return "candles";
+      if (t === "candles_tn") return "candles_tn";
       return "bars";
+    }
+
+    /** Свечной режим (ось Y = суммы, X = интервалы). */
+    function isCandleChartType(chartType) {
+      return chartType === "candles" || chartType === "candles_tn";
     }
 
     /** Включены ли подписи данных на графике. */
     function chartLabelsEnabled() {
       if (!el.showChartLabels) return true;
       return !!el.showChartLabels.checked;
-    }
-
-    /** Включены ли подписи зон свечи (↓/↔/↑). */
-    function candleZoneLabelsEnabled() {
-      if (!el.showCandleZoneLabels) return true;
-      return !!el.showCandleZoneLabels.checked;
     }
 
     function normalizeAmount(raw) {
@@ -3394,9 +3389,15 @@
         overlapBlocksLine,
         "Недоступно при «Наложении с перекрытием» — сначала смените компоновку"
       );
+      setSegBtnLocked(
+        el.chartTypeSeg,
+        "candles_tn",
+        overlapBlocksLine,
+        "Недоступно при «Наложении с перекрытием» — сначала смените компоновку"
+      );
 
       // Свечи всегда строим по интервалам (ось X = интервалы)
-      const candlesLockSlice = chartType === "candles";
+      const candlesLockSlice = isCandleChartType(chartType);
       if (candlesLockSlice && el.groupLayout && el.groupLayout.value === "slice") {
         el.groupLayout.value = "bin";
       }
@@ -3416,9 +3417,6 @@
 
       syncSegFromSelect(el.chartTypeSeg, el.chartType);
       syncSegFromSelect(el.groupLayoutSeg, el.groupLayout);
-      if (el.showCandleZoneLabelsWrap) {
-        el.showCandleZoneLabelsWrap.style.display = chartType === "candles" ? "flex" : "none";
-      }
     }
 
     function syncGroupLayoutUi() {
@@ -5257,7 +5255,9 @@
       const canvas = opts.canvas || el.chart;
       if (!canvas) return;
       const chartTypeRaw = opts.chartType || (el.chartType && el.chartType.value) || "bars";
-      const chartType = (chartTypeRaw === "line" || chartTypeRaw === "candles") ? chartTypeRaw : "bars";
+      const chartType = (chartTypeRaw === "line" || isCandleChartType(chartTypeRaw))
+        ? chartTypeRaw
+        : "bars";
       const showLabels = chartLabelsEnabled();
       const hitTarget = opts.hitTarget || "primary";
       const dpr = window.devicePixelRatio || 1;
@@ -5497,7 +5497,7 @@
         };
       }
 
-      const candlesMode = chartType === "candles";
+      const candlesMode = isCandleChartType(chartType);
       const groupCount = candlesMode
         ? binN
         : (layout === "slice"
@@ -5716,7 +5716,7 @@
       ctx.fillStyle = "#6e6e73";
       ctx.font = "11px sans-serif";
       ctx.textAlign = "right";
-      if (chartType === "candles") {
+      if (isCandleChartType(chartType)) {
         const allAmounts = (rows || []).map((r) => Number(r.amount) || 0);
         const axisMin = allAmounts.length ? Math.min(...allAmounts) : 0;
         const axisMaxRaw = allAmounts.length ? Math.max(...allAmounts) : 1;
@@ -6007,7 +6007,83 @@
         }
       }
 
-      function drawCandlesChart() {
+      function drawCandleBadge(cx, bodyW, y, text, side, color) {
+        if (!text) return;
+        ctx.save();
+        ctx.font = "600 9px Segoe UI";
+        const padBadge = { x: 5, y: 3 };
+        const tw = ctx.measureText(text).width;
+        const bw = Math.ceil(tw + padBadge.x * 2);
+        const bh = 14;
+        const bx = side === "left"
+          ? cx - bodyW / 2 - bw - 6
+          : cx + bodyW / 2 + 6;
+        let by = y - bh / 2;
+        by = Math.max(pad.t + 1, Math.min(pad.t + plotH - bh - 1, by));
+        ctx.fillStyle = "rgba(255,255,255,0.94)";
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+        ctx.fillStyle = color;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, bx + padBadge.x, by + bh / 2);
+        ctx.restore();
+      }
+
+      function shortenAmountLabel(v) {
+        const s = formatAmount(v);
+        return s.length > 14 ? shortenLabel(s, 13) : s;
+      }
+
+      /** Подписи у границ свечи: зоны (↓/↔/↑) или суммы + число ТН. */
+      function drawCandleLabels(cx, bodyW, st, color, labelMode, yPos) {
+        const yLow = yPos.yLow;
+        const yHigh = yPos.yHigh;
+        const yQ1 = yPos.yQ1;
+        const yQ3 = yPos.yQ3;
+        const yMidLow = (yLow + yQ1) / 2;
+        const yMidBody = (yQ1 + yQ3) / 2;
+        const yMidHigh = (yQ3 + yHigh) / 2;
+
+        if (labelMode === "tn_bounds") {
+          drawCandleBadge(cx, bodyW, yHigh, shortenAmountLabel(st.high), "right", color);
+          if (st.above > 0) {
+            drawCandleBadge(
+              cx, bodyW, yQ3,
+              shortenAmountLabel(st.q3) + " · ↑" + st.above + " ТН",
+              "left",
+              color
+            );
+          }
+          if (st.inside > 0) {
+            drawCandleBadge(
+              cx, bodyW, yMidBody,
+              shortenAmountLabel(st.q1) + "–" + shortenAmountLabel(st.q3) + " · " + st.inside + " ТН",
+              "right",
+              color
+            );
+          }
+          if (st.below > 0) {
+            drawCandleBadge(
+              cx, bodyW, yQ1,
+              shortenAmountLabel(st.q1) + " · ↓" + st.below + " ТН",
+              "left",
+              color
+            );
+          }
+          drawCandleBadge(cx, bodyW, yLow, shortenAmountLabel(st.low), "right", color);
+          return;
+        }
+
+        if (st.below > 0) drawCandleBadge(cx, bodyW, yMidLow, "↓ " + st.below + " ТН", "left", color);
+        if (st.inside > 0) drawCandleBadge(cx, bodyW, yMidBody, "↔ " + st.inside + " ТН", "right", color);
+        if (st.above > 0) drawCandleBadge(cx, bodyW, yMidHigh, "↑ " + st.above + " ТН", "left", color);
+      }
+
+      function drawCandlesChart(candleLabelMode) {
+        const labelMode = candleLabelMode === "tn_bounds" ? "tn_bounds" : "zones";
         const candleData = [];
         for (let bi = 0; bi < binN; bi += 1) {
           for (let si = 0; si < seriesN; si += 1) {
@@ -6025,17 +6101,17 @@
           }
         }
         if (!candleData.length) return;
-        const yMinRaw = Math.min(...candleData.map((x) => x.stats.low));
-        const yMaxRaw = Math.max(...candleData.map((x) => x.stats.high));
-        const yMin = Number.isFinite(yMinRaw) ? yMinRaw : 0;
-        const yMaxBase = Number.isFinite(yMaxRaw) ? yMaxRaw : (yMin + 1);
-        const yMax = yMaxBase === yMin ? yMin + 1 : yMaxBase;
+        let yMinVal = Math.min(...candleData.map((x) => x.stats.low));
+        let yMaxVal = Math.max(...candleData.map((x) => x.stats.high));
+        if (!Number.isFinite(yMinVal)) yMinVal = 0;
+        if (!Number.isFinite(yMaxVal)) yMaxVal = yMinVal + 1;
+        if (yMaxVal === yMinVal) yMaxVal = yMinVal + 1;
         const groupWLocal = plotW / Math.max(1, binN);
         const gapLocal = groupWLocal * APP_CONFIG.chart.barGapRatio;
         const innerWLocal = groupWLocal - gapLocal;
         const seriesGapLocal = innerWLocal * APP_CONFIG.chart.seriesGapRatio;
         const bodyW = Math.max(6, (innerWLocal - seriesGapLocal * Math.max(0, seriesN - 1)) / Math.max(1, seriesN));
-        const yAt = (v) => pad.t + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+        const yAt = (v) => pad.t + plotH - ((v - yMinVal) / (yMaxVal - yMinVal)) * plotH;
 
         for (const c of candleData) {
           const st = c.stats;
@@ -6068,24 +6144,26 @@
           ctx.lineTo(cx + bodyW / 2, yP50);
           ctx.stroke();
 
-          const tip = [
+          const tipLines = [
             "Интервал: " + c.interval,
             "Серия: " + c.name,
-            "ТН: " + st.total,
-            "Ниже Q1: " + st.below,
-            "Внутри Q1..Q3: " + st.inside,
-            "Выше Q3: " + st.above,
-            "Low/Q1/Med/Q3/High: "
-              + formatAmount(st.low) + " / " + formatAmount(st.q1) + " / "
-              + formatAmount(st.p50) + " / " + formatAmount(st.q3) + " / " + formatAmount(st.high)
-          ].join("\n");
-          registerHitBar(cx - bodyW / 2 - 6, yHigh, bodyW + 12, Math.max(8, yLow - yHigh), tip);
-          if (showLabels && candleZoneLabelsEnabled()) {
-            ctx.fillStyle = c.color;
-            ctx.font = "600 10px sans-serif";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "bottom";
-            ctx.fillText("↓" + st.below + " · ↔" + st.inside + " · ↑" + st.above, cx, Math.max(10, yHigh - 4));
+            "Всего ТН в интервале: " + st.total,
+            "Сумма ниже " + formatAmount(st.q1) + ": " + st.below + " ТН",
+            "Сумма от " + formatAmount(st.q1) + " до " + formatAmount(st.q3) + ": " + st.inside + " ТН",
+            "Сумма выше " + formatAmount(st.q3) + ": " + st.above + " ТН",
+            "Границы по сумме: "
+              + formatAmount(st.low) + " … " + formatAmount(st.high)
+              + " (тело " + formatAmount(st.q1) + " … " + formatAmount(st.q3) + ")"
+          ];
+          registerHitBar(
+            cx - bodyW / 2 - 6,
+            yHigh,
+            bodyW + 12,
+            Math.max(8, yLow - yHigh),
+            tipLines.join("\n")
+          );
+          if (showLabels) {
+            drawCandleLabels(cx, bodyW, st, c.color, labelMode, { yLow, yHigh, yQ1, yQ3 });
           }
         }
         for (let bi = 0; bi < binN; bi += 1) {
@@ -6095,8 +6173,8 @@
 
       if (chartType === "line") {
         drawLineChart();
-      } else if (chartType === "candles") {
-        drawCandlesChart();
+      } else if (isCandleChartType(chartType)) {
+        drawCandlesChart(chartType === "candles_tn" ? "tn_bounds" : "zones");
       } else if (barOverlap) {
         drawOverlappingBars();
       } else if (layout === "bin") {
@@ -6154,7 +6232,7 @@
       const type = chartType || (el.chartType && el.chartType.value) || "bars";
       const compareMode = isPeriodCompareHist(hist);
       // Для slice+bars легенда = интервалы; для line/candles = серии.
-      const legendBySeries = layout === "bin" || type === "line" || type === "candles";
+      const legendBySeries = layout === "bin" || type === "line" || isCandleChartType(type);
 
       if (legendBySeries) {
         const series = hist.series.slice(0, APP_CONFIG.chart.maxLegendItems);
@@ -7623,11 +7701,6 @@
         rebuild();
       });
     }
-    if (el.showCandleZoneLabels) {
-      el.showCandleZoneLabels.addEventListener("change", () => {
-        if (resolveChartType() === "candles") rebuild();
-      });
-    }
     if (el.compareLayout) {
       el.compareLayout.addEventListener("change", () => {
         syncChartModeConstraints();
@@ -7694,7 +7767,6 @@
     el.groupLayout.value = APP_CONFIG.defaultGroupLayout || "slice";
     if (el.chartType) el.chartType.value = APP_CONFIG.defaultChartType || "bars";
     if (el.showChartLabels) el.showChartLabels.checked = APP_CONFIG.defaultShowChartLabels !== false;
-    if (el.showCandleZoneLabels) el.showCandleZoneLabels.checked = APP_CONFIG.defaultShowCandleZoneLabels !== false;
     if (el.compareLayout) el.compareLayout.value = APP_CONFIG.defaultCompareLayout || "overlay";
     if (el.edgeCalcMode) el.edgeCalcMode.value = "positive";
     el.movableEdgeCount.value = String(APP_CONFIG.defaultMovableEdges);
