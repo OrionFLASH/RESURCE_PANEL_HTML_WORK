@@ -3395,15 +3395,23 @@
         "Недоступно при «Наложении с перекрытием» — сначала смените компоновку"
       );
 
+      // Свечи всегда строим по интервалам (ось X = интервалы)
+      const candlesLockSlice = chartType === "candles";
+      if (candlesLockSlice && el.groupLayout && el.groupLayout.value === "slice") {
+        el.groupLayout.value = "bin";
+      }
+
       const sliceLocked = slice === "all";
-      if (sliceLocked && el.groupLayout && el.groupLayout.value === "slice") {
+      if ((sliceLocked || candlesLockSlice) && el.groupLayout && el.groupLayout.value === "slice") {
         el.groupLayout.value = "bin";
       }
       setSegBtnLocked(
         el.groupLayoutSeg,
         "slice",
-        sliceLocked,
-        "Сначала выберите разрез ТБ или кластер"
+        sliceLocked || candlesLockSlice,
+        candlesLockSlice
+          ? "Для свечей ось X фиксирована: только интервалы"
+          : "Сначала выберите разрез ТБ или кластер"
       );
 
       syncSegFromSelect(el.chartTypeSeg, el.chartType);
@@ -5345,12 +5353,15 @@
        * low/high — whiskers, q1/q3 — тело, p50 — медиана,
        * below/inside/above — число ТН относительно тела свечи.
        */
-      function computeCandleStats(seriesName) {
+      function computeCandleStats(seriesName, binIndex) {
         const periodSeries = isPeriodSeriesName(seriesName);
         const sourceRows = periodSeries ? rowsForSeriesName(seriesName) : (rows || []);
-        const src = (sliceMode && sliceMode !== "all" && !periodSeries)
+        const sliced = (sliceMode && sliceMode !== "all" && !periodSeries)
           ? sourceRows.filter((r) => sliceSeriesKey(r, sliceMode) === seriesName)
           : sourceRows;
+        const src = Number.isInteger(binIndex)
+          ? sliced.filter((r) => binIndexForAmount(r.amount, edgesRef) === binIndex)
+          : sliced;
         const amounts = src.map((r) => Number(r.amount) || 0).sort((a, b) => a - b);
         if (!amounts.length) return null;
         const q1 = quantile(amounts, 0.25);
@@ -5488,7 +5499,7 @@
 
       const candlesMode = chartType === "candles";
       const groupCount = candlesMode
-        ? seriesN
+        ? binN
         : (layout === "slice"
           ? (lineCompareSliceGroups ? lineCompareSliceGroups.length : seriesN)
           : binN);
@@ -5498,7 +5509,7 @@
       // Предварительно оцениваем высоту зоны подписей под осью X
       const axisPartsList = [];
       if (candlesMode) {
-        for (let si = 0; si < seriesN; si += 1) axisPartsList.push(axisPartsForSeries(si));
+        for (let bi = 0; bi < binN; bi += 1) axisPartsList.push(axisPartsForBin(bi));
       } else if (layout === "bin") {
         for (let bi = 0; bi < binN; bi += 1) axisPartsList.push(axisPartsForBin(bi));
       } else if (lineCompareSliceGroups) {
@@ -5997,27 +6008,39 @@
       }
 
       function drawCandlesChart() {
-        const candleData = series.map((s, si) => ({
-          si,
-          name: s.name,
-          color: seriesColor(si, 0, s.name),
-          stats: computeCandleStats(s.name)
-        })).filter((x) => !!x.stats);
+        const candleData = [];
+        for (let bi = 0; bi < binN; bi += 1) {
+          for (let si = 0; si < seriesN; si += 1) {
+            const s = series[si];
+            const st = computeCandleStats(s.name, bi);
+            if (!st) continue;
+            candleData.push({
+              bi,
+              si,
+              name: s.name,
+              interval: hist.labels[bi] || ("#" + (bi + 1)),
+              color: seriesColor(si, bi, s.name),
+              stats: st
+            });
+          }
+        }
         if (!candleData.length) return;
         const yMinRaw = Math.min(...candleData.map((x) => x.stats.low));
         const yMaxRaw = Math.max(...candleData.map((x) => x.stats.high));
         const yMin = Number.isFinite(yMinRaw) ? yMinRaw : 0;
         const yMaxBase = Number.isFinite(yMaxRaw) ? yMaxRaw : (yMin + 1);
         const yMax = yMaxBase === yMin ? yMin + 1 : yMaxBase;
-        const cN = candleData.length;
-        const slotW = plotW / Math.max(1, cN);
-        const bodyW = Math.max(10, Math.min(24, slotW * 0.46));
+        const groupWLocal = plotW / Math.max(1, binN);
+        const gapLocal = groupWLocal * APP_CONFIG.chart.barGapRatio;
+        const innerWLocal = groupWLocal - gapLocal;
+        const seriesGapLocal = innerWLocal * APP_CONFIG.chart.seriesGapRatio;
+        const bodyW = Math.max(6, (innerWLocal - seriesGapLocal * Math.max(0, seriesN - 1)) / Math.max(1, seriesN));
         const yAt = (v) => pad.t + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
 
-        for (let i = 0; i < cN; i += 1) {
-          const c = candleData[i];
+        for (const c of candleData) {
           const st = c.stats;
-          const cx = pad.l + i * slotW + slotW / 2;
+          const gx = pad.l + c.bi * groupWLocal + gapLocal / 2;
+          const cx = gx + c.si * (bodyW + seriesGapLocal) + bodyW / 2;
           const yLow = yAt(st.low);
           const yHigh = yAt(st.high);
           const yQ1 = yAt(st.q1);
@@ -6046,6 +6069,7 @@
           ctx.stroke();
 
           const tip = [
+            "Интервал: " + c.interval,
             "Серия: " + c.name,
             "ТН: " + st.total,
             "Ниже Q1: " + st.below,
@@ -6063,7 +6087,9 @@
             ctx.textBaseline = "bottom";
             ctx.fillText("↓" + st.below + " · ↔" + st.inside + " · ↑" + st.above, cx, Math.max(10, yHigh - 4));
           }
-          drawXLabel({ full: c.name, primary: c.name, compact: c.name, secondary: "ТН:" + st.total }, cx, slotW);
+        }
+        for (let bi = 0; bi < binN; bi += 1) {
+          drawXLabel(axisPartsList[bi], pad.l + bi * groupWLocal + groupWLocal / 2, groupWLocal);
         }
       }
 
