@@ -4202,6 +4202,54 @@
       return equalCountEdges(amounts, movable, min, max);
     }
 
+    /** Число уникальных целых значений суммы в наборе. */
+    function uniqueAmountCount(rows) {
+      const set = new Set();
+      for (const r of rows || []) {
+        const v = Number(r && r.amount);
+        if (!Number.isFinite(v)) continue;
+        set.add(toIntegerEdge(v));
+      }
+      return set.size;
+    }
+
+    /** Фактические счётчики ТН по интервалам для уже рассчитанных границ. */
+    function countsByEdges(rows, edges) {
+      const n = Math.max(0, (edges && edges.length ? edges.length : 0) - 1);
+      const out = Array(n).fill(0);
+      for (const r of rows || []) {
+        const bi = binIndexForAmount(Number(r && r.amount), edges);
+        if (bi >= 0 && bi < n) out[bi] += 1;
+      }
+      return out;
+    }
+
+    /** Краткая диагностика отклонений по интервалам от целевого профиля. */
+    function edgeBalanceHint(counts, mode) {
+      const n = counts.length;
+      if (!n) return "";
+      const total = counts.reduce((a, b) => a + b, 0);
+      if (!total) return "";
+      if (mode === "ladder") {
+        const w = Array.from({ length: n }, (_, i) => n - i);
+        const ws = w.reduce((a, b) => a + b, 0);
+        let maxAbs = 0;
+        for (let i = 0; i < n; i += 1) {
+          const target = (w[i] / ws) * total;
+          const d = Math.abs(counts[i] - target);
+          if (d > maxAbs) maxAbs = d;
+        }
+        return `Лесенка: всего ${total} ТН, max |Δ| по интервалу ≈ ${maxAbs.toFixed(1)} ТН.`;
+      }
+      const target = total / n;
+      let maxAbs = 0;
+      for (let i = 0; i < n; i += 1) {
+        const d = Math.abs(counts[i] - target);
+        if (d > maxAbs) maxAbs = d;
+      }
+      return `Равно по ТН: всего ${total} ТН, цель ≈ ${target.toFixed(1)} ТН/интервал, max |Δ| ≈ ${maxAbs.toFixed(1)} ТН.`;
+    }
+
     /**
      * Авторасчёт границ.
      * intervalCount — число интервалов (столбиков):
@@ -4210,7 +4258,7 @@
      *   плюс отдельная колонка отрицательных [min..0] (если min < 0); граница 0 фиксирована.
      */
     function buildAutoEdges(rowsFull, intervalCount, kind) {
-      const k = Math.max(1, Math.floor(intervalCount));
+      let k = Math.max(1, Math.floor(intervalCount));
       const scaleRows = (viewMode === "compare" && allRowsB.length)
         ? edgeSourceRows()
         : rowsFull;
@@ -4223,6 +4271,8 @@
         const amounts = rowsFull
           .map((r) => Number(r.amount))
           .filter((v) => Number.isFinite(v));
+        const uniq = uniqueAmountCount(rowsFull);
+        if (uniq > 0) k = Math.min(k, uniq);
         return buildEdgesForIntervalCount(amounts, k, lo, hi, kind);
       }
 
@@ -4308,6 +4358,9 @@
       }
       renderEdgeRail();
       rebuild();
+      const counts = countsByEdges(sourceForCalc, edges);
+      const msg = edgeBalanceHint(counts, kind);
+      if (msg) setChartStatus(msg, "");
     }
 
     function applyEqualCountEdges() {
