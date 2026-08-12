@@ -2395,7 +2395,15 @@
       const clusterIdx = findColumnIndex(headers, APP_CONFIG.clusterColumnAliases);
 
       if (tnIdx < 0 || amountIdx < 0) {
-        throw new Error("Не найдены обязательные столбцы ТН и сумма. Проверьте заголовки.");
+        const missing = [];
+        if (tnIdx < 0) missing.push("ТН (алиасы: тн, tn, табельный, emp_id, …)");
+        if (amountIdx < 0) missing.push("сумма (алиасы: сумма, прирост, sum, amount, …)");
+        const seen = headers.map((h) => String(h || "").trim()).filter(Boolean);
+        throw new Error(
+          "Не найдены обязательные столбцы: " + missing.join("; ")
+          + ". Прочитанные заголовки: [" + seen.join(" | ") + "]"
+          + ". Разделитель: «" + delimiter + "»."
+        );
       }
 
       /** @type {DataRow[]} */
