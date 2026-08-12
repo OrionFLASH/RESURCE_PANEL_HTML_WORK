@@ -1540,6 +1540,114 @@
       gap: 10px;
     }
 
+    /* —— Параметры победителей —— */
+    .winners-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+    .winners-type {
+      display: grid;
+      gap: 6px;
+      min-width: min(100%, 320px);
+    }
+    .winners-type__label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--glass-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .winners-hint {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--glass-text-secondary);
+      line-height: 1.35;
+    }
+    .winners-list {
+      display: grid;
+      gap: 8px;
+    }
+    .winners-card {
+      display: grid;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--glass-white-border-light);
+      position: relative;
+    }
+    .winners-card__top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+    }
+    .winners-card__badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--glass-text);
+    }
+    .winners-card__badge .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+    .winners-card__badge .dot.gold { background: #d4a017; }
+    .winners-card__badge .dot.silver { background: #8e8e93; }
+    .winners-card__badge .dot.bronze { background: #b87333; }
+    .winners-card__badge .dot.award { background: var(--glass-blue); }
+    .winners-card__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .winners-card__grid label.field {
+      margin: 0;
+    }
+    .winners-card__grid .field span {
+      font-size: 0.72rem;
+      font-weight: 650;
+      color: var(--glass-text-secondary);
+    }
+    .winners-card__grid input,
+    .winners-card__grid select {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .winners-card__remove {
+      flex: 0 0 auto;
+    }
+    .winners-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .winners-preview {
+      margin: 0;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(0, 122, 255, 0.08);
+      border: 1px solid rgba(0, 122, 255, 0.16);
+      font-size: 0.84rem;
+      color: var(--glass-text);
+      line-height: 1.4;
+    }
+    .winners-preview.is-empty {
+      background: rgba(142, 142, 147, 0.08);
+      border-color: rgba(142, 142, 147, 0.16);
+      color: var(--glass-text-secondary);
+    }
+    .winners-panel[data-type="award"] .winners-only-tournament { display: none !important; }
+    .winners-panel[data-type="tournament"] .winners-only-award { display: none !important; }
+
     /* Liquid Glass tooltip */
     .glass-tip {
       position: fixed;
@@ -1676,6 +1784,39 @@
             </div>
           </div>
         </details>
+
+        <details class="section-block" id="winnersBlock" open>
+          <summary>3. Параметры победителей</summary>
+          <div class="section-block__content winners-panel" id="winnersPanel" data-type="award">
+            <div class="winners-head">
+              <div class="winners-type">
+                <span class="winners-type__label">Тип конкурса</span>
+                <div class="seg" id="winnersTypeSeg" role="group" aria-label="Тип конкурса">
+                  <button type="button" class="seg__btn is-on" data-value="award">Индивидуальная награда</button>
+                  <button type="button" class="seg__btn" data-value="tournament">Турнир</button>
+                </div>
+                <select id="winnersType" class="sr-only" tabindex="-1" aria-hidden="true">
+                  <option value="award" selected>Индивидуальная награда</option>
+                  <option value="tournament">Турнир</option>
+                </select>
+              </div>
+              <div class="winners-actions">
+                <button class="btn secondary small" type="button" id="btnWinnersAdd" data-tip="Добавить ещё одну награду">+ Награда</button>
+                <button class="btn ghost small" type="button" id="btnWinnersReset" data-tip="Сбросить параметры победителей к значениям по умолчанию">Сбросить</button>
+              </div>
+            </div>
+            <p class="winners-hint winners-only-award">
+              Награду получает каждый, кто <strong>достиг</strong> критерия по сумме (сделал ≥ порога).
+              Задайте число наград и порог для каждой отдельно (например 1, 2, 3, 10).
+            </p>
+            <p class="winners-hint winners-only-tournament">
+              Турнир: для каждой награды — достоинство (золото / серебро / бронза), круг отбора,
+              направление «лучше» (больше или меньше), и сколько лучших берут (топ N или %).
+            </p>
+            <div id="winnersList" class="winners-list" aria-live="polite"></div>
+            <p id="winnersPreview" class="winners-preview is-empty">Загрузите данные — здесь появится сводка по победителям.</p>
+          </div>
+        </details>
       </section>
 
       <section class="panel panel-chart-col">
@@ -1777,16 +1918,16 @@
           <div class="export-panel" aria-label="Скачивание результатов">
             <div class="export-panel__head">
               <h3 class="export-panel__title">Скачать результаты</h3>
-              <p class="export-panel__sub" id="exportPanelSub">По текущим интервалам и фильтрам (группа = интервал суммы после агрегации по показателю)</p>
+              <p class="export-panel__sub" id="exportPanelSub">По текущим интервалам, фильтрам и параметрам победителей (колонки «Победитель» и «Награда»)</p>
             </div>
             <div class="export-panel__btns">
               <button class="btn secondary btn-with-icon is-export-raw" type="button" id="btnExportRaw"
-                data-tip="Исходные строки CSV + колонка «Группа» (группа по сумме показателя)">
+                data-tip="Исходные строки CSV + «Группа», «Победитель», «Награда»">
                 <span class="btn-ico" aria-hidden="true"></span>
                 <span>CSV исходный + группа</span>
               </button>
               <button class="btn secondary btn-with-icon is-export-tn" type="button" id="btnExportTn"
-                data-tip="Уникальные значения показателя (8 знаков) и группа">
+                data-tip="Уникальные значения показателя + группа + победитель/награда">
                 <span class="btn-ico" aria-hidden="true"></span>
                 <span>CSV показатель + группа</span>
               </button>
@@ -1936,6 +2077,490 @@
 
     /** Последний расчёт для экспорта */
     let lastChartState = null;
+
+    /* —— Параметры победителей (память + расчёт) —— */
+    const WINNERS_STORAGE_KEY = "contestCriteria.winners.v1";
+    const DIGNITY_META = {
+      1: { label: "Золото", cls: "gold" },
+      2: { label: "Серебро", cls: "silver" },
+      3: { label: "Бронза", cls: "bronze" }
+    };
+    const SCOPE_LABELS = {
+      country: "Вся страна",
+      tb: "Среди ТБ",
+      gosb: "Среди ГОСБ",
+      cluster: "Среди кластера",
+      group: "Среди группы (интервал)"
+    };
+
+    function winnersUid() {
+      return "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    /** @returns {{ type: string, awardItems: object[], tournamentItems: object[] }} */
+    function defaultWinnersConfig() {
+      return {
+        type: "award",
+        awardItems: [
+          { id: winnersUid(), criterion: 1 },
+          { id: winnersUid(), criterion: 2 },
+          { id: winnersUid(), criterion: 3 }
+        ],
+        tournamentItems: [
+          {
+            id: winnersUid(),
+            dignity: 1,
+            scope: "country",
+            direction: "more",
+            selectMode: "topN",
+            topN: 1,
+            topPct: 10
+          },
+          {
+            id: winnersUid(),
+            dignity: 2,
+            scope: "country",
+            direction: "more",
+            selectMode: "topN",
+            topN: 2,
+            topPct: 10
+          },
+          {
+            id: winnersUid(),
+            dignity: 3,
+            scope: "tb",
+            direction: "more",
+            selectMode: "topPct",
+            topN: 1,
+            topPct: 10
+          }
+        ]
+      };
+    }
+
+    /** @type {{ type: string, awardItems: object[], tournamentItems: object[] }} */
+    let winnersConfig = loadWinnersConfig();
+
+    function sanitizeWinnersConfig(raw) {
+      const base = defaultWinnersConfig();
+      if (!raw || typeof raw !== "object") return base;
+      const type = raw.type === "tournament" ? "tournament" : "award";
+      const awardItems = Array.isArray(raw.awardItems) ? raw.awardItems : base.awardItems;
+      const tournamentItems = Array.isArray(raw.tournamentItems) ? raw.tournamentItems : base.tournamentItems;
+      return {
+        type,
+        awardItems: awardItems.map((it) => ({
+          id: String((it && it.id) || winnersUid()),
+          criterion: Number.isFinite(Number(it && it.criterion)) ? Number(it.criterion) : 0,
+          title: it && it.title ? String(it.title) : ""
+        })).filter(Boolean),
+        tournamentItems: tournamentItems.map((it) => {
+          const dig = Number(it && it.dignity);
+          const scope = (it && SCOPE_LABELS[it.scope]) ? it.scope : "country";
+          const direction = (it && it.direction === "less") ? "less" : "more";
+          const selectMode = (it && it.selectMode === "topPct") ? "topPct" : "topN";
+          return {
+            id: String((it && it.id) || winnersUid()),
+            dignity: (dig === 2 || dig === 3) ? dig : 1,
+            scope,
+            direction,
+            selectMode,
+            topN: Math.max(1, Math.round(Number(it && it.topN) || 1)),
+            topPct: Math.max(0.01, Math.min(100, Number(it && it.topPct) || 10)),
+            title: it && it.title ? String(it.title) : ""
+          };
+        }).filter(Boolean)
+      };
+    }
+
+    function loadWinnersConfig() {
+      try {
+        const raw = localStorage.getItem(WINNERS_STORAGE_KEY);
+        if (!raw) return defaultWinnersConfig();
+        return sanitizeWinnersConfig(JSON.parse(raw));
+      } catch (_err) {
+        return defaultWinnersConfig();
+      }
+    }
+
+    function saveWinnersConfig() {
+      try {
+        localStorage.setItem(WINNERS_STORAGE_KEY, JSON.stringify(winnersConfig));
+      } catch (_err) {
+        /* quota / private mode — память сессии всё равно есть */
+      }
+    }
+
+    function awardPrizeLabel(item) {
+      const title = (item.title || "").trim();
+      if (title) return title;
+      const c = Number(item.criterion);
+      return "Награда ≥ " + (Number.isFinite(c) ? formatAmount(c) : String(item.criterion));
+    }
+
+    function tournamentPrizeLabel(item) {
+      const title = (item.title || "").trim();
+      if (title) return title;
+      const dig = DIGNITY_META[item.dignity] || DIGNITY_META[1];
+      const scope = SCOPE_LABELS[item.scope] || item.scope;
+      const dir = item.direction === "less" ? "меньше = лучше" : "больше = лучше";
+      const sel = item.selectMode === "topPct"
+        ? ("топ " + item.topPct + "%")
+        : ("топ " + item.topN);
+      return dig.label + " · " + scope + " · " + sel + " (" + dir + ")";
+    }
+
+    /**
+     * Карта победителей по показателю (tn).
+     * @param {DataRow[]} rows агрегированные строки после фильтров
+     * @param {number[]} edges
+     * @param {string[]} labels
+     * @returns {Map<string, { won: boolean, prizes: string[] }>}
+     */
+    function computeWinnersMap(rows, edges, labels) {
+      /** @type {Map<string, { won: boolean, prizes: string[] }>} */
+      const map = new Map();
+      const ensure = (tn) => {
+        if (!map.has(tn)) map.set(tn, { won: false, prizes: [] });
+        return map.get(tn);
+      };
+      const addPrize = (tn, prize) => {
+        const rec = ensure(tn);
+        if (!rec.prizes.includes(prize)) rec.prizes.push(prize);
+        rec.won = true;
+      };
+
+      if (!rows || !rows.length) return map;
+
+      if (winnersConfig.type === "award") {
+        const items = winnersConfig.awardItems || [];
+        for (let i = 0; i < items.length; i += 1) {
+          const item = items[i];
+          const thr = Number(item.criterion);
+          if (!Number.isFinite(thr)) continue;
+          const prize = awardPrizeLabel(item);
+          for (let r = 0; r < rows.length; r += 1) {
+            const row = rows[r];
+            if ((Number(row.amount) || 0) >= thr) addPrize(row.tn, prize);
+          }
+        }
+        return map;
+      }
+
+      const items = winnersConfig.tournamentItems || [];
+      for (let i = 0; i < items.length; i += 1) {
+        const item = items[i];
+        const prize = tournamentPrizeLabel(item);
+        /** @type {Map<string, DataRow[]>} */
+        const buckets = new Map();
+        for (let r = 0; r < rows.length; r += 1) {
+          const row = rows[r];
+          let key = "__all__";
+          if (item.scope === "tb") key = (row.tb || "").trim() || "(пусто)";
+          else if (item.scope === "gosb") key = (row.gosb || "").trim() || "(пусто)";
+          else if (item.scope === "cluster") key = (row.cluster || "").trim() || "(пусто)";
+          else if (item.scope === "group") {
+            key = groupNameForAmount(row.amount, edges, labels || []) || "(без группы)";
+          }
+          if (!buckets.has(key)) buckets.set(key, []);
+          buckets.get(key).push(row);
+        }
+          for (const groupRows of buckets.values()) {
+          const sorted = groupRows.slice().sort((a, b) => {
+            const da = Number(a.amount) || 0;
+            const db = Number(b.amount) || 0;
+            if (item.direction === "less") return da - db;
+            return db - da;
+          });
+          const n = sorted.length;
+          if (!n) continue;
+          let take = 1;
+          if (item.selectMode === "topPct") {
+            take = Math.max(1, Math.ceil((n * Number(item.topPct)) / 100));
+          } else {
+            take = Math.max(1, Math.min(n, Math.round(Number(item.topN) || 1)));
+          }
+          take = Math.min(take, n);
+          const cutoff = Number(sorted[take - 1].amount) || 0;
+          for (let k = 0; k < n; k += 1) {
+            if (k < take) {
+              addPrize(sorted[k].tn, prize);
+              continue;
+            }
+            const amt = Number(sorted[k].amount) || 0;
+            if (amt === cutoff) addPrize(sorted[k].tn, prize);
+            else break;
+          }
+        }
+      }
+      return map;
+    }
+
+    function winnersLookup(map, tn) {
+      const rec = map && map.get(tn);
+      if (!rec || !rec.won) return { won: false, prize: "" };
+      return { won: true, prize: (rec.prizes || []).join("; ") };
+    }
+
+    function refreshWinnersPreview() {
+      const box = document.getElementById("winnersPreview");
+      if (!box) return;
+      if (!lastChartState || !lastChartState.rows || !lastChartState.rows.length) {
+        box.className = "winners-preview is-empty";
+        box.textContent = "Загрузите данные — здесь появится сводка по победителям.";
+        return;
+      }
+      const edges = lastChartState.edges || [];
+      const labels = (lastChartState.hist && lastChartState.hist.labels) || [];
+      const map = computeWinnersMap(lastChartState.rows, edges, labels);
+      let winners = 0;
+      const prizeCount = new Map();
+      for (const rec of map.values()) {
+        if (!rec.won) continue;
+        winners += 1;
+        for (const p of rec.prizes) {
+          prizeCount.set(p, (prizeCount.get(p) || 0) + 1);
+        }
+      }
+      const total = lastChartState.rows.length;
+      const parts = [];
+      parts.push("Участников (после фильтров): " + total + ".");
+      parts.push("Победителей: " + winners + ".");
+      if (prizeCount.size) {
+        const detail = [...prizeCount.entries()]
+          .slice(0, 6)
+          .map(([name, cnt]) => name + " — " + cnt)
+          .join("; ");
+        parts.push("По наградам: " + detail + (prizeCount.size > 6 ? "…" : "."));
+      } else {
+        parts.push("По текущим правилам никто не проходит.");
+      }
+      box.className = "winners-preview";
+      box.textContent = parts.join(" ");
+    }
+
+    function renderWinnersList() {
+      const list = document.getElementById("winnersList");
+      const panel = document.getElementById("winnersPanel");
+      if (!list || !panel) return;
+      panel.setAttribute("data-type", winnersConfig.type);
+      const typeSel = document.getElementById("winnersType");
+      if (typeSel) typeSel.value = winnersConfig.type;
+      syncSegFromSelect(document.getElementById("winnersTypeSeg"), typeSel);
+
+      if (winnersConfig.type === "award") {
+        const items = winnersConfig.awardItems;
+        if (!items.length) {
+          list.innerHTML = '<div class="empty">Нет наград — нажмите «+ Награда».</div>';
+          return;
+        }
+        list.innerHTML = items.map((item, idx) => `
+          <div class="winners-card" data-id="${escapeHtml(item.id)}">
+            <div class="winners-card__top">
+              <span class="winners-card__badge"><span class="dot award"></span>Награда ${idx + 1}</span>
+              <button type="button" class="btn ghost small winners-card__remove" data-act="remove" data-tip="Удалить награду">✕</button>
+            </div>
+            <div class="winners-card__grid">
+              <label class="field">
+                <span>Критерий (достиг ≥)</span>
+                <input type="number" step="any" data-field="criterion" value="${escapeHtml(String(item.criterion))}">
+              </label>
+              <label class="field">
+                <span>Подпись в экспорте (необяз.)</span>
+                <input type="text" data-field="title" placeholder="например «Приз 10»" value="${escapeHtml(item.title || "")}">
+              </label>
+            </div>
+          </div>
+        `).join("");
+        return;
+      }
+
+      const items = winnersConfig.tournamentItems;
+      if (!items.length) {
+        list.innerHTML = '<div class="empty">Нет наград — нажмите «+ Награда».</div>';
+        return;
+      }
+      list.innerHTML = items.map((item, idx) => {
+        const dig = DIGNITY_META[item.dignity] || DIGNITY_META[1];
+        const scopeOpts = Object.keys(SCOPE_LABELS).map((k) =>
+          `<option value="${k}"${item.scope === k ? " selected" : ""}>${SCOPE_LABELS[k]}</option>`
+        ).join("");
+        return `
+          <div class="winners-card" data-id="${escapeHtml(item.id)}">
+            <div class="winners-card__top">
+              <span class="winners-card__badge"><span class="dot ${dig.cls}"></span>Награда ${idx + 1} · ${dig.label}</span>
+              <button type="button" class="btn ghost small winners-card__remove" data-act="remove" data-tip="Удалить награду">✕</button>
+            </div>
+            <div class="winners-card__grid">
+              <label class="field">
+                <span>Достоинство</span>
+                <select data-field="dignity">
+                  <option value="1"${item.dignity === 1 ? " selected" : ""}>1 — Золото</option>
+                  <option value="2"${item.dignity === 2 ? " selected" : ""}>2 — Серебро</option>
+                  <option value="3"${item.dignity === 3 ? " selected" : ""}>3 — Бронза</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Круг отбора</span>
+                <select data-field="scope">${scopeOpts}</select>
+              </label>
+              <label class="field">
+                <span>Лучший — кто</span>
+                <select data-field="direction">
+                  <option value="more"${item.direction === "more" ? " selected" : ""}>Сделал больше</option>
+                  <option value="less"${item.direction === "less" ? " selected" : ""}>Сделал меньше</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Отбор</span>
+                <select data-field="selectMode">
+                  <option value="topN"${item.selectMode === "topN" ? " selected" : ""}>Лучшие N</option>
+                  <option value="topPct"${item.selectMode === "topPct" ? " selected" : ""}>Лучшие %</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Число лучших (N)</span>
+                <input type="number" min="1" step="1" data-field="topN" value="${escapeHtml(String(item.topN))}">
+              </label>
+              <label class="field">
+                <span>Процент лучших (%)</span>
+                <input type="number" min="0.01" max="100" step="0.01" data-field="topPct" value="${escapeHtml(String(item.topPct))}">
+              </label>
+              <label class="field">
+                <span>Подпись в экспорте (необяз.)</span>
+                <input type="text" data-field="title" placeholder="например «Золото страны»" value="${escapeHtml(item.title || "")}">
+              </label>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function winnersConfigFromDom() {
+      const typeSel = document.getElementById("winnersType");
+      const type = (typeSel && typeSel.value === "tournament") ? "tournament" : "award";
+      const list = document.getElementById("winnersList");
+      if (!list) return;
+      if (type === "award") {
+        const next = [];
+        list.querySelectorAll(".winners-card").forEach((card) => {
+          const id = card.getAttribute("data-id") || winnersUid();
+          const criterionEl = card.querySelector('[data-field="criterion"]');
+          const titleEl = card.querySelector('[data-field="title"]');
+          next.push({
+            id,
+            criterion: Number(criterionEl && criterionEl.value),
+            title: titleEl ? String(titleEl.value || "") : ""
+          });
+        });
+        winnersConfig.type = "award";
+        winnersConfig.awardItems = next;
+      } else {
+        const next = [];
+        list.querySelectorAll(".winners-card").forEach((card) => {
+          const id = card.getAttribute("data-id") || winnersUid();
+          const dig = Number((card.querySelector('[data-field="dignity"]') || {}).value);
+          const scope = (card.querySelector('[data-field="scope"]') || {}).value || "country";
+          const direction = (card.querySelector('[data-field="direction"]') || {}).value || "more";
+          const selectMode = (card.querySelector('[data-field="selectMode"]') || {}).value || "topN";
+          const topN = Number((card.querySelector('[data-field="topN"]') || {}).value);
+          const topPct = Number((card.querySelector('[data-field="topPct"]') || {}).value);
+          const titleEl = card.querySelector('[data-field="title"]');
+          next.push({
+            id,
+            dignity: (dig === 2 || dig === 3) ? dig : 1,
+            scope: SCOPE_LABELS[scope] ? scope : "country",
+            direction: direction === "less" ? "less" : "more",
+            selectMode: selectMode === "topPct" ? "topPct" : "topN",
+            topN: Math.max(1, Math.round(topN || 1)),
+            topPct: Math.max(0.01, Math.min(100, topPct || 10)),
+            title: titleEl ? String(titleEl.value || "") : ""
+          });
+        });
+        winnersConfig.type = "tournament";
+        winnersConfig.tournamentItems = next;
+      }
+    }
+
+    function persistWinnersFromUi() {
+      winnersConfigFromDom();
+      winnersConfig = sanitizeWinnersConfig(winnersConfig);
+      saveWinnersConfig();
+      refreshWinnersPreview();
+    }
+
+    function initWinnersUi() {
+      const typeSel = document.getElementById("winnersType");
+      const typeSeg = document.getElementById("winnersTypeSeg");
+      const list = document.getElementById("winnersList");
+      const btnAdd = document.getElementById("btnWinnersAdd");
+      const btnReset = document.getElementById("btnWinnersReset");
+      renderWinnersList();
+      refreshWinnersPreview();
+
+      bindSegmentedControl(typeSeg, typeSel, () => {
+        winnersConfig.type = (typeSel && typeSel.value === "tournament") ? "tournament" : "award";
+        saveWinnersConfig();
+        renderWinnersList();
+        refreshWinnersPreview();
+      });
+
+      if (btnAdd) {
+        btnAdd.addEventListener("click", () => {
+          winnersConfigFromDom();
+          if (winnersConfig.type === "award") {
+            winnersConfig.awardItems.push({ id: winnersUid(), criterion: 10, title: "" });
+          } else {
+            winnersConfig.tournamentItems.push({
+              id: winnersUid(),
+              dignity: 1,
+              scope: "country",
+              direction: "more",
+              selectMode: "topN",
+              topN: 1,
+              topPct: 10,
+              title: ""
+            });
+          }
+          saveWinnersConfig();
+          renderWinnersList();
+          refreshWinnersPreview();
+        });
+      }
+      if (btnReset) {
+        btnReset.addEventListener("click", () => {
+          winnersConfig = defaultWinnersConfig();
+          saveWinnersConfig();
+          renderWinnersList();
+          refreshWinnersPreview();
+        });
+      }
+      if (list) {
+        list.addEventListener("click", (ev) => {
+          const btn = ev.target && ev.target.closest ? ev.target.closest("[data-act=remove]") : null;
+          if (!btn) return;
+          const card = btn.closest(".winners-card");
+          if (!card) return;
+          const id = card.getAttribute("data-id");
+          winnersConfigFromDom();
+          if (winnersConfig.type === "award") {
+            winnersConfig.awardItems = winnersConfig.awardItems.filter((x) => x.id !== id);
+          } else {
+            winnersConfig.tournamentItems = winnersConfig.tournamentItems.filter((x) => x.id !== id);
+          }
+          saveWinnersConfig();
+          renderWinnersList();
+          refreshWinnersPreview();
+        });
+        list.addEventListener("change", () => persistWinnersFromUi());
+        list.addEventListener("input", () => {
+          // лёгкое обновление без полной перерисовки карточек
+          winnersConfigFromDom();
+          saveWinnersConfig();
+          refreshWinnersPreview();
+        });
+      }
+    }
 
     /** Области столбиков для hover-подсказки (координаты CSS-пикселей canvas). */
     /** @type {{ x: number, y: number, w: number, h: number, tip: string, canvas?: HTMLCanvasElement }[]} */
@@ -2487,12 +3112,13 @@
         Array.isArray(lastChartState.rowsB) && rawRowsB.length);
     }
 
-    function pushRawCsvRows(lines, periodLabel, sourceRows, tnGroup, edges, labels) {
+    function pushRawCsvRows(lines, periodLabel, sourceRows, tnGroup, edges, labels, winnersMap) {
       for (const row of sourceRows) {
         const group = tnGroup.get(row.tn) || groupNameForAmount(row.amount, edges, labels);
+        const w = winnersLookup(winnersMap, row.tn);
         const cells = periodLabel
-          ? [periodLabel, row.tn, row.tb, row.gosb, row.cluster, row.amount, group]
-          : [row.tn, row.tb, row.gosb, row.cluster, row.amount, group];
+          ? [periodLabel, row.tn, row.tb, row.gosb, row.cluster, row.amount, group, w.won ? "да" : "нет", w.prize]
+          : [row.tn, row.tb, row.gosb, row.cluster, row.amount, group, w.won ? "да" : "нет", w.prize];
         lines.push(cells.map(csvEscape).join(";"));
       }
     }
@@ -2555,18 +3181,21 @@
         const edges = st.edges;
         const labels = (st.hist && st.hist.labels) || [];
         const both = exportIncludesBothPeriods();
+        const ind = indicatorLabel();
+        const winA = computeWinnersMap(st.rows, edges, labels);
         const lines = [];
         if (both) {
-          lines.push(["Период", "ТН", "ТБ", "ГОСБ", "кластер", "сумма", "Группа"].join(";"));
+          const winB = computeWinnersMap(st.rowsB || [], edges, labels);
+          lines.push(["Период", ind, "ТБ", "ГОСБ", "кластер", "сумма", "Группа", "Победитель", "Награда"].join(";"));
           const mapA = buildTnGroupMapFromRows(st.rows, edges, labels);
           const mapB = buildTnGroupMapFromRows(st.rowsB, edges, labels);
-          pushRawCsvRows(lines, PERIOD_CUR.label, rawRows, mapA, edges, labels);
-          pushRawCsvRows(lines, PERIOD_PREV.label, rawRowsB, mapB, edges, labels);
+          pushRawCsvRows(lines, PERIOD_CUR.label, rawRows, mapA, edges, labels, winA);
+          pushRawCsvRows(lines, PERIOD_PREV.label, rawRowsB, mapB, edges, labels, winB);
           downloadTextFile("sum_source_with_group_compare_" + stamp() + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
         } else {
-          lines.push(["ТН", "ТБ", "ГОСБ", "кластер", "сумма", "Группа"].join(";"));
+          lines.push([ind, "ТБ", "ГОСБ", "кластер", "сумма", "Группа", "Победитель", "Награда"].join(";"));
           const mapA = buildTnGroupMapFromRows(st.rows, edges, labels);
-          pushRawCsvRows(lines, null, rawRows, mapA, edges, labels);
+          pushRawCsvRows(lines, null, rawRows, mapA, edges, labels, winA);
           downloadTextFile("sum_source_with_group_" + stamp() + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
         }
       } catch (err) {
@@ -2580,26 +3209,50 @@
         const edges = st.edges;
         const labels = (st.hist && st.hist.labels) || [];
         const both = exportIncludesBothPeriods();
+        const ind = indicatorLabel();
         const lines = [];
         if (both) {
-          lines.push("Период;ТН;Группа");
+          const winA = computeWinnersMap(st.rows, edges, labels);
+          const winB = computeWinnersMap(st.rowsB || [], edges, labels);
+          lines.push(["Период", ind, "Группа", "Победитель", "Награда"].join(";"));
           const mapA = buildTnGroupMapFromRows(st.rows, edges, labels);
           const mapB = buildTnGroupMapFromRows(st.rowsB, edges, labels);
           const sortedA = [...mapA.entries()].sort((a, b) => a[0].localeCompare(b[0]));
           const sortedB = [...mapB.entries()].sort((a, b) => a[0].localeCompare(b[0]));
           for (const [tn, group] of sortedA) {
-            lines.push([csvEscape(PERIOD_CUR.label), csvEscape(formatTn8(tn)), csvEscape(group)].join(";"));
+            const w = winnersLookup(winA, tn);
+            lines.push([
+              csvEscape(PERIOD_CUR.label),
+              csvEscape(formatTn8(tn)),
+              csvEscape(group),
+              csvEscape(w.won ? "да" : "нет"),
+              csvEscape(w.prize)
+            ].join(";"));
           }
           for (const [tn, group] of sortedB) {
-            lines.push([csvEscape(PERIOD_PREV.label), csvEscape(formatTn8(tn)), csvEscape(group)].join(";"));
+            const w = winnersLookup(winB, tn);
+            lines.push([
+              csvEscape(PERIOD_PREV.label),
+              csvEscape(formatTn8(tn)),
+              csvEscape(group),
+              csvEscape(w.won ? "да" : "нет"),
+              csvEscape(w.prize)
+            ].join(";"));
           }
           downloadTextFile("sum_tn8_groups_compare_" + stamp() + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
         } else {
+          const winA = computeWinnersMap(st.rows, edges, labels);
           const tnGroup = buildTnGroupMapFromRows(st.rows, edges, labels);
-          lines.push("ТН;Группа");
+          lines.push([ind, "Группа", "Победитель", "Награда"].join(";"));
           const sorted = [...tnGroup.entries()].sort((a, b) => a[0].localeCompare(b[0]));
           for (const [tn, group] of sorted) {
-            lines.push(csvEscape(formatTn8(tn)) + ";" + csvEscape(group));
+            const w = winnersLookup(winA, tn);
+            lines.push([
+              csvEscape(formatTn8(tn)),
+              csvEscape(group),
+              csvEscape(w.won ? "да" : "нет"),
+              csvEscape(w.prize)
+            ].join(";"));
           }
           downloadTextFile("sum_tn8_groups_" + stamp() + ".csv", lines.join("\n"), "text/csv;charset=utf-8");
         }
@@ -5103,6 +5756,7 @@
           renderLegend(hist, layout, chartType);
           renderStats(rowsA, hist);
           renderFrequencyTable(hist, rowsA, slice);
+          refreshWinnersPreview();
         }
         setChartStatus(
           `Интервалов: ${hist.labels.length}; ${indicatorLabel()} на графике: ${hist.total}` +
@@ -7614,6 +8268,7 @@
         renderEdgeRail();
         setChartStatus("", "");
         document.body.classList.remove("is-compare-split");
+        refreshWinnersPreview();
         [el.chart, el.chartA, el.chartB].forEach((c) => {
           if (!c) return;
           const ctx = c.getContext("2d");
@@ -7740,6 +8395,8 @@
       else if (allRows.length) rebuild();
     });
 
+    initWinnersUi();
+
     syncViewModeUi();
     syncGroupLayoutUi();
     syncChartModeConstraints();
@@ -7768,6 +8425,9 @@
       getSelectedIndicator,
       getIndicatorAliases,
       indicatorLabel,
+      computeWinnersMap,
+      winnersLookup,
+      getWinnersConfig: () => winnersConfig,
       computeAllowedValues,
       computeAllAllowed,
       expandSelectionOnCheck,
