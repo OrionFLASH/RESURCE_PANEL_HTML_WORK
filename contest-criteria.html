@@ -1645,6 +1645,159 @@
       border-color: rgba(142, 142, 147, 0.16);
       color: var(--glass-text-secondary);
     }
+    .winners-report {
+      display: grid;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid var(--glass-white-border-light);
+    }
+    .winners-report.is-empty {
+      background: rgba(142, 142, 147, 0.08);
+      color: var(--glass-text-secondary);
+      font-size: 0.84rem;
+    }
+    .winners-report__head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .winners-report__title {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+    .winners-report__meta {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--glass-text-secondary);
+    }
+    .winners-report__stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .winners-stat {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 10px;
+      background: rgba(0, 122, 255, 0.08);
+      border: 1px solid rgba(0, 122, 255, 0.14);
+      font-size: 0.8rem;
+    }
+    .winners-stat__n {
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--glass-text);
+    }
+    .winners-stat__l {
+      color: var(--glass-text-secondary);
+    }
+    .winners-rule {
+      border-radius: 12px;
+      border: 1px solid var(--glass-white-border-light);
+      background: rgba(255, 255, 255, 0.82);
+      overflow: hidden;
+    }
+    .winners-rule > summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 8px 12px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.02);
+    }
+    .winners-rule > summary::-webkit-details-marker { display: none; }
+    .winners-rule > summary::after {
+      content: "▾";
+      color: var(--glass-text-secondary);
+      font-weight: 500;
+    }
+    .winners-rule:not([open]) > summary::after { content: "▸"; }
+    .winners-rule__count {
+      font-weight: 650;
+      color: var(--glass-blue);
+      font-size: 0.82rem;
+    }
+    .winners-rule__body {
+      padding: 8px 10px 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .winners-level-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    .winners-level-table th,
+    .winners-level-table td {
+      text-align: left;
+      padding: 5px 6px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      vertical-align: top;
+    }
+    .winners-level-table th {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--glass-text-secondary);
+      font-weight: 700;
+    }
+    .winners-level-table td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      font-weight: 650;
+    }
+    .winners-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .winners-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 8px;
+      background: rgba(52, 199, 89, 0.12);
+      border: 1px solid rgba(52, 199, 89, 0.22);
+      font-size: 0.74rem;
+      font-weight: 600;
+      max-width: 100%;
+    }
+    .winners-chip__amt {
+      color: var(--glass-text-secondary);
+      font-weight: 500;
+    }
+    .winners-chip.is-more {
+      background: rgba(142, 142, 147, 0.12);
+      border-color: rgba(142, 142, 147, 0.2);
+      color: var(--glass-text-secondary);
+    }
+    .winners-level-empty {
+      color: var(--glass-text-secondary);
+      font-size: 0.8rem;
+    }
+    .winners-breakdown-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .winners-breakdown-tabs .seg__btn {
+      font-size: 0.78rem;
+      padding: 4px 10px;
+    }
     .winners-panel[data-type="award"] .winners-only-tournament { display: none !important; }
     .winners-panel[data-type="tournament"] .winners-only-award { display: none !important; }
 
@@ -1814,7 +1967,15 @@
               направление «лучше» (больше или меньше), и сколько лучших берут (топ N или %).
             </p>
             <div id="winnersList" class="winners-list" aria-live="polite"></div>
-            <p id="winnersPreview" class="winners-preview is-empty">Загрузите данные — здесь появится сводка по победителям.</p>
+            <div class="winners-report is-empty" id="winnersReport" aria-live="polite">
+              <div class="winners-report__head">
+                <h3 class="winners-report__title">Результаты победителей</h3>
+                <button class="btn secondary small" type="button" id="btnWinnersRecalc"
+                  data-tip="Пересчитать победителей по текущим критериям, фильтрам и интервалам">Пересчитать</button>
+              </div>
+              <p class="winners-report__meta" id="winnersReportMeta">Загрузите данные — здесь будет разбивка по уровням (страна / ТБ / ГОСБ / кластер / группа).</p>
+              <div id="winnersReportBody"></div>
+            </div>
           </div>
         </details>
       </section>
@@ -2211,13 +2372,19 @@
     }
 
     /**
-     * Карта победителей по показателю (tn).
-     * @param {DataRow[]} rows агрегированные строки после фильтров
+     * Карта победителей + отчёт по уровням.
+     * @param {DataRow[]} rows
      * @param {number[]} edges
      * @param {string[]} labels
-     * @returns {Map<string, { won: boolean, prizes: string[] }>}
+     * @returns {{
+     *   map: Map<string, { won: boolean, prizes: string[] }>,
+     *   totalParticipants: number,
+     *   totalWinners: number,
+     *   type: string,
+     *   rules: object[]
+     * }}
      */
-    function computeWinnersMap(rows, edges, labels) {
+    function computeWinnersResult(rows, edges, labels) {
       /** @type {Map<string, { won: boolean, prizes: string[] }>} */
       const map = new Map();
       const ensure = (tn) => {
@@ -2230,7 +2397,63 @@
         rec.won = true;
       };
 
-      if (!rows || !rows.length) return map;
+      /** @type {object[]} */
+      const rules = [];
+      const safeRows = Array.isArray(rows) ? rows : [];
+
+      /**
+       * @param {DataRow} row
+       * @param {string} scope
+       */
+      function scopeKey(row, scope) {
+        if (scope === "tb") return (row.tb || "").trim() || "(пусто)";
+        if (scope === "gosb") return (row.gosb || "").trim() || "(пусто)";
+        if (scope === "cluster") return (row.cluster || "").trim() || "(пусто)";
+        if (scope === "group") {
+          return groupNameForAmount(row.amount, edges, labels || []) || "(без группы)";
+        }
+        return "Вся страна";
+      }
+
+      /**
+       * @param {string} scope
+       * @param {DataRow[]} winners
+       * @param {DataRow[]} allInScope
+       */
+      function buildLevels(scope, winners, allInScope) {
+        /** @type {Map<string, { key: string, participants: number, winners: DataRow[] }>} */
+        const buckets = new Map();
+        const bump = (key, field, row) => {
+          if (!buckets.has(key)) buckets.set(key, { key, participants: 0, winners: [] });
+          const b = buckets.get(key);
+          if (field === "p") b.participants += 1;
+          else b.winners.push(row);
+        };
+        for (let i = 0; i < allInScope.length; i += 1) {
+          bump(scopeKey(allInScope[i], scope), "p", allInScope[i]);
+        }
+        for (let i = 0; i < winners.length; i += 1) {
+          bump(scopeKey(winners[i], scope), "w", winners[i]);
+        }
+        const levels = [...buckets.values()].map((b) => ({
+          key: b.key,
+          label: b.key,
+          participants: b.participants,
+          winnerCount: b.winners.length,
+          winners: b.winners
+            .slice()
+            .sort((a, c) => (Number(c.amount) || 0) - (Number(a.amount) || 0))
+            .map((r) => ({
+              tn: r.tn,
+              amount: Number(r.amount) || 0,
+              tb: r.tb || "",
+              gosb: r.gosb || "",
+              cluster: r.cluster || ""
+            }))
+        }));
+        levels.sort((a, b) => b.winnerCount - a.winnerCount || a.label.localeCompare(b.label, "ru"));
+        return levels;
+      }
 
       if (winnersConfig.type === "award") {
         const items = winnersConfig.awardItems || [];
@@ -2239,61 +2462,124 @@
           const thr = Number(item.criterion);
           if (!Number.isFinite(thr)) continue;
           const prize = awardPrizeLabel(item);
-          for (let r = 0; r < rows.length; r += 1) {
-            const row = rows[r];
-            if ((Number(row.amount) || 0) >= thr) addPrize(row.tn, prize);
+          /** @type {DataRow[]} */
+          const winners = [];
+          for (let r = 0; r < safeRows.length; r += 1) {
+            const row = safeRows[r];
+            if ((Number(row.amount) || 0) >= thr) {
+              addPrize(row.tn, prize);
+              winners.push(row);
+            }
           }
+          rules.push({
+            id: item.id,
+            kind: "award",
+            label: prize,
+            scope: "country",
+            winnerCount: winners.length,
+            // для награды показываем разбивку и по ТБ / ГОСБ / кластеру
+            breakdowns: {
+              country: buildLevels("country", winners, safeRows),
+              tb: buildLevels("tb", winners, safeRows),
+              gosb: buildLevels("gosb", winners, safeRows),
+              cluster: buildLevels("cluster", winners, safeRows),
+              group: buildLevels("group", winners, safeRows)
+            }
+          });
         }
-        return map;
+      } else {
+        const items = winnersConfig.tournamentItems || [];
+        for (let i = 0; i < items.length; i += 1) {
+          const item = items[i];
+          const prize = tournamentPrizeLabel(item);
+          const scope = item.scope || "country";
+          /** @type {Map<string, DataRow[]>} */
+          const buckets = new Map();
+          for (let r = 0; r < safeRows.length; r += 1) {
+            const row = safeRows[r];
+            const key = scopeKey(row, scope);
+            if (!buckets.has(key)) buckets.set(key, []);
+            buckets.get(key).push(row);
+          }
+          /** @type {DataRow[]} */
+          const winners = [];
+          /** @type {object[]} */
+          const levels = [];
+          for (const [key, groupRows] of buckets.entries()) {
+            const sorted = groupRows.slice().sort((a, b) => {
+              const da = Number(a.amount) || 0;
+              const db = Number(b.amount) || 0;
+              if (item.direction === "less") return da - db;
+              return db - da;
+            });
+            const n = sorted.length;
+            if (!n) continue;
+            let take = 1;
+            if (item.selectMode === "topPct") {
+              take = Math.max(1, Math.ceil((n * Number(item.topPct)) / 100));
+            } else {
+              take = Math.max(1, Math.min(n, Math.round(Number(item.topN) || 1)));
+            }
+            take = Math.min(take, n);
+            const cutoff = Number(sorted[take - 1].amount) || 0;
+            /** @type {DataRow[]} */
+            const levelWinners = [];
+            for (let k = 0; k < n; k += 1) {
+              if (k < take) {
+                levelWinners.push(sorted[k]);
+                continue;
+              }
+              const amt = Number(sorted[k].amount) || 0;
+              if (amt === cutoff) levelWinners.push(sorted[k]);
+              else break;
+            }
+            for (let w = 0; w < levelWinners.length; w += 1) {
+              addPrize(levelWinners[w].tn, prize);
+              winners.push(levelWinners[w]);
+            }
+            levels.push({
+              key,
+              label: key,
+              participants: n,
+              winnerCount: levelWinners.length,
+              winners: levelWinners.map((r) => ({
+                tn: r.tn,
+                amount: Number(r.amount) || 0,
+                tb: r.tb || "",
+                gosb: r.gosb || "",
+                cluster: r.cluster || ""
+              }))
+            });
+          }
+          levels.sort((a, b) => b.winnerCount - a.winnerCount || a.label.localeCompare(b.label, "ru"));
+          rules.push({
+            id: item.id,
+            kind: "tournament",
+            label: prize,
+            scope,
+            scopeLabel: SCOPE_LABELS[scope] || scope,
+            winnerCount: winners.length,
+            levels
+          });
+        }
       }
 
-      const items = winnersConfig.tournamentItems || [];
-      for (let i = 0; i < items.length; i += 1) {
-        const item = items[i];
-        const prize = tournamentPrizeLabel(item);
-        /** @type {Map<string, DataRow[]>} */
-        const buckets = new Map();
-        for (let r = 0; r < rows.length; r += 1) {
-          const row = rows[r];
-          let key = "__all__";
-          if (item.scope === "tb") key = (row.tb || "").trim() || "(пусто)";
-          else if (item.scope === "gosb") key = (row.gosb || "").trim() || "(пусто)";
-          else if (item.scope === "cluster") key = (row.cluster || "").trim() || "(пусто)";
-          else if (item.scope === "group") {
-            key = groupNameForAmount(row.amount, edges, labels || []) || "(без группы)";
-          }
-          if (!buckets.has(key)) buckets.set(key, []);
-          buckets.get(key).push(row);
-        }
-          for (const groupRows of buckets.values()) {
-          const sorted = groupRows.slice().sort((a, b) => {
-            const da = Number(a.amount) || 0;
-            const db = Number(b.amount) || 0;
-            if (item.direction === "less") return da - db;
-            return db - da;
-          });
-          const n = sorted.length;
-          if (!n) continue;
-          let take = 1;
-          if (item.selectMode === "topPct") {
-            take = Math.max(1, Math.ceil((n * Number(item.topPct)) / 100));
-          } else {
-            take = Math.max(1, Math.min(n, Math.round(Number(item.topN) || 1)));
-          }
-          take = Math.min(take, n);
-          const cutoff = Number(sorted[take - 1].amount) || 0;
-          for (let k = 0; k < n; k += 1) {
-            if (k < take) {
-              addPrize(sorted[k].tn, prize);
-              continue;
-            }
-            const amt = Number(sorted[k].amount) || 0;
-            if (amt === cutoff) addPrize(sorted[k].tn, prize);
-            else break;
-          }
-        }
+      let totalWinners = 0;
+      for (const rec of map.values()) {
+        if (rec.won) totalWinners += 1;
       }
-      return map;
+      return {
+        map,
+        totalParticipants: safeRows.length,
+        totalWinners,
+        type: winnersConfig.type,
+        rules
+      };
+    }
+
+    /** Обратная совместимость: только карта tn → награды. */
+    function computeWinnersMap(rows, edges, labels) {
+      return computeWinnersResult(rows, edges, labels).map;
     }
 
     function winnersLookup(map, tn) {
@@ -2302,41 +2588,161 @@
       return { won: true, prize: (rec.prizes || []).join("; ") };
     }
 
+    /** @type {string} активный разрез в сводке для режима «награда» */
+    let winnersAwardBreakdown = "tb";
+    let winnersRecalcTimer = 0;
+
+    function formatWinnerChip(w) {
+      return (
+        '<span class="winners-chip">' +
+          '<span>' + escapeHtml(formatTn8(w.tn)) + '</span>' +
+          '<span class="winners-chip__amt">' + escapeHtml(formatAmount(w.amount)) + '</span>' +
+        '</span>'
+      );
+    }
+
+    function renderWinnerChips(list, limit) {
+      const lim = limit || 8;
+      if (!list || !list.length) return '<span class="winners-level-empty">нет</span>';
+      const shown = list.slice(0, lim);
+      const rest = list.length - shown.length;
+      return (
+        '<div class="winners-chips">' +
+          shown.map(formatWinnerChip).join("") +
+          (rest > 0 ? '<span class="winners-chip is-more">+' + rest + '</span>' : "") +
+        '</div>'
+      );
+    }
+
+    /**
+     * @param {object[]} levels
+     * @param {string} levelTitle
+     */
+    function renderLevelsTable(levels, levelTitle) {
+      if (!levels || !levels.length) {
+        return '<p class="winners-level-empty">Нет уровней для отображения.</p>';
+      }
+      const withWinners = levels.filter((l) => l.winnerCount > 0);
+      if (!withWinners.length) {
+        return '<p class="winners-level-empty">По этому правилу никто не проходит.</p>';
+      }
+      const hiddenEmpty = levels.length - withWinners.length;
+      const rowsHtml = withWinners.map((lv) => (
+        '<tr>' +
+          '<td>' + escapeHtml(lv.label) + '</td>' +
+          '<td class="num">' + lv.participants + '</td>' +
+          '<td class="num">' + lv.winnerCount + '</td>' +
+          '<td>' + renderWinnerChips(lv.winners, 6) + '</td>' +
+        '</tr>'
+      )).join("");
+      return (
+        '<table class="winners-level-table">' +
+          '<thead><tr>' +
+            '<th>' + escapeHtml(levelTitle) + '</th>' +
+            '<th class="num">Участников</th>' +
+            '<th class="num">Победителей</th>' +
+            '<th>Кто</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rowsHtml + '</tbody>' +
+        '</table>' +
+        (hiddenEmpty > 0
+          ? '<p class="winners-level-empty">Без победителей скрыто уровней: ' + hiddenEmpty + '</p>'
+          : '')
+      );
+    }
+
     function refreshWinnersPreview() {
-      const box = document.getElementById("winnersPreview");
-      if (!box) return;
+      const reportEl = document.getElementById("winnersReport");
+      const body = document.getElementById("winnersReportBody");
+      const meta = document.getElementById("winnersReportMeta");
+      if (!reportEl || !body || !meta) return;
+
       if (!lastChartState || !lastChartState.rows || !lastChartState.rows.length) {
-        box.className = "winners-preview is-empty";
-        box.textContent = "Загрузите данные — здесь появится сводка по победителям.";
+        reportEl.className = "winners-report is-empty";
+        meta.textContent = "Загрузите данные — здесь будет разбивка по уровням (страна / ТБ / ГОСБ / кластер / группа).";
+        body.innerHTML = "";
         return;
       }
+
       const edges = lastChartState.edges || [];
       const labels = (lastChartState.hist && lastChartState.hist.labels) || [];
-      const map = computeWinnersMap(lastChartState.rows, edges, labels);
-      let winners = 0;
-      const prizeCount = new Map();
-      for (const rec of map.values()) {
-        if (!rec.won) continue;
-        winners += 1;
-        for (const p of rec.prizes) {
-          prizeCount.set(p, (prizeCount.get(p) || 0) + 1);
+      const result = computeWinnersResult(lastChartState.rows, edges, labels);
+      reportEl.className = "winners-report";
+
+      meta.textContent =
+        "Участников после фильтров: " + result.totalParticipants +
+        " · уникальных победителей: " + result.totalWinners +
+        " · правил/наград: " + result.rules.length +
+        " · пересчёт при любом изменении критериев.";
+
+      const statsHtml =
+        '<div class="winners-report__stats">' +
+          '<div class="winners-stat"><span class="winners-stat__n">' + result.totalParticipants + '</span><span class="winners-stat__l">участников</span></div>' +
+          '<div class="winners-stat"><span class="winners-stat__n">' + result.totalWinners + '</span><span class="winners-stat__l">победителей</span></div>' +
+          '<div class="winners-stat"><span class="winners-stat__n">' + result.rules.length + '</span><span class="winners-stat__l">наград</span></div>' +
+        '</div>';
+
+      if (!result.rules.length) {
+        body.innerHTML = statsHtml + '<p class="winners-level-empty">Добавьте хотя бы одну награду.</p>';
+        return;
+      }
+
+      /** @type {Set<string>} */
+      const openIds = new Set();
+      body.querySelectorAll("details.winners-rule[open]").forEach((d) => {
+        const id = d.getAttribute("data-rule-id");
+        if (id) openIds.add(id);
+      });
+      const keepOpen = openIds.size > 0;
+
+      const breakdownKeys = [
+        { id: "country", label: "Страна" },
+        { id: "tb", label: "ТБ" },
+        { id: "gosb", label: "ГОСБ" },
+        { id: "cluster", label: "Кластер" },
+        { id: "group", label: "Группа" }
+      ];
+      if (!breakdownKeys.some((k) => k.id === winnersAwardBreakdown)) winnersAwardBreakdown = "tb";
+
+      const rulesHtml = result.rules.map((rule, idx) => {
+        let inner = "";
+        if (rule.kind === "award") {
+          const tabs = breakdownKeys.map((k) =>
+            '<button type="button" class="seg__btn' + (winnersAwardBreakdown === k.id ? " is-on" : "") +
+            '" data-breakdown="' + k.id + '">' + k.label + "</button>"
+          ).join("");
+          const levels = (rule.breakdowns && rule.breakdowns[winnersAwardBreakdown]) || [];
+          const title = (breakdownKeys.find((k) => k.id === winnersAwardBreakdown) || {}).label || "Уровень";
+          inner =
+            '<div class="winners-breakdown-tabs" role="group" aria-label="Разбивка по уровню">' + tabs + "</div>" +
+            renderLevelsTable(levels, title);
+        } else {
+          inner =
+            '<p class="winners-report__meta" style="margin:0">Круг: ' + escapeHtml(rule.scopeLabel || rule.scope) +
+            " · уровней: " + (rule.levels ? rule.levels.length : 0) + "</p>" +
+            renderLevelsTable(rule.levels || [], rule.scopeLabel || "Уровень");
         }
-      }
-      const total = lastChartState.rows.length;
-      const parts = [];
-      parts.push("Участников (после фильтров): " + total + ".");
-      parts.push("Победителей: " + winners + ".");
-      if (prizeCount.size) {
-        const detail = [...prizeCount.entries()]
-          .slice(0, 6)
-          .map(([name, cnt]) => name + " — " + cnt)
-          .join("; ");
-        parts.push("По наградам: " + detail + (prizeCount.size > 6 ? "…" : "."));
-      } else {
-        parts.push("По текущим правилам никто не проходит.");
-      }
-      box.className = "winners-preview";
-      box.textContent = parts.join(" ");
+        const isOpen = keepOpen ? openIds.has(rule.id) : idx === 0;
+        return (
+          '<details class="winners-rule" data-rule-id="' + escapeHtml(rule.id) + '"' + (isOpen ? " open" : "") + '>' +
+            '<summary>' +
+              '<span>' + escapeHtml(rule.label) + '</span>' +
+              '<span class="winners-rule__count">' + rule.winnerCount + ' побед.</span>' +
+            '</summary>' +
+            '<div class="winners-rule__body">' + inner + '</div>' +
+          '</details>'
+        );
+      }).join("");
+
+      body.innerHTML = statsHtml + rulesHtml;
+    }
+
+    function scheduleWinnersRecalc() {
+      if (winnersRecalcTimer) clearTimeout(winnersRecalcTimer);
+      winnersRecalcTimer = setTimeout(() => {
+        winnersRecalcTimer = 0;
+        persistWinnersFromUi();
+      }, 120);
     }
 
     function renderWinnersList() {
@@ -2495,6 +2901,8 @@
       const list = document.getElementById("winnersList");
       const btnAdd = document.getElementById("btnWinnersAdd");
       const btnReset = document.getElementById("btnWinnersReset");
+      const btnRecalc = document.getElementById("btnWinnersRecalc");
+      const reportBody = document.getElementById("winnersReportBody");
       renderWinnersList();
       refreshWinnersPreview();
 
@@ -2504,6 +2912,26 @@
         renderWinnersList();
         refreshWinnersPreview();
       });
+
+      if (btnRecalc) {
+        btnRecalc.addEventListener("click", () => {
+          persistWinnersFromUi();
+          // если график уже есть — убедимся, что фильтры актуальны
+          if (allRows.length) rebuild({ light: false });
+          else refreshWinnersPreview();
+        });
+      }
+
+      if (reportBody) {
+        reportBody.addEventListener("click", (ev) => {
+          const btn = ev.target && ev.target.closest ? ev.target.closest("[data-breakdown]") : null;
+          if (!btn) return;
+          const id = btn.getAttribute("data-breakdown");
+          if (!id || id === winnersAwardBreakdown) return;
+          winnersAwardBreakdown = id;
+          refreshWinnersPreview();
+        });
+      }
 
       if (btnAdd) {
         btnAdd.addEventListener("click", () => {
@@ -2552,12 +2980,15 @@
           renderWinnersList();
           refreshWinnersPreview();
         });
+        // select/change — сразу; ввод чисел — с лёгкой задержкой
         list.addEventListener("change", () => persistWinnersFromUi());
-        list.addEventListener("input", () => {
-          // лёгкое обновление без полной перерисовки карточек
-          winnersConfigFromDom();
-          saveWinnersConfig();
-          refreshWinnersPreview();
+        list.addEventListener("input", (ev) => {
+          const t = ev.target;
+          if (t && t.tagName === "SELECT") {
+            persistWinnersFromUi();
+            return;
+          }
+          scheduleWinnersRecalc();
         });
       }
     }
@@ -8426,6 +8857,7 @@
       getIndicatorAliases,
       indicatorLabel,
       computeWinnersMap,
+      computeWinnersResult,
       winnersLookup,
       getWinnersConfig: () => winnersConfig,
       computeAllowedValues,
