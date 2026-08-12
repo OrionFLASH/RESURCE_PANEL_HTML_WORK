@@ -4281,8 +4281,7 @@
 
     /**
      * Общий обработчик кнопок распределения по числу ТН.
-     * Квантили всегда только по текущему периоду; прошлый не участвует в долях,
-     * но шкала min/max в сравнении охватывает оба периода.
+     * В режиме «Все значения» в сравнении участвуют оба периода.
      */
     function applyWeightedCountEdges(kind) {
       if (!allRows.length) {
@@ -4290,12 +4289,16 @@
         return;
       }
       const rowsAFull = filteredRows();
-      if (!rowsAFull.length) {
-        setChartStatus("После фильтров в текущем периоде ТН не осталось — нечего распределять.", "err");
+      const rowsAll = edgeSourceRows();
+      const sourceForCalc = (!includePositiveOnlyForAutoEdges() && viewMode === "compare" && allRowsB.length)
+        ? rowsAll
+        : rowsAFull;
+      if (!sourceForCalc.length) {
+        setChartStatus("После фильтров ТН не осталось — нечего распределять.", "err");
         return;
       }
       const k = readIntervalCount();
-      const edges = buildAutoEdges(rowsAFull, k, kind);
+      const edges = buildAutoEdges(sourceForCalc, k, kind);
       edgeState.min = edges[0];
       edgeState.max = edges[edges.length - 1];
       edgeState.edges = edges;
@@ -4361,7 +4364,9 @@
       const expectPts = expectedEdgePointCount(k, baseRows);
       const sameRange = edgeState.min === scaleFull.min && edgeState.max === scaleFull.max;
       if (forceReset || !edgeState.edges.length || !sameRange || edgeState.edges.length !== expectPts) {
-        const initRows = filteredRows().length ? filteredRows() : baseRows;
+        const initRows = (!includePositiveOnlyForAutoEdges() && viewMode === "compare" && allRowsB.length)
+          ? (rows.length ? rows : baseRows)
+          : (filteredRows().length ? filteredRows() : baseRows);
         const edges = buildAutoEdges(initRows, k, "even");
         edgeState.min = edges[0];
         edgeState.max = edges[edges.length - 1];
@@ -5717,19 +5722,38 @@
       ctx.font = "11px sans-serif";
       ctx.textAlign = "right";
       if (isCandleChartType(chartType)) {
-        const allAmounts = (rows || []).map((r) => Number(r.amount) || 0);
-        const axisMin = allAmounts.length ? Math.min(...allAmounts) : 0;
-        const axisMaxRaw = allAmounts.length ? Math.max(...allAmounts) : 1;
-        const axisMax = axisMaxRaw === axisMin ? axisMin + 1 : axisMaxRaw;
-        for (let i = 0; i <= ticks; i += 1) {
-          const y = pad.t + plotH - (plotH * i) / ticks;
-          const val = axisMin + ((axisMax - axisMin) * i) / ticks;
-          ctx.beginPath();
-          ctx.strokeStyle = "rgba(29,29,31,0.06)";
-          ctx.moveTo(pad.l, y);
-          ctx.lineTo(pad.l + plotW, y);
-          ctx.stroke();
-          ctx.fillText(formatAmount(val), pad.l - 6, y + 3);
+        if (chartType === "candles_tn") {
+          let axisMax = 1;
+          for (const s of series) {
+            for (const c of s.counts) {
+              if ((c || 0) > axisMax) axisMax = c || 0;
+            }
+          }
+          for (let i = 0; i <= ticks; i += 1) {
+            const y = pad.t + plotH - (plotH * i) / ticks;
+            const val = Math.round((axisMax * i) / ticks);
+            ctx.beginPath();
+            ctx.strokeStyle = "rgba(29,29,31,0.06)";
+            ctx.moveTo(pad.l, y);
+            ctx.lineTo(pad.l + plotW, y);
+            ctx.stroke();
+            ctx.fillText(String(val), pad.l - 6, y + 3);
+          }
+        } else {
+          const allAmounts = (rows || []).map((r) => Number(r.amount) || 0);
+          const axisMin = allAmounts.length ? Math.min(...allAmounts) : 0;
+          const axisMaxRaw = allAmounts.length ? Math.max(...allAmounts) : 1;
+          const axisMax = axisMaxRaw === axisMin ? axisMin + 1 : axisMaxRaw;
+          for (let i = 0; i <= ticks; i += 1) {
+            const y = pad.t + plotH - (plotH * i) / ticks;
+            const val = axisMin + ((axisMax - axisMin) * i) / ticks;
+            ctx.beginPath();
+            ctx.strokeStyle = "rgba(29,29,31,0.06)";
+            ctx.moveTo(pad.l, y);
+            ctx.lineTo(pad.l + plotW, y);
+            ctx.stroke();
+            ctx.fillText(formatAmount(val), pad.l - 6, y + 3);
+          }
         }
       } else {
         for (let i = 0; i <= ticks; i += 1) {
@@ -6010,19 +6034,19 @@
       function drawCandleBadge(cx, bodyW, y, text, side, color) {
         if (!text) return;
         ctx.save();
-        ctx.font = "600 9px Segoe UI";
-        const padBadge = { x: 5, y: 3 };
+        ctx.font = "700 11px Segoe UI";
+        const padBadge = { x: 7, y: 4 };
         const tw = ctx.measureText(text).width;
         const bw = Math.ceil(tw + padBadge.x * 2);
-        const bh = 14;
+        const bh = 20;
         const bx = side === "left"
           ? cx - bodyW / 2 - bw - 6
           : cx + bodyW / 2 + 6;
         let by = y - bh / 2;
         by = Math.max(pad.t + 1, Math.min(pad.t + plotH - bh - 1, by));
-        ctx.fillStyle = "rgba(255,255,255,0.94)";
+        ctx.fillStyle = "rgba(255,255,255,0.98)";
         ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.4;
         ctx.fillRect(bx, by, bw, bh);
         ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
         ctx.fillStyle = color;
@@ -6084,6 +6108,7 @@
 
       function drawCandlesChart(candleLabelMode) {
         const labelMode = candleLabelMode === "tn_bounds" ? "tn_bounds" : "zones";
+        const tnAxisMode = labelMode === "tn_bounds";
         const candleData = [];
         for (let bi = 0; bi < binN; bi += 1) {
           for (let si = 0; si < seriesN; si += 1) {
@@ -6101,8 +6126,19 @@
           }
         }
         if (!candleData.length) return;
-        let yMinVal = Math.min(...candleData.map((x) => x.stats.low));
-        let yMaxVal = Math.max(...candleData.map((x) => x.stats.high));
+        const levelByStats = (st) => {
+          if (tnAxisMode) {
+            const low = 0;
+            const q1 = st.below;
+            const q3 = st.below + st.inside;
+            const p50 = st.below + st.inside / 2;
+            const high = st.total;
+            return { low, q1, p50, q3, high };
+          }
+          return { low: st.low, q1: st.q1, p50: st.p50, q3: st.q3, high: st.high };
+        };
+        let yMinVal = Math.min(...candleData.map((x) => levelByStats(x.stats).low));
+        let yMaxVal = Math.max(...candleData.map((x) => levelByStats(x.stats).high));
         if (!Number.isFinite(yMinVal)) yMinVal = 0;
         if (!Number.isFinite(yMaxVal)) yMaxVal = yMinVal + 1;
         if (yMaxVal === yMinVal) yMaxVal = yMinVal + 1;
@@ -6115,13 +6151,14 @@
 
         for (const c of candleData) {
           const st = c.stats;
+          const lv = levelByStats(st);
           const gx = pad.l + c.bi * groupWLocal + gapLocal / 2;
           const cx = gx + c.si * (bodyW + seriesGapLocal) + bodyW / 2;
-          const yLow = yAt(st.low);
-          const yHigh = yAt(st.high);
-          const yQ1 = yAt(st.q1);
-          const yQ3 = yAt(st.q3);
-          const yP50 = yAt(st.p50);
+          const yLow = yAt(lv.low);
+          const yHigh = yAt(lv.high);
+          const yQ1 = yAt(lv.q1);
+          const yQ3 = yAt(lv.q3);
+          const yP50 = yAt(lv.p50);
           const boxTop = Math.min(yQ1, yQ3);
           const boxH = Math.max(1, Math.abs(yQ3 - yQ1));
 
@@ -6144,17 +6181,27 @@
           ctx.lineTo(cx + bodyW / 2, yP50);
           ctx.stroke();
 
-          const tipLines = [
-            "Интервал: " + c.interval,
-            "Серия: " + c.name,
-            "Всего ТН в интервале: " + st.total,
-            "Сумма ниже " + formatAmount(st.q1) + ": " + st.below + " ТН",
-            "Сумма от " + formatAmount(st.q1) + " до " + formatAmount(st.q3) + ": " + st.inside + " ТН",
-            "Сумма выше " + formatAmount(st.q3) + ": " + st.above + " ТН",
-            "Границы по сумме: "
-              + formatAmount(st.low) + " … " + formatAmount(st.high)
-              + " (тело " + formatAmount(st.q1) + " … " + formatAmount(st.q3) + ")"
-          ];
+          const tipLines = tnAxisMode
+            ? [
+              "Интервал: " + c.interval,
+              "Серия: " + c.name,
+              "Ось Y: количество ТН",
+              "Всего ТН в интервале: " + st.total,
+              "Ниже " + formatAmount(st.q1) + ": " + st.below + " ТН",
+              "От " + formatAmount(st.q1) + " до " + formatAmount(st.q3) + ": " + st.inside + " ТН",
+              "Выше " + formatAmount(st.q3) + ": " + st.above + " ТН"
+            ]
+            : [
+              "Интервал: " + c.interval,
+              "Серия: " + c.name,
+              "Всего ТН в интервале: " + st.total,
+              "Сумма ниже " + formatAmount(st.q1) + ": " + st.below + " ТН",
+              "Сумма от " + formatAmount(st.q1) + " до " + formatAmount(st.q3) + ": " + st.inside + " ТН",
+              "Сумма выше " + formatAmount(st.q3) + ": " + st.above + " ТН",
+              "Границы по сумме: "
+                + formatAmount(st.low) + " … " + formatAmount(st.high)
+                + " (тело " + formatAmount(st.q1) + " … " + formatAmount(st.q3) + ")"
+            ];
           registerHitBar(
             cx - bodyW / 2 - 6,
             yHigh,
