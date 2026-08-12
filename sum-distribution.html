@@ -15,6 +15,8 @@
   "defaultSliceMode": "all",
   "defaultGroupLayout": "slice",
   "defaultChartType": "bars",
+  "defaultShowChartLabels": true,
+  "defaultShowCandleZoneLabels": true,
   "defaultCompareLayout": "overlay",
   "defaultMovableEdges": 3,
   "_intervalsNote": "defaultMovableEdges / movableEdgesMax — это число ИНТЕРВАЛОВ (столбиков), не бегунков",
@@ -1670,16 +1672,29 @@
         <div class="chart-sticky">
           <h2 id="chartHeading">Гистограмма</h2>
           <div class="chart-toolbar">
-            <div class="toolbar-cell" data-tip="Гистограмма — дискретные интервалы; линия — форма по центрам. Линия недоступна при «Наложении с перекрытием».">
+            <div class="toolbar-cell" data-tip="Гистограмма — дискретные интервалы; линия — форма по центрам; свечи — распределение сумм (low/q1/median/q3/high). «Наложение с перекрытием» доступно только для гистограммы.">
               <span class="toolbar-label">Вид графика</span>
               <div class="seg" id="chartTypeSeg" role="group" aria-label="Вид графика">
                 <button type="button" class="seg__btn is-on" data-value="bars">Гистограмма</button>
                 <button type="button" class="seg__btn" data-value="line">Линия</button>
+                <button type="button" class="seg__btn" data-value="candles">Свечи</button>
               </div>
               <select id="chartType" class="sr-only" tabindex="-1" aria-hidden="true">
                 <option value="bars" selected>Гистограмма</option>
                 <option value="line">Линия</option>
+                <option value="candles">Свечи</option>
               </select>
+            </div>
+            <div class="toolbar-cell" data-tip="Включает/выключает подписи данных (ТН и статистика свечей) на графике">
+              <span class="toolbar-label">Подписи данных</span>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input id="showChartLabels" type="checkbox" checked>
+                <span>Показывать</span>
+              </label>
+              <label id="showCandleZoneLabelsWrap" style="display:none;align-items:center;gap:6px;cursor:pointer;margin-top:6px;" data-tip="Только для свечей: показывать подписи зон ↓/↔/↑">
+                <input id="showCandleZoneLabels" type="checkbox" checked>
+                <span>Зоны свечи ↓/↔/↑</span>
+              </label>
             </div>
             <div class="toolbar-cell compare-only" data-tip="Наложение и наложение с перекрытием — один график; рядом / друг под другом — два. Перекрытие только с гистограммой.">
               <span class="toolbar-label">Компоновка</span>
@@ -1907,8 +1922,8 @@
                 <h4>11) Средние / медианы (bar)</h4>
                 <canvas id="anChartAvgBar"></canvas>
               </div>
-              <div class="analysis-card" data-tip="Тепловая карта avg по пересечению ТБ × ГОСБ (top ключи)">
-                <h4>12) Heatmap avg: ТБ × ГОСБ</h4>
+              <div class="analysis-card" data-tip="Тепловая карта avg по пересечению ГОСБ × ТБ (top ключи)">
+                <h4>12) Heatmap avg: ГОСБ × ТБ</h4>
                 <canvas id="anChartHeat"></canvas>
               </div>
             </div>
@@ -2079,6 +2094,9 @@
       groupLayoutSeg: document.getElementById("groupLayoutSeg"),
       chartType: document.getElementById("chartType"),
       chartTypeSeg: document.getElementById("chartTypeSeg"),
+      showChartLabels: document.getElementById("showChartLabels"),
+      showCandleZoneLabels: document.getElementById("showCandleZoneLabels"),
+      showCandleZoneLabelsWrap: document.getElementById("showCandleZoneLabelsWrap"),
       compareLayout: document.getElementById("compareLayout"),
       chartHeading: document.getElementById("chartHeading"),
       chartsDual: document.getElementById("chartsDual"),
@@ -2212,7 +2230,7 @@
         return comparePaletteColor(si);
       }
       if (layout === "bin") return seriesPaletteColor(si);
-      if (chartType === "line") return seriesPaletteColor(si);
+      if (chartType === "line" || chartType === "candles") return seriesPaletteColor(si);
       return seriesPaletteColor(bi);
     }
 
@@ -2223,7 +2241,21 @@
         t = "line";
         if (el.chartType) el.chartType.value = "line";
       }
-      return t === "line" ? "line" : "bars";
+      if (t === "line") return "line";
+      if (t === "candles") return "candles";
+      return "bars";
+    }
+
+    /** Включены ли подписи данных на графике. */
+    function chartLabelsEnabled() {
+      if (!el.showChartLabels) return true;
+      return !!el.showChartLabels.checked;
+    }
+
+    /** Включены ли подписи зон свечи (↓/↔/↑). */
+    function candleZoneLabelsEnabled() {
+      if (!el.showCandleZoneLabels) return true;
+      return !!el.showCandleZoneLabels.checked;
     }
 
     function normalizeAmount(raw) {
@@ -3336,9 +3368,9 @@
       const overlapOpt = el.compareLayout && el.compareLayout.querySelector('option[value="overlap"]');
 
       if (viewMode === "compare" && overlapOpt) {
-        const lineBlocksOverlap = chartType === "line";
-        overlapOpt.disabled = lineBlocksOverlap;
-        if (lineBlocksOverlap && compareLayout === "overlap") {
+        const nonBarsBlockOverlap = chartType !== "bars";
+        overlapOpt.disabled = nonBarsBlockOverlap;
+        if (nonBarsBlockOverlap && compareLayout === "overlap") {
           el.compareLayout.value = "overlay";
         }
       } else if (overlapOpt) {
@@ -3347,12 +3379,18 @@
 
       const overlapBlocksLine = viewMode === "compare" &&
         ((el.compareLayout && el.compareLayout.value) || "overlay") === "overlap";
-      if (overlapBlocksLine && chartType === "line" && el.chartType) {
+      if (overlapBlocksLine && chartType !== "bars" && el.chartType) {
         el.chartType.value = "bars";
       }
       setSegBtnLocked(
         el.chartTypeSeg,
         "line",
+        overlapBlocksLine,
+        "Недоступно при «Наложении с перекрытием» — сначала смените компоновку"
+      );
+      setSegBtnLocked(
+        el.chartTypeSeg,
+        "candles",
         overlapBlocksLine,
         "Недоступно при «Наложении с перекрытием» — сначала смените компоновку"
       );
@@ -3370,6 +3408,9 @@
 
       syncSegFromSelect(el.chartTypeSeg, el.chartType);
       syncSegFromSelect(el.groupLayoutSeg, el.groupLayout);
+      if (el.showCandleZoneLabelsWrap) {
+        el.showCandleZoneLabelsWrap.style.display = chartType === "candles" ? "flex" : "none";
+      }
     }
 
     function syncGroupLayoutUi() {
@@ -5208,7 +5249,8 @@
       const canvas = opts.canvas || el.chart;
       if (!canvas) return;
       const chartTypeRaw = opts.chartType || (el.chartType && el.chartType.value) || "bars";
-      const chartType = chartTypeRaw === "line" ? "line" : "bars";
+      const chartType = (chartTypeRaw === "line" || chartTypeRaw === "candles") ? chartTypeRaw : "bars";
+      const showLabels = chartLabelsEnabled();
       const hitTarget = opts.hitTarget || "primary";
       const dpr = window.devicePixelRatio || 1;
       const parentW = canvas.parentElement ? canvas.parentElement.clientWidth : 0;
@@ -5296,6 +5338,36 @@
           }
         }
         return rows || [];
+      }
+
+      /**
+       * Свечные метрики по серии:
+       * low/high — whiskers, q1/q3 — тело, p50 — медиана,
+       * below/inside/above — число ТН относительно тела свечи.
+       */
+      function computeCandleStats(seriesName) {
+        const periodSeries = isPeriodSeriesName(seriesName);
+        const sourceRows = periodSeries ? rowsForSeriesName(seriesName) : (rows || []);
+        const src = (sliceMode && sliceMode !== "all" && !periodSeries)
+          ? sourceRows.filter((r) => sliceSeriesKey(r, sliceMode) === seriesName)
+          : sourceRows;
+        const amounts = src.map((r) => Number(r.amount) || 0).sort((a, b) => a - b);
+        if (!amounts.length) return null;
+        const q1 = quantile(amounts, 0.25);
+        const p50 = quantile(amounts, 0.5);
+        const q3 = quantile(amounts, 0.75);
+        const iqr = q3 - q1;
+        const low = Math.max(amounts[0], q1 - 1.5 * iqr);
+        const high = Math.min(amounts[amounts.length - 1], q3 + 1.5 * iqr);
+        let below = 0;
+        let inside = 0;
+        let above = 0;
+        for (const v of amounts) {
+          if (v < q1) below += 1;
+          else if (v > q3) above += 1;
+          else inside += 1;
+        }
+        return { low, q1, p50, q3, high, below, inside, above, total: amounts.length };
       }
 
       function cellUniques(seriesName, binIndex) {
@@ -5414,15 +5486,20 @@
         };
       }
 
-      const groupCount = layout === "slice"
-        ? (lineCompareSliceGroups ? lineCompareSliceGroups.length : seriesN)
-        : binN;
+      const candlesMode = chartType === "candles";
+      const groupCount = candlesMode
+        ? seriesN
+        : (layout === "slice"
+          ? (lineCompareSliceGroups ? lineCompareSliceGroups.length : seriesN)
+          : binN);
       const barsPerGroup = layout === "slice" ? binN : seriesN;
       let groupW = plotW / Math.max(1, groupCount);
 
       // Предварительно оцениваем высоту зоны подписей под осью X
       const axisPartsList = [];
-      if (layout === "bin") {
+      if (candlesMode) {
+        for (let si = 0; si < seriesN; si += 1) axisPartsList.push(axisPartsForSeries(si));
+      } else if (layout === "bin") {
         for (let bi = 0; bi < binN; bi += 1) axisPartsList.push(axisPartsForBin(bi));
       } else if (lineCompareSliceGroups) {
         for (const g of lineCompareSliceGroups) {
@@ -5628,15 +5705,32 @@
       ctx.fillStyle = "#6e6e73";
       ctx.font = "11px sans-serif";
       ctx.textAlign = "right";
-      for (let i = 0; i <= ticks; i += 1) {
-        const y = pad.t + plotH - (plotH * i) / ticks;
-        const val = Math.round((maxY * i) / ticks);
-        ctx.beginPath();
-        ctx.strokeStyle = "rgba(29,29,31,0.06)";
-        ctx.moveTo(pad.l, y);
-        ctx.lineTo(pad.l + plotW, y);
-        ctx.stroke();
-        ctx.fillText(String(val), pad.l - 6, y + 3);
+      if (chartType === "candles") {
+        const allAmounts = (rows || []).map((r) => Number(r.amount) || 0);
+        const axisMin = allAmounts.length ? Math.min(...allAmounts) : 0;
+        const axisMaxRaw = allAmounts.length ? Math.max(...allAmounts) : 1;
+        const axisMax = axisMaxRaw === axisMin ? axisMin + 1 : axisMaxRaw;
+        for (let i = 0; i <= ticks; i += 1) {
+          const y = pad.t + plotH - (plotH * i) / ticks;
+          const val = axisMin + ((axisMax - axisMin) * i) / ticks;
+          ctx.beginPath();
+          ctx.strokeStyle = "rgba(29,29,31,0.06)";
+          ctx.moveTo(pad.l, y);
+          ctx.lineTo(pad.l + plotW, y);
+          ctx.stroke();
+          ctx.fillText(formatAmount(val), pad.l - 6, y + 3);
+        }
+      } else {
+        for (let i = 0; i <= ticks; i += 1) {
+          const y = pad.t + plotH - (plotH * i) / ticks;
+          const val = Math.round((maxY * i) / ticks);
+          ctx.beginPath();
+          ctx.strokeStyle = "rgba(29,29,31,0.06)";
+          ctx.moveTo(pad.l, y);
+          ctx.lineTo(pad.l + plotW, y);
+          ctx.stroke();
+          ctx.fillText(String(val), pad.l - 6, y + 3);
+        }
       }
 
       const gap = groupW * APP_CONFIG.chart.barGapRatio;
@@ -5739,7 +5833,7 @@
 
       function registerHitBar(x, barTop, barW, barH, tip) {
         const hitH = Math.max(barH, 8);
-        const hitY = pad.t + plotH - hitH;
+        const hitY = Math.max(pad.t, Math.min(Number(barTop) || pad.t, pad.t + plotH - hitH));
         const hit = {
           x: x,
           y: hitY,
@@ -5814,7 +5908,7 @@
             ctx.strokeStyle = "#fff";
             ctx.lineWidth = 1.2;
             ctx.stroke();
-            if (p.count > 0) {
+            if (showLabels && p.count > 0) {
               drawBarTnLabel(String(p.count), String(p.count), p.cx - 10, p.cy - 4, 20, 12, color);
             }
           }
@@ -5893,7 +5987,7 @@
                 x, y, ovBarW, Math.max(h, 0),
                 formatBarHoverTip(hist.labels[bi], series[si].name, u)
               );
-              if (count > 0) {
+              if (showLabels && count > 0) {
                 drawBarTnLabel(barNameText(u), String(u.tn), x, y, ovBarW, Math.max(h, 0), color);
               }
             }
@@ -5902,8 +5996,81 @@
         }
       }
 
+      function drawCandlesChart() {
+        const candleData = series.map((s, si) => ({
+          si,
+          name: s.name,
+          color: seriesColor(si, 0, s.name),
+          stats: computeCandleStats(s.name)
+        })).filter((x) => !!x.stats);
+        if (!candleData.length) return;
+        const yMinRaw = Math.min(...candleData.map((x) => x.stats.low));
+        const yMaxRaw = Math.max(...candleData.map((x) => x.stats.high));
+        const yMin = Number.isFinite(yMinRaw) ? yMinRaw : 0;
+        const yMaxBase = Number.isFinite(yMaxRaw) ? yMaxRaw : (yMin + 1);
+        const yMax = yMaxBase === yMin ? yMin + 1 : yMaxBase;
+        const cN = candleData.length;
+        const slotW = plotW / Math.max(1, cN);
+        const bodyW = Math.max(10, Math.min(24, slotW * 0.46));
+        const yAt = (v) => pad.t + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+
+        for (let i = 0; i < cN; i += 1) {
+          const c = candleData[i];
+          const st = c.stats;
+          const cx = pad.l + i * slotW + slotW / 2;
+          const yLow = yAt(st.low);
+          const yHigh = yAt(st.high);
+          const yQ1 = yAt(st.q1);
+          const yQ3 = yAt(st.q3);
+          const yP50 = yAt(st.p50);
+          const boxTop = Math.min(yQ1, yQ3);
+          const boxH = Math.max(1, Math.abs(yQ3 - yQ1));
+
+          ctx.strokeStyle = c.color;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(cx, yHigh);
+          ctx.lineTo(cx, yLow);
+          ctx.stroke();
+
+          const rgb = parseHexColor(c.color);
+          ctx.fillStyle = "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + ",0.22)";
+          ctx.fillRect(cx - bodyW / 2, boxTop, bodyW, boxH);
+          ctx.strokeStyle = c.color;
+          ctx.strokeRect(cx - bodyW / 2, boxTop, bodyW, boxH);
+
+          ctx.strokeStyle = "#FF3B30";
+          ctx.beginPath();
+          ctx.moveTo(cx - bodyW / 2, yP50);
+          ctx.lineTo(cx + bodyW / 2, yP50);
+          ctx.stroke();
+
+          const tip = [
+            "Серия: " + c.name,
+            "ТН: " + st.total,
+            "Ниже Q1: " + st.below,
+            "Внутри Q1..Q3: " + st.inside,
+            "Выше Q3: " + st.above,
+            "Low/Q1/Med/Q3/High: "
+              + formatAmount(st.low) + " / " + formatAmount(st.q1) + " / "
+              + formatAmount(st.p50) + " / " + formatAmount(st.q3) + " / " + formatAmount(st.high)
+          ].join("\n");
+          registerHitBar(cx - bodyW / 2 - 6, yHigh, bodyW + 12, Math.max(8, yLow - yHigh), tip);
+          if (showLabels && candleZoneLabelsEnabled()) {
+            ctx.fillStyle = c.color;
+            ctx.font = "600 10px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            ctx.fillText("↓" + st.below + " · ↔" + st.inside + " · ↑" + st.above, cx, Math.max(10, yHigh - 4));
+          }
+          drawXLabel({ full: c.name, primary: c.name, compact: c.name, secondary: "ТН:" + st.total }, cx, slotW);
+        }
+      }
+
       if (chartType === "line") {
         drawLineChart();
+      } else if (chartType === "candles") {
+        drawCandlesChart();
       } else if (barOverlap) {
         drawOverlappingBars();
       } else if (layout === "bin") {
@@ -5921,7 +6088,7 @@
               x, y, barW, Math.max(h, 0),
               formatBarHoverTip(hist.labels[bi], series[si].name, u)
             );
-            if (count > 0) {
+            if (showLabels && count > 0) {
               drawBarTnLabel(barNameText(u), String(u.tn), x, y, barW, Math.max(h, 0), color);
             }
           }
@@ -5942,7 +6109,7 @@
               x, y, barW, Math.max(h, 0),
               formatBarHoverTip(hist.labels[bi], series[si].name, u)
             );
-            if (count > 0) {
+            if (showLabels && count > 0) {
               drawBarTnLabel(barNameText(u), String(u.tn), x, y, barW, Math.max(h, 0), color);
             }
           }
@@ -5960,8 +6127,8 @@
       const layout = groupLayout === "slice" ? "slice" : "bin";
       const type = chartType || (el.chartType && el.chartType.value) || "bars";
       const compareMode = isPeriodCompareHist(hist);
-      // Для slice+bars легенда = интервалы; для slice+line = серии (цвет линии)
-      const legendBySeries = layout === "bin" || type === "line";
+      // Для slice+bars легенда = интервалы; для line/candles = серии.
+      const legendBySeries = layout === "bin" || type === "line" || type === "candles";
 
       if (legendBySeries) {
         const series = hist.series.slice(0, APP_CONFIG.chart.maxLegendItems);
@@ -6948,7 +7115,7 @@
         top.map((x) => valueByMetric(x, avgMetric)),
         "#0b6bcb"
       );
-      if (el.anChartHeat) drawHeatmapAvg(el.anChartHeat, rows, "tb", "gosb", Math.min(8, Math.max(5, topN)));
+      if (el.anChartHeat) drawHeatmapAvg(el.anChartHeat, rows, "gosb", "tb", Math.min(8, Math.max(5, topN)));
 
       if (el.analysisTableIntervals) {
         let html = "<table><thead><tr><th>Интервал</th><th>N</th><th>%</th><th>Средняя</th><th>Σ</th></tr></thead><tbody>";
@@ -7425,6 +7592,16 @@
         rebuild();
       });
     }
+    if (el.showChartLabels) {
+      el.showChartLabels.addEventListener("change", () => {
+        rebuild();
+      });
+    }
+    if (el.showCandleZoneLabels) {
+      el.showCandleZoneLabels.addEventListener("change", () => {
+        if (resolveChartType() === "candles") rebuild();
+      });
+    }
     if (el.compareLayout) {
       el.compareLayout.addEventListener("change", () => {
         syncChartModeConstraints();
@@ -7490,6 +7667,8 @@
     }
     el.groupLayout.value = APP_CONFIG.defaultGroupLayout || "slice";
     if (el.chartType) el.chartType.value = APP_CONFIG.defaultChartType || "bars";
+    if (el.showChartLabels) el.showChartLabels.checked = APP_CONFIG.defaultShowChartLabels !== false;
+    if (el.showCandleZoneLabels) el.showCandleZoneLabels.checked = APP_CONFIG.defaultShowCandleZoneLabels !== false;
     if (el.compareLayout) el.compareLayout.value = APP_CONFIG.defaultCompareLayout || "overlay";
     if (el.edgeCalcMode) el.edgeCalcMode.value = "positive";
     el.movableEdgeCount.value = String(APP_CONFIG.defaultMovableEdges);
