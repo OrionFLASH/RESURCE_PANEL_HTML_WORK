@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Синхронизация JS/ → встроенные блоки в index.html (file://, без HTTP-сервера).
+Синхронизация JS/ → встроенные блоки в index-spod-fill.html (file://, без HTTP-сервера).
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-INDEX = ROOT / "index.html"
+INDEX = ROOT / "index-spod-fill.html"
 JS_DIR = ROOT / "JS"
 
 SCRIPT_FILES = [
@@ -29,7 +29,7 @@ SCRIPT_FILE_PATTERN = re.compile(r'"scriptFile"\s*:\s*"([^"]+\.js)"')
 
 
 def discover_script_files_from_index(html: str) -> list[str]:
-    """Имена scriptFile из JSON в index.html (порядок как в конфиге)."""
+    """Имена scriptFile из JSON в index-spod-fill.html (порядок как в конфиге)."""
     seen: set[str] = set()
     ordered: list[str] = []
     for name in SCRIPT_FILE_PATTERN.findall(html):
@@ -113,7 +113,7 @@ def ensure_markers(html: str) -> str:
         count=1,
     )
     if MARKER_START not in html:
-        raise SystemExit("Не найдены маркеры EMBEDDED_SCRIPTS в index.html")
+        raise SystemExit("Не найдены маркеры EMBEDDED_SCRIPTS в index-spod-fill.html")
     return html
 
 
@@ -124,7 +124,7 @@ def embed_into_html(payload: dict[str, str], file_order: list[str]) -> None:
     block = build_embed_block(payload, file_order)
     match = BLOCK_PATTERN.search(html)
     if not match:
-        raise SystemExit("Не найден блок EMBEDDED_SCRIPTS в index.html")
+        raise SystemExit("Не найден блок EMBEDDED_SCRIPTS в index-spod-fill.html")
     html = html[: match.start()] + block + html[match.end() :]
     INDEX.write_text(html, encoding="utf-8")
     total = sum(len(v) for v in payload.values())

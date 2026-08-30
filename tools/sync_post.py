@@ -17,6 +17,8 @@ DEST = POST / PROJECT_NAME
 
 # Корневые файлы программы
 ROOT_FILES = (
+    "index-spod-fill.html",
+    "index-classic.html",
     "index.html",
     "sum-distribution.html",
     "contest-criteria.html",
