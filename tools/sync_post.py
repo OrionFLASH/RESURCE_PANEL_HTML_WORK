@@ -34,7 +34,6 @@ DOC_FILES = (
     "CONTEST_CRITERIA.md",
     "FILE_STATS_EXPORT.md",
     "ANALYSIS_METRICS.md",
-    "TASK_SUM_DISTRIBUTION_UI.md",
     "tz_metrics_charts.md",
 )
 
