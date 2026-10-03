@@ -53,6 +53,25 @@ for (const [w, h] of [[1440, 900], [1920, 1080]]) {
     }));
 }
 
+// §10: вписывание при любом режиме панели групп и в обеих темах
+for (const rail of ["open", "compact", "hidden"]) for (const theme of ["dark", "light"]) {
+  test(`1440×900, панель групп ${rail}, тема ${theme}: без прокрутки`, () =>
+    withPanel({ width: 1440, height: 900, theme, seed: { rp_rail: JSON.stringify(rail) } }, async ({ page, errors }) => {
+      // режим и тема действительно применены
+      assert.equal(await page.evaluate(() => document.querySelector("#gp").classList.contains("m-" + document.querySelector("#gpBtn").dataset.m) && document.querySelector("#gpBtn").dataset.m), rail);
+      assert.equal(await page.evaluate(() => document.documentElement.getAttribute("data-theme") || "dark"), theme);
+      const m = await metrics(page);
+      assert.deepEqual(errors, []);
+      assert.ok(m.sh <= m.ih, `scrollHeight ${m.sh} > ${m.ih} (${m.den})`);
+      assert.ok(m.sw <= m.iw, `scrollWidth ${m.sw} > ${m.iw}`);
+      const cut = await page.evaluate(() => {
+        const idx = document.querySelector("#idx").getBoundingClientRect();
+        return [...document.querySelectorAll("#idx [data-link-id]")].filter((e) => e.getBoundingClientRect().bottom > idx.bottom + 1).length;
+      });
+      assert.equal(cut, 0);
+    }));
+}
+
 test("светлая тема по rp_theme=light", () =>
   withPanel({ width: 1440, height: 900, theme: "light" }, async ({ page, errors }) => {
     const r = await page.evaluate(() => ({
@@ -953,4 +972,124 @@ test("скрипты: отсутствующий файл → сообщение
     assert.match(msg, /admin\/nope\.js/);
     assert.equal(await page.locator("#apScripts .sc-copy").count(), 0);
     assert.deepEqual(realErrors(errors), []);
+  }));
+
+// ---------- Исправления по итоговому ревью ----------
+test("подсказка не всплывает снова после клика по ссылке (с кодом, без кода, ⌘+клик)", () =>
+  withPanel(interact(), async ({ page }) => {
+    const tipOn = () => page.evaluate(() => document.querySelector("#tip").classList.contains("on"));
+    await page.hover("#ln-h-psi-a");
+    await page.waitForSelector("#tip.on", { timeout: 2000 });
+    await page.click("#ln-h-psi-a");
+    await page.waitForTimeout(120);
+    assert.equal(await tipOn(), false, "после клика с кодом");
+    await page.click("#ln-qlik");
+    await page.waitForTimeout(120);
+    assert.equal(await tipOn(), false, "после клика без кода");
+    await page.click("#ln-sprint", { modifiers: ["Meta"] });
+    await page.waitForTimeout(120);
+    assert.equal(await tipOn(), false, "после ⌘+клика");
+    // фокус с клавиатуры по-прежнему показывает подсказку
+    await page.mouse.move(2, 2);
+    await page.focus("#q");
+    let onLink = false;
+    for (let i = 0; i < 40 && !onLink; i++) {
+      await page.keyboard.press("Tab");
+      onLink = await page.evaluate(() => !!(document.activeElement.closest && document.activeElement.closest("[data-link-id]")));
+    }
+    assert.ok(onLink, "Tab дошёл до ссылки");
+    assert.equal(await tipOn(), true, "фокус с клавиатуры");
+  }));
+
+test("Ctrl+K в русской раскладке (key «л», code KeyK) фокусирует поиск", () =>
+  withPanel(interact(), async ({ page }) => {
+    await page.click("#theme");
+    const prevented = await page.evaluate(() => {
+      const ev = new KeyboardEvent("keydown", { key: "л", code: "KeyK", ctrlKey: true, bubbles: true, cancelable: true });
+      document.dispatchEvent(ev);
+      return ev.defaultPrevented;
+    });
+    assert.equal(prevented, true);
+    assert.equal(await page.evaluate(() => document.activeElement.id), "q");
+  }));
+
+test("админка: заполненная форма новой ссылки переживает Esc, клик мимо и смену вкладки", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await openAdmin(page);
+    await page.click("#aAdd");
+    await page.fill("#eTitle", "Новая");
+    await page.fill("#eUrl", "https://x.example/");
+    await page.fill("#eCopy", "k1");
+    await page.keyboard.press("Escape");
+    assert.equal(await drawerOn(page), false);
+    await page.click("#lock");
+    await page.waitForSelector("#drawer.on #eForm");
+    assert.equal(await page.inputValue("#eTitle"), "Новая");
+    assert.equal(await page.inputValue("#eUrl"), "https://x.example/");
+    assert.equal(await page.inputValue("#eCopy"), "k1");
+    // смена вкладки
+    await page.click("#atScripts");
+    await page.click("#atLinks");
+    assert.equal(await page.inputValue("#eTitle"), "Новая");
+    // клик мимо
+    await page.mouse.click(5, 450);
+    assert.equal(await drawerOn(page), false);
+    await page.click("#lock");
+    await page.waitForSelector("#drawer.on #eForm");
+    assert.equal(await page.inputValue("#eUrl"), "https://x.example/");
+    // «Отмена» сбрасывает черновик: следующее открытие — пустая форма
+    await page.click("#eCancel");
+    await page.click("#aAdd");
+    assert.equal(await page.inputValue("#eTitle"), "");
+    // правка существующей ссылки: черновик тоже сохраняется, страница не меняется до «Сохранить»
+    await page.click("#eCancel");
+    await editLink(page, "qlik");
+    await page.fill("#eTitle", "Qlik черновик");
+    await page.keyboard.press("Escape");
+    await page.click("#lock");
+    await page.waitForSelector("#drawer.on #eForm");
+    assert.equal(await page.inputValue("#eTitle"), "Qlik черновик");
+    assert.ok(!(await page.innerText("#ln-qlik")).includes("черновик"));
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("админка: переименование раздела и сразу клик «Раздел ниже» — применяются оба", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await openAdmin(page);
+    await page.click("#aSecs > summary");
+    const first = await page.$eval("#aSecs .srow", (e) => e.dataset.sid);
+    await page.fill(`#aSecs [data-sid="${first}"] .s-name`, "Переименовано");
+    await page.click(`#aSecs [data-sid="${first}"] .s-dn`);
+    const r = await page.evaluate((sid) => ({ order: RP.ui.data.sections.map((s) => s.id), name: RP.ui.data.sections.find((s) => s.id === sid).name }), first);
+    assert.equal(r.name, "Переименовано");
+    assert.equal(r.order[1], first);
+    assert.equal((await page.innerText(`#sec-${first} .sh span`)).trim(), "Переименовано");
+    assert.equal(await page.getAttribute(`#aSecs [data-sid="${first}"] .s-dn`, "aria-label"), "Раздел ниже: «Переименовано»");
+    assert.match(await dirtyText(page), /несохранённых изменений: 2/i);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("проверка: исключение в обработчике результата не оставляет проверку зависшей", () =>
+  withPanel({ links: mkLinks(SET.filter((l) => l.id !== "h1")), setup: netStub().setup }, async ({ page }) => {
+    await page.waitForFunction(() => !document.querySelector("#refresh").classList.contains("busy"));
+    // RP.probe.run завершается, даже если onResult/onProgress бросают
+    const sum = await page.evaluate(() => Promise.race([
+      RP.probe.run([{ id: "a", url: "https://up1.test/" }, { id: "b", url: "https://up2.test/" }], {
+        onResult() { throw new Error("boom"); }, onProgress() { throw new Error("boom"); }
+      }).then((s) => s.total),
+      new Promise((r) => setTimeout(() => r("timeout"), 4000))
+    ]));
+    assert.equal(sum, 2);
+    // проверка панели: обработчик статуса бросает → флаг сброшен, следующая проверка запускается
+    const r = await page.evaluate(async () => {
+      const orig = RP.status.set;
+      RP.status.set = () => { throw new Error("boom"); };
+      const p = RP.ui.check();
+      const res = await Promise.race([Promise.resolve(p).then(() => "done", () => "rejected"), new Promise((r) => setTimeout(() => r("timeout"), 4000))]);
+      RP.status.set = orig;
+      return { res, busy: document.querySelector("#refresh").classList.contains("busy"), next: RP.ui.check() !== null };
+    });
+    assert.equal(r.res, "done");
+    assert.equal(r.busy, false);
+    assert.equal(r.next, true);
   }));

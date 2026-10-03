@@ -63,6 +63,14 @@ test("favoriteSeed с несуществующим id — предупрежде
   assert.ok(r.warnings.some((w) => w.includes("ghost")));
 });
 
+test("favoriteSeed не массив — ошибка", () => {
+  const d = clone(loadLinks());
+  d.favoriteSeed = "h-prom-a";
+  const r = core.validate(d);
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes("favoriteSeed")));
+});
+
 test("serializeLinks: круговой обмен", () => {
   const d = loadLinks();
   const text = core.serializeLinks(d);

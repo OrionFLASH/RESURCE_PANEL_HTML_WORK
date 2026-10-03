@@ -74,6 +74,7 @@
       if (l.seg != null && SEGS.indexOf(l.seg) < 0) errors.push(tag + ": недопустимый seg «" + l.seg + "»");
     });
 
+    if (data.favoriteSeed != null && !Array.isArray(data.favoriteSeed)) errors.push("favoriteSeed: ожидается массив id ссылок");
     (Array.isArray(data.favoriteSeed) ? data.favoriteSeed : []).forEach(function (id) {
       if (!ids[id]) warnings.push("favoriteSeed: нет ссылки с id «" + id + "»");
     });
@@ -353,14 +354,19 @@
       });
     }
 
+    // Обработчик не должен обрывать цепочку проверки: исключение — в консоль, проверка идёт дальше
+    function safe(f, a, b) {
+      if (!f) return;
+      try { f(a, b); } catch (e) { try { console.error(e); } catch (x) {} }
+    }
     function run(links, h) {
       h = h || {};
       var list = (links || []).filter(function (l) { return l && l.url && /^https?:/i.test(l.url); });
       var token = {};
       running = token;
       var i = 0, done = 0, up = 0, total = list.length;
-      list.forEach(function (l) { if (h.onStart) h.onStart(l.id); });
-      if (h.onProgress) h.onProgress(0, total);
+      list.forEach(function (l) { safe(h.onStart, l.id); });
+      safe(h.onProgress, 0, total);
       return new Promise(function (resolve) {
         if (!total) { finish(); return; }
         function next() {
@@ -370,14 +376,14 @@
           probeOne(l.url).then(function (res) {
             if (running !== token) return;
             done++; if (res.st === "up") up++;
-            if (h.onResult) h.onResult(l.id, res);
-            if (h.onProgress) h.onProgress(done, total);
+            safe(h.onResult, l.id, res);
+            safe(h.onProgress, done, total);
             if (done === total) finish(); else next();
           });
         }
         function finish() {
           var sum = { total: total, up: up, down: total - up, at: new Date() };
-          if (h.onDone) h.onDone(sum);
+          safe(h.onDone, sum);
           resolve(sum);
         }
         for (var k = 0; k < Math.min(PARALLEL, total); k++) next();
@@ -671,9 +677,11 @@
     return RP.probe.run(S.data.links.filter(checkable), {
       onResult: function (id, res) { RP.status.set(id, res); S.st[id] = res.st; paintSt(id, res.st); renderSum(); },
       onProgress: function (done, total) { if (!bg) btn.style.setProperty("--p", total ? done / total : 1); }
-    }).then(function () {
-      checking = false; btn.classList.remove("busy"); btn.removeAttribute("aria-busy"); btn.style.removeProperty("--p"); renderSum();
-    });
+    }).then(fin, fin);
+    function fin() {
+      checking = false; btn.classList.remove("busy"); btn.removeAttribute("aria-busy"); btn.style.removeProperty("--p");
+      try { renderSum(); } catch (e) { try { console.error(e); } catch (x) {} }
+    }
   }
   S.check = check;
 
@@ -690,14 +698,18 @@
 
   // ---------- Буфер обмена ----------
   // Синхронный запасной путь: скрытый textarea + execCommand('copy') (работает в обработчике клика, в т.ч. с file://)
+  // quietFocus — служебный перенос фокуса (textarea и обратно): подсказку по focusin не показываем
+  var quietFocus = false;
   function copyLegacy(text) {
     var ta = document.createElement("textarea"), back = document.activeElement, ok = false;
+    quietFocus = true;
     ta.value = text; ta.setAttribute("readonly", ""); ta.setAttribute("aria-hidden", "true");
     ta.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none";
     document.body.appendChild(ta); ta.focus(); ta.select();
     try { ok = !!document.execCommand("copy"); } catch (e) { ok = false; }
     ta.remove();
     if (back && back.focus && back !== document.body) try { back.focus({ preventScroll: true }); } catch (e) {}
+    quietFocus = false;
     return ok;
   }
   // RP.copy(text, done?) -> boolean: false — копирование точно не удалось.
@@ -827,6 +839,9 @@
     document.addEventListener("focusin", function (ev) {
       var el = linkOf(ev);
       if (!el) { if (tipFor) hideTip(); return; }
+      // Только фокус с клавиатуры: не после клика мышью, возврата во вкладку или служебного переноса фокуса
+      var kb = true; try { kb = el.matches(":focus-visible"); } catch (e) {}
+      if (quietFocus || !kb) return;
       var r = el.getBoundingClientRect(); showTip(el, r.left + 24, r.bottom - 10);
     });
     window.addEventListener("scroll", hideTip, true);
@@ -918,7 +933,7 @@
     document.addEventListener("keydown", function (e) {
       var tag = document.activeElement && document.activeElement.tagName;
       var typing = /INPUT|TEXTAREA|SELECT/.test(tag || "");
-      if (((e.ctrlKey || e.metaKey) && !e.altKey && (e.key || "").toLowerCase() === "k") || (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey)) {
+      if (((e.ctrlKey || e.metaKey) && !e.altKey && (e.code === "KeyK" || (e.key || "").toLowerCase() === "k")) || (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey)) {
         if (layer || document.querySelector(".modal.on, .drawer.on")) return;
         e.preventDefault(); q.focus(); q.select();
       }
@@ -1159,7 +1174,8 @@
       work: null,     // рабочая копия — её показывает страница после первой правки
       shown: null,    // снимок того, что сейчас отрисовано (для сброса статусов изменённых ссылок)
       n: 0, tab: "links", view: "list", edit: null, q: "", sec: "", secPick: null,
-      open: { secs: false, seed: false }, scripts: {}
+      open: { secs: false, seed: false }, scripts: {},
+      draft: null     // черновик открытой формы ссылки: переживает Esc, клик мимо и смену вкладки
     };
     var ENV_OPT = [["", "—"], ["PROM", "PROM"], ["PSI", "ПСИ"], ["IFT", "ИФТ"]];
     var SEG_OPT = [["", "—"], ["ALPHA", "Alpha"], ["SIGMA", "Sigma"]];
@@ -1196,7 +1212,8 @@
     var reT = 0;
     function recheck() { clearTimeout(reT); if (!S.check()) reT = setTimeout(recheck, 1000); }   // идёт проверка — повторить после
     // Применить рабочую копию: статусы изменённых/новых ссылок сбрасываются и перепроверяются
-    function apply(counted) {
+    // light — без перерисовки списка админки (переименование раздела: ожидающий клик не теряется)
+    function apply(counted, light) {
       var prev = {}, again = false;
       (A.shown.links || []).forEach(function (l) { prev[l.id] = l; });
       W().links.forEach(function (l) {
@@ -1208,7 +1225,7 @@
       if (counted) A.n = RP.core.serializeLinks(W()) === RP.core.serializeLinks(A.base) ? 0 : A.n + 1;
       render(W()); A.shown = clone(W());
       if (again) recheck();
-      paintDirty(); paintBody();
+      paintDirty(); if (!light) paintBody();
     }
     function commit() { apply(true); }
 
@@ -1252,7 +1269,9 @@
     }
     function openAdmin() {
       if (!S.data) return;
-      init(); A.view = "list"; A.edit = null; A.secPick = null;
+      init(); A.secPick = null;
+      // Незаконченная форма открывается снова с введёнными значениями
+      if (A.draft) { A.view = "form"; A.edit = A.draft.edit; } else { A.view = "list"; A.edit = null; }
       build();
       var lock = $("#lock");
       openLayer($("#drawer"), { onClose: function () { lock.innerHTML = I("lock"); lock.setAttribute("aria-expanded", "false"); } });
@@ -1412,7 +1431,19 @@
       var v = inp.value.trim();
       if (!v) { inp.value = s.name; RP.toast("Название раздела не может быть пустым", "alert"); return; }
       if (v === s.name) return;
-      s.name = v; commit();
+      s.name = v; apply(true, true);
+      // Подписи с названием раздела обновляем на месте, не пересоздавая строки
+      var row = inp.closest("[data-sid]"), lb = function (sel, t) { var b = $(sel, row); if (b) { b.setAttribute("aria-label", t); if (b.title && sel !== ".s-ic") b.title = t; } };
+      inp.setAttribute("aria-label", "Название раздела «" + v + "»");
+      lb(".s-ic", "Иконка раздела «" + v + "»"); lb(".s-up", "Раздел выше: «" + v + "»"); lb(".s-dn", "Раздел ниже: «" + v + "»");
+      if (!$(".s-del", row).disabled) lb(".s-del", "Удалить раздел «" + v + "»");
+      var pk = $(".ipick", row); if (pk) pk.setAttribute("aria-label", "Иконка раздела «" + v + "»");
+      $$("#aSec option").forEach(function (o) { if (o.value === sid) o.textContent = v; });
+      $$("#fsAdd optgroup").forEach(function (g) {
+        var first = g.querySelector("option"), l = first && linkById(first.value);
+        if (l && l.section === sid) g.label = v;
+      });
+      paintRows();
     }
     function addSec() {
       var inp = $("#sNew"), v = inp.value.trim();
@@ -1428,7 +1459,7 @@
     }
     function formView(body) {
       var D = W(), cur = A.edit ? linkById(A.edit) : null;
-      if (A.edit && !cur) { A.view = "list"; return listView(body); }
+      if (A.edit && !cur) { A.view = "list"; A.draft = null; return listView(body); }
       var l = cur ? clone(cur) : { id: "", section: A.sec || (D.sections[D.sections.length - 1] || {}).id, title: "", url: "" };
       if (!cur && !A.sec) { var last = D.sections.filter(function (s) { return s.id !== "tools"; }).pop(); if (last) l.section = last.id; }
       body.innerHTML =
@@ -1451,6 +1482,22 @@
       $("#eTitle").value = l.title || ""; if ($("#eUrl")) $("#eUrl").value = l.url || "";
       $("#eCopy").value = l.copy || ""; $("#eNote").value = l.note || "";
       var form = $("#eForm"), icon = RP.icons.has(l.icon) ? l.icon : "";
+      var DF = ["eTitle", "eUrl", "eSec", "eEnv", "eSeg", "eCopy", "eNote"], DC = ["eMeet", "eNoCheck"];
+      // Черновик: значения полей формы до «Сохранить» / «Отмена»
+      function keep() {
+        var d = { edit: A.edit, v: {}, c: {}, t: [], icon: icon };
+        DF.forEach(function (id) { var e = $("#" + id); if (e) { d.v[id] = e.value; if (e.dataset.touched) d.t.push(id); } });
+        DC.forEach(function (id) { var e = $("#" + id); if (e) d.c[id] = e.checked; });
+        A.draft = d;
+      }
+      if (A.draft && A.draft.edit === A.edit) {
+        var d = A.draft;
+        DF.forEach(function (id) { var e = $("#" + id); if (e && d.v[id] != null) e.value = d.v[id]; });
+        DC.forEach(function (id) { var e = $("#" + id); if (e && d.c[id] != null) e.checked = d.c[id]; });
+        d.t.forEach(function (id) { var e = $("#" + id); if (e) e.dataset.touched = "1"; });
+        icon = d.icon;
+        $$("[data-icon]", $("#eIcon")).forEach(function (x) { x.setAttribute("aria-pressed", x.dataset.icon === icon ? "true" : "false"); });
+      } else A.draft = null;
       function read() {
         var o = { id: cur ? cur.id : "" };
         o.section = $("#eSec").value; o.title = $("#eTitle").value.trim();
@@ -1489,24 +1536,24 @@
         $("#eSave").disabled = bad || !!(v && !v.ok);
         return !$("#eSave").disabled && o;
       }
-      form.addEventListener("input", function (e) { if (e.target.id) e.target.dataset.touched = "1"; check(); });
-      form.addEventListener("change", function (e) { if (e.target.id) e.target.dataset.touched = "1"; check(); });
+      form.addEventListener("input", function (e) { if (e.target.id) e.target.dataset.touched = "1"; check(); keep(); });
+      form.addEventListener("change", function (e) { if (e.target.id) e.target.dataset.touched = "1"; check(); keep(); });
       $("#eIcon").addEventListener("click", function (e) {
         var b = e.target.closest("[data-icon]"); if (!b) return;
         icon = b.dataset.icon;
         $$("[data-icon]", this).forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
-        check();
+        check(); keep();
       });
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         ["eTitle", "eUrl"].forEach(function (id) { if ($("#" + id)) $("#" + id).dataset.touched = "1"; });
         var o = check(); if (!o) { var bad = $('[aria-invalid="true"]', form); if (bad) bad.focus(); return; }
-        A.work = draft(o); A.view = "list"; A.edit = null;
+        A.work = draft(o); A.view = "list"; A.edit = null; A.draft = null;
         commit();
         var f = $('[data-k="o:' + o.id + '"]'); if (f) { f.focus({ preventScroll: true }); f.scrollIntoView({ block: "nearest" }); }
         RP.toast(cur ? "Изменения применены: " + o.title : "Ссылка добавлена: " + o.title, "check");
       });
-      function back() { var id = cur && cur.id; A.view = "list"; A.edit = null; paintBody(); var f = id && $('[data-k="o:' + id + '"]'); if (f) f.focus(); }
+      function back() { var id = cur && cur.id; A.draft = null; A.view = "list"; A.edit = null; paintBody(); var f = id && $('[data-k="o:' + id + '"]'); if (f) f.focus(); }
       $("#eCancel").addEventListener("click", back); $("#eBack").addEventListener("click", back);
       if (cur) { $("#eTitle").dataset.touched = "1"; if ($("#eUrl")) $("#eUrl").dataset.touched = "1"; }
       check();
@@ -1526,7 +1573,7 @@
       RP.toast("links.js скачан — замените файл рядом с index.html", "export");
     }
     function revert() {
-      A.work = clone(A.base); A.n = 0; A.view = "list"; A.edit = null; A.secPick = null;
+      A.work = clone(A.base); A.n = 0; A.view = "list"; A.edit = null; A.secPick = null; A.draft = null;
       apply(false);
       RP.toast("Изменения отменены", "refresh");
     }
