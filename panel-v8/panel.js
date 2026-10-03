@@ -537,6 +537,15 @@
     var idx = $("#idx"), secs = S.data.sections.map(function (s) { return S.secEl[s.id]; })
       .filter(function (e) { return e && !e.hidden && !e.classList.contains("off"); });
     idx.innerHTML = ""; idx.style.setProperty("--cols", cols);
+    var F = S.filter;
+    if (!secs.length && F && (F.q.trim() || F.env || F.seg)) {
+      // Поиск/фильтры ничего не оставили
+      var e = document.createElement("div"), q = F.q.trim(), fl = F.env || F.seg;
+      e.className = "empty"; e.setAttribute("role", "status");
+      e.innerHTML = "<b>Ничего не нашлось</b>Нет ссылок" + (q ? " по запросу «" + esc(q) + "»" : "") + (fl ? " с выбранными фильтрами" : "") +
+        '.<br><button class="btn" type="button" id="reset">Сбросить поиск и фильтры</button>';
+      idx.appendChild(e); $("#reset").addEventListener("click", function () { S.resetAll(); }); return;
+    }
     if (!secs.length) return;
     var w = secs.map(function (s) { return $$(".ln:not([hidden])", s).length + 1.6; });
     groupsFor(w, cols).forEach(function (g) {
@@ -809,6 +818,13 @@
     if (S.laidOut) placeColumns(S.cols); else layout();
   }
   S.apply = apply;
+  // Сброс поиска и фильтров: чипы «Все», пустое поле, фокус в поиск
+  S.resetAll = function () {
+    var q = $("#q");
+    q.value = ""; F.q = ""; F.env = ""; F.seg = "";
+    $$(".filters .fg").forEach(function (g) { $$(".chip", g).forEach(function (c, i) { c.setAttribute("aria-pressed", i === 0 ? "true" : "false"); }); });
+    apply(); q.focus();
+  };
 
   // Клавиатура в поиске: ↑↓ — выбор строки, Enter — открыть, Esc — очистить
   var active = -1;

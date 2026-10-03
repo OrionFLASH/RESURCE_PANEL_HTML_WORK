@@ -494,3 +494,23 @@ test("встречи: полоса из 4 чипов, в разделе «Ком
     await page.click('#meets [data-link-id="daily"]');
     assert.deepEqual(await opened(page), [URL_OF("daily")]);
   }));
+
+test("ничего не найдено: «zz<b>zz» (экранирование) → блок .empty; «Сбросить поиск и фильтры» возвращает все строки и чипы «Все»", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await page.click('#fSeg .chip[data-val="SIGMA"]');
+    await page.fill("#q", "zz<b>zz");
+    await page.waitForSelector("#idx .empty");
+    const t = await page.innerText("#idx .empty");
+    assert.match(t, /Ничего не нашлось/);
+    assert.match(t, /по запросу «zz<b>zz» с выбранными фильтрами/);
+    assert.equal(await page.locator("#idx .ln").count(), 0);
+    await page.click("#idx .empty #reset");
+    await page.waitForFunction(() => !document.querySelector("#idx .empty"));
+    assert.equal(await page.locator("#idx .ln:not([hidden])").count(), 84);
+    assert.equal(await page.inputValue("#q"), "");
+    assert.equal(await page.getAttribute('#fSeg .chip[data-val=""]', "aria-pressed"), "true");
+    assert.equal(await page.getAttribute('#fSeg .chip[data-val="SIGMA"]', "aria-pressed"), "false");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "q");
+    assert.equal(await page.textContent("#cnt"), "88 ссылок");
+    assert.deepEqual(realErrors(errors), []);
+  }));
