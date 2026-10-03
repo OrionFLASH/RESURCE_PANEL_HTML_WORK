@@ -195,6 +195,379 @@
     rankFavorites: rankFavorites, decodePermission: decodePermission, balanceColumns: balanceColumns
   };
 
-  // UI-модули подключаются в следующих задачах, только при наличии document.
-  if (typeof document !== "undefined") { /* boot */ }
+  // ---------- Набор иконок v8 (из mockups/_shared/icons.js) ----------
+  var ICONS = {
+    home: '<path d="M3 10h3l2-4 4 8 2-4h3"/>',
+    contests: '<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M6 8h5M6 12h8"/>',
+    timeline: '<path d="M3 5h8M6 10h10M4 15h7"/>',
+    grid: '<rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/>',
+    params: '<circle cx="5" cy="6" r="2"/><circle cx="15" cy="6" r="2"/><circle cx="10" cy="15" r="2"/><path d="M6.6 7.3 9 13.3M13.4 7.3 11 13.3M7 6h6"/>',
+    report: '<rect x="2.5" y="7" width="4" height="6" rx="1"/><rect x="8" y="7" width="4" height="6" rx="1"/><rect x="13.5" y="7" width="4" height="6" rx="1"/><path d="M2 16h16"/>',
+    dicts: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H16v12H5.5A1.5 1.5 0 0 0 4 16.5z"/><path d="M4 16.5A1.5 1.5 0 0 0 5.5 18H16"/>',
+    checks: '<path d="M10 2.5 16 5v5c0 3.6-2.6 6.4-6 7.5-3.4-1.1-6-3.9-6-7.5V5z"/><path d="m7.3 10 2 2 3.6-4"/>',
+    bundle: '<path d="M3 6.5 10 3l7 3.5v7L10 17l-7-3.5z"/><path d="M3 6.5 10 10l7-3.5M10 10v7"/>',
+    "export": '<path d="M10 3v10M6 9l4 4 4-4M4 16h12"/>',
+    upload: '<path d="M10 14V4M6 8l4-4 4 4M4 16h12"/>',
+    search: '<circle cx="9" cy="9" r="5.5"/><path d="M13.2 13.2 17 17"/>',
+    log: '<path d="M4 5h12M4 10h12M4 15h8"/>',
+    moon: '<path d="M10 3a7 7 0 1 0 7 7 5.5 5.5 0 0 1-7-7Z"/>',
+    sun: '<circle cx="10" cy="10" r="3.2"/><path d="M10 2.5v1.8M10 15.7v1.8M2.5 10h1.8M15.7 10h1.8M4.7 4.7l1.3 1.3M14 14l1.3 1.3M4.7 15.3 6 14M14 6l1.3-1.3"/>',
+    lock: '<rect x="4.5" y="9" width="11" height="8" rx="2"/><path d="M7 9V7a3 3 0 0 1 6 0v2"/>',
+    unlock: '<rect x="4.5" y="9" width="11" height="8" rx="2"/><path d="M7 9V7a3 3 0 0 1 5.8-1.2"/>',
+    logout: '<path d="M8 4H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3M12 6.5 15.5 10 12 13.5M15.5 10H8"/>',
+    close: '<path d="M5 5l10 10M15 5 5 15"/>',
+    left: '<path d="m12 5-5 5 5 5"/>',
+    right: '<path d="m8 5 5 5-5 5"/>',
+    down: '<path d="m5 8 5 5 5-5"/>',
+    plus: '<path d="M10 4v12M4 10h12"/>',
+    minus: '<path d="M4 10h12"/>',
+    check: '<path d="m4.5 10.5 3.5 3.5 7.5-8"/>',
+    alert: '<path d="M10 3 18 17H2z"/><path d="M10 8.5v4M10 14.8v.1"/>',
+    info: '<circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.3v.1"/>',
+    save: '<path d="M4 4h9.5L16 6.5V16H4z"/><path d="M7 4v4h6V4M7 16v-5h6v5"/>',
+    trash: '<path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10h7.4l.8-10"/>',
+    file: '<path d="M6 3h5.5L15 6.5V17H6z"/><path d="M11 3v4h4"/>',
+    field: '<rect x="3" y="6" width="14" height="8" rx="2"/><path d="M6 10h4"/>',
+    tour: '<rect x="3" y="4.5" width="14" height="12" rx="2"/><path d="M3 8.5h14M7 3v3M13 3v3"/>',
+    flag: '<path d="M5 17V3.5M5 4h9l-2 3 2 3H5"/>',
+    cmd: '<path d="M7 7h6v6H7z"/><path d="M7 7a2 2 0 1 1-2-2 2 2 0 0 1 2 2zM13 7a2 2 0 1 0 2-2M7 13a2 2 0 1 0-2 2M13 13a2 2 0 1 1 2 2"/>',
+    fit: '<path d="M4 8V4h4M16 8V4h-4M4 12v4h4M16 12v4h-4"/>',
+    edit: '<path d="M12.5 4.5 15.5 7.5 7 16H4v-3z"/>',
+    dot: '<circle cx="10" cy="10" r="3" fill="currentColor"/>',
+    chat: '<path d="M4 4h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/>',
+    video: '<rect x="2.5" y="5" width="10.5" height="10" rx="2"/><path d="m13 9 4.5-2.5v7L13 11"/>',
+    mail: '<rect x="2.5" y="4.5" width="15" height="11" rx="2"/><path d="m3 5.5 7 5.5 7-5.5"/>',
+    trophy: '<path d="M6 3h8v5a4 4 0 0 1-8 0zM6 5H3.5a2.5 2.5 0 0 0 2.6 3M14 5h2.5a2.5 2.5 0 0 1-2.6 3M10 12v3M7 17h6"/>',
+    ticket: '<path d="M3 6a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4z"/><path d="M12 5v10" stroke-dasharray="1.5 1.8"/>',
+    code: '<path d="m7 6-4 4 4 4M13 6l4 4-4 4M11 4 9 16"/>',
+    star: '<path d="m10 2.8 2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L2.8 8.1l5-.7z"/>',
+    copy: '<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 7V4.5A1.5 1.5 0 0 0 11.5 3h-7A1.5 1.5 0 0 0 3 4.5v7A1.5 1.5 0 0 0 4.5 13H7"/>',
+    link: '<path d="M8.5 11.5a3 3 0 0 0 4.2 0l2.6-2.6a3 3 0 0 0-4.2-4.2L10 5.8M11.5 8.5a3 3 0 0 0-4.2 0l-2.6 2.6a3 3 0 0 0 4.2 4.2l1.1-1.1"/>',
+    refresh: '<path d="M16 10a6 6 0 1 1-1.8-4.3M16 3.5v3.2h-3.2"/>',
+    galaxy: '<circle cx="10" cy="10" r="2.2"/><ellipse cx="10" cy="10" rx="7.5" ry="3.2" transform="rotate(-20 10 10)"/><circle cx="16.2" cy="6.6" r="1" fill="currentColor"/><circle cx="4.4" cy="13" r=".8" fill="currentColor"/>'
+  };
+
+  // Иконки, которых нет в наборе v8: панель групп и «глаз» видимости
+  ICONS.panel = '<rect x="2.5" y="3.5" width="15" height="13" rx="2.5"/><path d="M8 3.5v13M4.8 7h1M4.8 9.6h1M4.8 12.2h1"/>';
+  ICONS.eye = '<path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10Z"/><circle cx="10" cy="10" r="2.3"/>';
+  ICONS.eyeoff = '<path d="M8.2 4.7A8 8 0 0 1 10 4.5c5 0 8 5.5 8 5.5a14 14 0 0 1-2.1 2.8M12.7 13.9A7 7 0 0 1 10 15.5c-5 0-8-5.5-8-5.5a14.5 14.5 0 0 1 3.5-4M3.5 3.5l13 13"/>';
+
+  // ---------- Иконки: SVG-спрайт (сетка 20×20, контур 1.6, currentColor) ----------
+  RP.icons = {
+    names: function () { return Object.keys(ICONS); },
+    has: function (n) { return Object.prototype.hasOwnProperty.call(ICONS, n); },
+    svg: function (name, cls) {
+      return '<svg class="' + (cls || "ui-i") + '" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><use href="#rp-i-' + name + '"/></svg>';
+    },
+    sprite: function () {
+      return '<svg xmlns="http://www.w3.org/2000/svg" id="rp-icons" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">' +
+        Object.keys(ICONS).map(function (k) {
+          return '<symbol id="rp-i-' + k + '" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + ICONS[k] + "</symbol>";
+        }).join("") + "</svg>";
+    },
+    inject: function () {
+      if (document.getElementById("rp-icons")) return;
+      document.body.insertAdjacentHTML("afterbegin", RP.icons.sprite());
+    }
+  };
+
+  // ---------- Хранилище: localStorage может быть недоступен — каждое обращение в try/catch ----------
+  RP.store = {
+    get: function (key, def) {
+      var v;
+      try { v = window.localStorage.getItem(key); } catch (e) { return def; }
+      if (v == null) return def;
+      try { return JSON.parse(v); } catch (e) { return v; }
+    },
+    set: function (key, val) {
+      try { window.localStorage.setItem(key, JSON.stringify(val)); return true; } catch (e) { return false; }
+    }
+  };
+
+  if (typeof document === "undefined") return;
+
+  // ---------- UI ----------
+  var I = RP.icons.svg;
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var ENV_LBL = { PROM: "PROM", PSI: "ПСИ", IFT: "ИФТ" }, SEG_LBL = { ALPHA: "Alpha", SIGMA: "Sigma" };
+  var isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  // Состояние страницы; later-задачи читают и дополняют его
+  var S = RP.ui = {
+    data: null, byId: {}, secById: {},
+    st: {},                // id → wait | up | down | local | skip
+    lineEl: {}, secEl: {}, meetEl: {}, secN: {},
+    cols: 4, laidOut: false,
+    ENV: ENV_LBL, SEG: SEG_LBL, esc: esc, $: $, $$: $$
+  };
+
+  function iconOf(l) { return RP.icons.has(l.icon) ? l.icon : (S.secById[l.section] && RP.icons.has(S.secById[l.section].icon) ? S.secById[l.section].icon : "link"); }
+  function tagsHtml(l) {
+    return '<span class="tags">' + (l.env ? '<span class="tag e-' + l.env + '">' + ENV_LBL[l.env] + "</span>" : "") +
+      (l.seg ? '<span class="tag s-' + l.seg + '">' + l.seg + "</span>" : "") + "</span>";
+  }
+  function ariaOf(l) {
+    return l.title + (l.env ? ", стенд " + ENV_LBL[l.env] : "") + (l.seg ? ", сегмент " + SEG_LBL[l.seg] : "") +
+      (l.copy ? ", при открытии копируется код" : "") + (l.tool ? ", инструмент" : "");
+  }
+  // Начальный статус: url-ссылки ждут проверки; инструменты локальные; check:false не проверяются
+  function initialSt(l) { return l.tool ? "local" : l.check === false ? "skip" : "wait"; }
+  S.iconOf = iconOf; S.tagsHtml = tagsHtml; S.ariaOf = ariaOf;
+
+  // Элемент-ссылка: настоящий <a> для url, кнопка для инструмента
+  function linkEl(l, cls) {
+    var el = document.createElement(l.tool ? "button" : "a");
+    if (l.tool) { el.type = "button"; el.dataset.tool = l.tool; } else { el.href = l.url; el.target = "_blank"; el.rel = "noopener"; }
+    el.className = cls; el.dataset.linkId = l.id; el.dataset.st = S.st[l.id];
+    return el;
+  }
+
+  // ---------- Отрисовка ----------
+  function buildIndex() {
+    S.lineEl = {}; S.secEl = {}; S.secN = {};
+    S.data.sections.forEach(function (s) {
+      var sec = document.createElement("section");
+      sec.className = "sec"; sec.id = "sec-" + s.id; sec.dataset.sectionId = s.id; sec.setAttribute("aria-labelledby", "h-" + s.id);
+      sec.innerHTML = '<h2 class="sh" id="h-' + s.id + '">' + I(RP.icons.has(s.icon) ? s.icon : "link") + "<span>" + esc(s.name) + "</span><em></em></h2>";
+      var n = 0;
+      S.data.links.forEach(function (l) {
+        if (l.section !== s.id || l.meet) return;
+        var el = linkEl(l, "ln");
+        el.id = "ln-" + l.id; el.setAttribute("aria-label", ariaOf(l));
+        el.innerHTML = I(iconOf(l)) + '<span class="tt">' + esc(l.title) + "</span>" + (l.copy ? I("copy", "ui-i cp") : "") +
+          '<span class="ld"></span>' + tagsHtml(l) + '<span class="dot"></span>';
+        S.lineEl[l.id] = el; sec.appendChild(el); n++;
+      });
+      $("em", sec).textContent = n;
+      S.secN[s.id] = n; S.secEl[s.id] = sec;
+    });
+  }
+  // Встречи Jazz (meet:true) — полосой под избранным, в указателе их нет
+  function buildMeets() {
+    var box = $("#meets"); box.innerHTML = ""; S.meetEl = {};
+    S.data.links.forEach(function (l) {
+      if (!l.meet) return;
+      var a = linkEl(l, "mt");
+      a.setAttribute("aria-label", "Встреча: " + ariaOf(l));
+      a.innerHTML = I("video") + '<span class="tt">' + esc(l.title) + '</span><span class="dot"></span>';
+      S.meetEl[l.id] = a; box.appendChild(a);
+    });
+    box.parentNode.hidden = !box.children.length;
+  }
+  // Избранное: порядок считается один раз при открытии (иконки не прыгают)
+  function buildDock() {
+    var dock = $("#dock"); dock.innerHTML = "";
+    RP.core.rankFavorites(S.data.links, RP.store.get("rp_clicks", {}), S.data.favoriteSeed, 9).forEach(function (id) {
+      var l = S.byId[id], a = linkEl(l, "app");
+      a.setAttribute("aria-label", ariaOf(l));
+      a.innerHTML = '<span class="sq">' + I(iconOf(l)) + '<span class="dot"></span>' + (l.copy ? '<span class="cp">' + I("copy") + "</span>" : "") +
+        '</span><span class="lb">' + esc(l.title) + "</span>" + tagsHtml(l);
+      dock.appendChild(a);
+    });
+    $(".favs").hidden = !dock.children.length;
+  }
+  function buildGroups() {
+    $("#gpList").innerHTML = S.data.sections.map(function (s) {
+      var n = S.secN[s.id] || 0;
+      return '<li class="gr' + (n ? "" : " zero") + '" data-sec="' + esc(s.id) + '"><button class="gr-go" type="button" data-name="' + esc(s.name) + '" aria-label="' + esc(s.name) + ", ссылок: " + n + '">' +
+        '<span class="ic">' + I(RP.icons.has(s.icon) ? s.icon : "link") + "<b>" + n + '</b></span><span class="nm">' + esc(s.name) + '</span><span class="c">' + n + "</span></button>" +
+        '<button class="gr-eye" type="button" aria-pressed="true" aria-label="Скрыть группу «' + esc(s.name) + '» в списке" title="Скрыть из списка">' + I("eye") + "</button></li>";
+    }).join("") + '<li class="gp-none" id="gpNone" hidden>Нет групп с таким названием</li>';
+  }
+  function buildChips(box, opts) {
+    $$(".chip", box).forEach(function (c) { c.remove(); });
+    opts.forEach(function (o, i) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.dataset.val = o[0]; b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+      b.innerHTML = (o[2] ? '<i style="--c:var(' + o[2] + ')"></i>' : "") + o[1];
+      box.appendChild(b);
+    });
+  }
+  // Сводка доступности в шапке
+  function renderSum() {
+    var c = { up: 0, down: 0, wait: 0 };
+    S.data.links.forEach(function (l) { if (c[S.st[l.id]] != null) c[S.st[l.id]]++; });
+    $("#sum").innerHTML =
+      '<span title="Доступны"><i class="dot ok"></i>' + c.up + '<span class="lbl">&nbsp;доступны</span></span>' +
+      '<span title="Недоступны"><i class="dot down"></i>' + c.down + '<span class="lbl">&nbsp;недоступны</span></span>' +
+      (c.wait ? '<span title="Проверяются"><i class="dot wait"></i>' + c.wait + "</span>" : "");
+  }
+  S.renderSum = renderSum;
+
+  // Полная перерисовка из данных (повторно — после правок в админке)
+  function render(data) {
+    var D = S.data = data || S.data;
+    S.byId = {}; S.secById = {};
+    D.sections.forEach(function (s) { S.secById[s.id] = s; });
+    D.links.forEach(function (l) { S.byId[l.id] = l; if (!S.st[l.id] || S.st[l.id] === "local" || S.st[l.id] === "skip") S.st[l.id] = initialSt(l); });
+    $("#subt").textContent = D.links.length + " рабочих ссылок · " + D.sections.length + " разделов";
+    $("#cnt").textContent = D.links.length + " ссылок";
+    buildIndex(); buildMeets(); buildDock(); buildGroups(); renderSum();
+    layout();
+  }
+  S.render = render;
+
+  // ---------- Панель групп: развёрнута / узкая / скрыта; <767px — шторка ----------
+  var RAILS = ["open", "compact", "hidden"];
+  var RAIL_NAME = { open: "развёрнута", compact: "узкая", hidden: "скрыта" }, RAIL_NEXT = { open: "compact", compact: "hidden", hidden: "open" };
+  var RAIL_TO = { open: "развёрнутой", compact: "узкой", hidden: "скрытой" };
+  function railMode() {
+    var r = RP.store.get("rp_rail", null);
+    if (window.innerWidth < 767) return "drawer";
+    return RAILS.indexOf(r) >= 0 ? r : window.innerWidth >= 1280 ? "open" : "compact";
+  }
+  function applyRail() {
+    var m = railMode(), gp = $("#gp"), btn = $("#gpBtn");
+    gp.classList.remove("m-open", "m-compact", "m-hidden", "m-drawer", "peek"); gp.classList.add("m-" + m);
+    document.body.style.setProperty("--pw", m === "open" ? "248px" : m === "compact" ? "60px" : "0px");
+    btn.dataset.m = m;
+    if (m === "drawer") {
+      btn.setAttribute("aria-label", "Группы ссылок"); btn.title = "Группы ссылок";
+      btn.setAttribute("aria-expanded", gp.classList.contains("on") ? "true" : "false");
+      gp.setAttribute("role", "dialog"); gp.setAttribute("aria-modal", "true"); gp.setAttribute("aria-labelledby", "gpTtl");
+    } else {
+      var lbl = "Панель групп: " + RAIL_NAME[m] + ". Нажмите — сделать " + RAIL_TO[RAIL_NEXT[m]];
+      btn.setAttribute("aria-label", lbl); btn.title = lbl; btn.removeAttribute("aria-expanded");
+      gp.removeAttribute("role"); gp.removeAttribute("aria-modal"); gp.removeAttribute("aria-labelledby");
+    }
+  }
+  S.railMode = railMode; S.applyRail = applyRail;
+
+  // ---------- Раскладка «в один экран»: колонки по числу строк, плотность ступенями ----------
+  // Разбиение разделов по колонкам: подряд (RP.core.balanceColumns) или «жадно» по весу — где самая длинная колонка короче
+  function groupsFor(w, k) {
+    k = Math.min(k, w.length);
+    var seq = RP.core.balanceColumns(w, k).filter(function (g) { return g.length; });
+    var load = [], bins = [];
+    for (var j = 0; j < k; j++) { load.push(0); bins.push([]); }
+    w.map(function (x, i) { return i; }).sort(function (a, b) { return w[b] - w[a] || a - b; }).forEach(function (i) {
+      var m = load.indexOf(Math.min.apply(null, load)); load[m] += w[i]; bins[m].push(i);
+    });
+    bins.forEach(function (b) { b.sort(function (a, c) { return a - c; }); });
+    bins.sort(function (a, b) { return a[0] - b[0]; });
+    function max(gs) { return Math.max.apply(null, gs.map(function (g) { return g.reduce(function (t, i) { return t + w[i]; }, 0); })); }
+    return max(bins) < max(seq) - 0.5 ? bins : seq;
+  }
+  function placeColumns(cols) {
+    var idx = $("#idx"), secs = S.data.sections.map(function (s) { return S.secEl[s.id]; })
+      .filter(function (e) { return e && !e.hidden && !e.classList.contains("off"); });
+    idx.innerHTML = ""; idx.style.setProperty("--cols", cols);
+    if (!secs.length) return;
+    var w = secs.map(function (s) { return $$(".ln:not([hidden])", s).length + 1.6; });
+    groupsFor(w, cols).forEach(function (g) {
+      var c = document.createElement("div"); c.className = "col";
+      g.forEach(function (i) { c.appendChild(secs[i]); });
+      idx.appendChild(c);
+    });
+  }
+  // Избранное: столько «иконок», сколько помещается в ширину (без горизонтальной прокрутки)
+  function fitDock() {
+    var favs = $(".favs"), apps = $$(".app", $("#dock"));
+    apps.forEach(function (a) { a.classList.remove("over"); });
+    if (window.innerWidth < 767 || !apps.length) return;
+    var cs = getComputedStyle(favs);
+    var avail = favs.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - $("#favCap").offsetWidth - 14;
+    var n = Math.max(1, Math.floor((avail + 6) / (apps[0].offsetWidth + 6)));
+    apps.forEach(function (a, i) { a.classList.toggle("over", i >= n); });
+  }
+  // Ступени плотности: кегль строки → допустимые высоты строки; сначала кегль ≥ 14px, затем запасные
+  var STEPS = [[15, [30, 29, 28]], [14.5, [28, 27]], [14, [27, 26, 25, 24]], [13.5, [24, 23]], [13, [23, 22, 21]]];
+  function setDen(s) { document.body.style.setProperty("--fs-row", s[0] + "px"); document.body.style.setProperty("--rh", s[1] + "px"); }
+  function fit() {
+    var b = document.body, idx = $("#idx");
+    if (window.innerWidth < 1024 || window.innerHeight < 560) {
+      b.classList.remove("fit", "compact"); b.style.removeProperty("--rh"); b.style.removeProperty("--fs-row"); fitDock();
+      placeColumns(S.cols = idx.clientWidth >= 700 ? 2 : 1); b.dataset.den = "scroll"; return;
+    }
+    b.classList.add("fit");
+    var gap = parseFloat(getComputedStyle(idx).columnGap) || 36;
+    var inner = idx.clientWidth - 2 * parseFloat(getComputedStyle(idx).paddingLeft);
+    var maxCols = Math.max(2, Math.min(6, Math.floor((inner + gap) / (250 + gap))));
+    var minCols = Math.min(3, maxCols);
+    var tiers = [STEPS.filter(function (s) { return s[0] >= 14; }), STEPS.filter(function (s) { return s[0] < 14; })];
+    // Порядок: крупный кегль → меньше колонок (шире названия) → выше строка; плотная шапка — только если иначе не влезает
+    for (var t = 0; t < tiers.length; t++) for (var h = 0; h < 2; h++) {
+      b.classList.toggle("compact", h === 1); fitDock();
+      for (var f = 0; f < tiers[t].length; f++) for (var c = minCols; c <= maxCols; c++) for (var r = 0; r < tiers[t][f][1].length; r++) {
+        var s = [tiers[t][f][0], tiers[t][f][1][r]];
+        setDen(s); placeColumns(S.cols = c);
+        if (idx.scrollHeight <= idx.clientHeight + 1) { b.dataset.den = s.join("/") + " · " + c + " кол." + (h ? " · плотная шапка" : ""); return; }
+      }
+    }
+    // Не влезло даже в самой плотной ступени — обычная прокрутка
+    b.classList.remove("fit", "compact"); setDen([14, 26]); fitDock(); placeColumns(S.cols = maxCols); b.dataset.den = "scroll";
+  }
+  // Плотность подбирается по полному списку: поиск и фильтры не меняют шаг строк
+  function layout() {
+    if (!S.data) return;
+    applyRail();
+    var hid = $$(".ln[hidden], .sec[hidden]");
+    hid.forEach(function (e) { e.hidden = false; });
+    fit();
+    hid.forEach(function (e) { e.hidden = true; });
+    S.laidOut = true; placeColumns(S.cols);
+  }
+  S.layout = layout; S.placeColumns = placeColumns; S.fitDock = fitDock;
+
+  // ---------- Тема: тёмная по умолчанию, светлая «Туман»; rp_theme ----------
+  RP.theme = {
+    get: function () { return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"; },
+    paint: function () {
+      var light = RP.theme.get() === "light", b = $("#theme");
+      b.innerHTML = I(light ? "moon" : "sun"); b.setAttribute("aria-label", light ? "Включить тёмную тему" : "Включить светлую тему");
+      b.title = b.getAttribute("aria-label");
+    },
+    set: function (t) {
+      document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+      RP.store.set("rp_theme", t === "light" ? "light" : "dark"); RP.theme.paint();
+    },
+    toggle: function () { RP.theme.set(RP.theme.get() === "light" ? "dark" : "light"); }
+  };
+
+  // ---------- Экран ошибки загрузки links.js ----------
+  function fail(title, text, items) {
+    var box = $("#rp-error");
+    box.innerHTML = '<div class="rp-err-box">' + I("alert") + "<h1>" + esc(title) + "</h1>" + (text ? "<p>" + esc(text) + "</p>" : "") +
+      (items && items.length ? "<ul>" + items.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" : "") +
+      "<p>Исправьте файл <code>links.js</code> рядом с <code>index.html</code> и обновите страницу.</p></div>";
+    box.hidden = false; document.body.classList.add("rp-failed");
+  }
+
+  // ---------- Старт ----------
+  function boot() {
+    RP.icons.inject();
+    var D = window.RP_LINKS, err = window.RP_LOAD_ERROR;
+    if (!D) {
+      if (window.RP_LINKS_MISSING) return fail("Не найден links.js рядом с index.html", "Страница берёт ссылки из файла links.js в той же папке.");
+      if (err) {
+        // С диска (file://) браузер обычно скрывает текст и строку ошибки чужого файла — «Script error.»
+        var known = err.line && err.message && !/^Script error\.?$/i.test(err.message);
+        return fail("Ошибка в links.js: синтаксическая ошибка" + (known ? ", строка " + err.line : ""),
+          known ? err.message : "Браузер не сообщает строку для файлов, открытых с диска: откройте консоль разработчика (F12) — там указаны строка и причина.");
+      }
+      return fail("Ошибка в links.js: не задан window.RP_LINKS", "Файл должен начинаться с «window.RP_LINKS = {».");
+    }
+    var v = RP.core.validate(D);
+    v.warnings.forEach(function (w) { console.warn("links.js: " + w); });
+    if (!v.ok) {
+      v.errors.forEach(function (e) { console.error("links.js: " + e); });
+      return fail("Ошибка в links.js: " + v.errors[0], v.errors.length > 1 ? "Всего ошибок: " + v.errors.length : "", v.errors);
+    }
+    $("#refIc").innerHTML = I("refresh"); $("#sIc").outerHTML = I("search"); $("#clr").innerHTML = I("close"); $("#lock").innerHTML = I("lock");
+    $("#gpBtn").innerHTML = I("panel"); $("#gpX").innerHTML = I("close"); $("#gsIc").outerHTML = I("search"); $("#gaIc").outerHTML = I("eye");
+    $("#kbdK").textContent = isMac ? "⌘ K" : "Ctrl K";
+    buildChips($("#fEnv"), [["", "Все"], ["PROM", "PROM", "--env-prom"], ["PSI", "ПСИ", "--env-psi"], ["IFT", "ИФТ", "--env-ift"]]);
+    buildChips($("#fSeg"), [["", "Все"], ["ALPHA", "Alpha", "--seg-alpha"], ["SIGMA", "Sigma", "--seg-sigma"]]);
+    RP.theme.paint();
+    $("#theme").addEventListener("click", RP.theme.toggle);
+    render(D);
+    var rT = 0; window.addEventListener("resize", function () { clearTimeout(rT); rT = setTimeout(layout, 120); });
+    if (window.innerWidth >= 767) $("#q").focus(); else $("#q").placeholder = "Поиск ссылок";
+    document.body.dataset.ready = "1";
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();

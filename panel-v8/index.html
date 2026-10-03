@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ресурсная панель</title>
+<link rel="icon" href="data:,">
+<script>
+  /* Тема до первой отрисовки — без вспышки */
+  try { if (/light/.test(localStorage.getItem("rp_theme") || "")) document.documentElement.setAttribute("data-theme", "light"); } catch (e) {}
+  /* Ошибка разбора links.js: запоминаем текст и строку для экрана ошибки (до загрузки panel.js) */
+  window.addEventListener("error", function (e) {
+    if (window.RP || !e || e.target !== window) return;
+    if (/links\.js$/.test(e.filename || "") || !e.filename) window.RP_LOAD_ERROR = { message: e.message, line: e.lineno };
+  });
+</script>
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+<!-- Шапка: бренд слева, справа — сводка доступности и служебные кнопки -->
+<header class="top">
+  <div class="lead">
+    <button class="btn ic" id="gpBtn" type="button" aria-controls="gp"></button>
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <div><b>Ресурсная панель</b><small id="subt">Рабочие ссылки команды</small></div>
+    </div>
+  </div>
+  <div class="acts">
+    <div class="sum" id="sum" aria-live="polite"></div>
+    <button class="btn" id="refresh" type="button" aria-label="Проверить доступность ссылок"><span id="refIc"></span><span class="bl">Проверить</span><span class="prog"></span></button>
+    <button class="btn ic" id="theme" type="button"></button>
+    <button class="btn ic" id="lock" type="button" aria-label="Администрирование" aria-haspopup="dialog"></button>
+  </div>
+</header>
+
+<div class="shell">
+<!-- Панель групп: переход к разделу, показ/скрытие разделов в указателе -->
+<aside class="gp" id="gp" aria-label="Группы ссылок">
+  <div class="gp-in">
+    <div class="gp-ttl"><h2 id="gpTtl">Группы</h2><button class="btn ic" type="button" id="gpX" aria-label="Закрыть список групп"></button></div>
+    <div class="gp-top">
+      <label class="gs"><span id="gsIc"></span><span class="sr">Найти группу</span><input id="gq" type="search" autocomplete="off" spellcheck="false" placeholder="Найти группу"></label>
+      <button class="gp-all" id="gpAll" type="button" hidden><span id="gaIc"></span><span>Показать все</span><em id="gaN"></em></button>
+    </div>
+    <ul class="gp-list" id="gpList"></ul>
+    <p class="gp-hint">Клик — перейти к группе<br><kbd>Alt</kbd>+клик — только эта группа</p>
+  </div>
+</aside>
+<div class="main">
+<!-- Поиск: фильтрует всю страницу -->
+<section class="hero" aria-label="Поиск">
+  <div class="omni" id="omni">
+    <span id="sIc"></span>
+    <label for="q" class="sr">Поиск по ссылкам</label>
+    <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Найти ссылку, хост, раздел или стенд" role="combobox" aria-expanded="true" aria-controls="idx" aria-autocomplete="list">
+    <span class="cnt" id="cnt"></span>
+    <kbd id="kbdK">Ctrl K</kbd>
+    <button class="clr" id="clr" type="button" aria-label="Очистить поиск"></button>
+  </div>
+  <div class="filters">
+    <div class="fg" role="group" aria-label="Стенд" id="fEnv"><span>Стенд</span></div>
+    <div class="fg" role="group" aria-label="Сегмент" id="fSeg"><span>Сегмент</span></div>
+  </div>
+</section>
+
+<section class="favs" aria-labelledby="favCap">
+  <h2 class="cap" id="favCap">Избранное</h2>
+  <nav class="dock" id="dock" aria-label="Часто открываемые"></nav>
+</section>
+
+<section class="meets" aria-labelledby="meetCap">
+  <h2 class="mcap" id="meetCap">Встречи</h2>
+  <nav class="mlist" id="meets" aria-label="Встречи Jazz"></nav>
+</section>
+
+<main class="idx" id="idx" aria-label="Все ссылки"></main>
+</div>
+</div>
+<div class="gtip glass" id="gtip" aria-hidden="true"></div>
+
+<div class="tip glass" id="tip" role="tooltip" aria-hidden="true"></div>
+<div class="scrim" id="scrim"></div>
+<div class="modal glass" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle"></div>
+<aside class="drawer glass" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle"></aside>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<!-- Экран ошибки загрузки данных (links.js не найден или содержит ошибку) -->
+<div class="rp-err" id="rp-error" role="alert" hidden></div>
+
+<script src="links.js" onerror="window.RP_LINKS_MISSING = true"></script>
+<script src="panel.js"></script>
+</body>
+</html>
