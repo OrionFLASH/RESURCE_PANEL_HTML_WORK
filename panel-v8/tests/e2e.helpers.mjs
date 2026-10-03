@@ -27,7 +27,7 @@ export function makeCopy({ links, files } = {}) {
 }
 
 /**
- * openPanel({ width, height, theme?, storage?: "ok"|"throw", seed?: {key: rawString}, links?: string|false, files?, context? })
+ * openPanel({ width, height, theme?, storage?: "ok"|"throw", seed?: {key: rawString}, links?: string|false, files?, context?, setup?({context,page}) — до перехода на страницу (page.route) })
  *   -> { page, browser, context, errors, dir, close() }
  * errors — ошибки консоли и необработанные исключения страницы.
  */
@@ -35,30 +35,38 @@ export async function openPanel(opts = {}) {
   const { width = 1440, height = 900, theme, storage = "ok" } = opts;
   const dir = makeCopy(opts);
   const browser = await chromium.launch({ executablePath: CHROME, headless: true });
-  const context = await browser.newContext({ viewport: { width, height }, ...(opts.context || {}) });
-  const page = await context.newPage();
-  const errors = [];
-  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
-  page.on("pageerror", (e) => errors.push(String(e && e.message || e)));
-  if (storage === "throw") {
-    await page.addInitScript(() => {
-      Object.defineProperty(window, "localStorage", { configurable: true, get() { throw new Error("localStorage denied"); } });
-    });
-  } else {
-    // Новый контекст — пустое хранилище; начальные значения кладём один раз (перезагрузка их не затирает)
-    const seed = Object.assign({}, opts.seed || {}, theme ? { rp_theme: theme } : {});
-    await page.addInitScript((s) => {
-      try {
-        if (sessionStorage.getItem("__rp_seeded")) return;
-        sessionStorage.setItem("__rp_seeded", "1");
-        Object.keys(s).forEach((k) => localStorage.setItem(k, s[k]));
-      } catch (e) {}
-    }, seed);
+  // Любая ошибка после запуска: закрыть браузер и убрать временный каталог, затем пробросить дальше (R6)
+  const cleanup = async () => { try { await browser.close(); } catch (e) {} fs.rmSync(dir, { recursive: true, force: true }); };
+  try {
+    const context = await browser.newContext({ viewport: { width, height }, ...(opts.context || {}) });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+    page.on("pageerror", (e) => errors.push(String(e && e.message || e)));
+    if (storage === "throw") {
+      await page.addInitScript(() => {
+        Object.defineProperty(window, "localStorage", { configurable: true, get() { throw new Error("localStorage denied"); } });
+      });
+    } else {
+      // Новый контекст — пустое хранилище; начальные значения кладём один раз (перезагрузка их не затирает)
+      const seed = Object.assign({}, opts.seed || {}, theme ? { rp_theme: theme } : {});
+      await page.addInitScript((s) => {
+        try {
+          if (sessionStorage.getItem("__rp_seeded")) return;
+          sessionStorage.setItem("__rp_seeded", "1");
+          Object.keys(s).forEach((k) => localStorage.setItem(k, s[k]));
+        } catch (e) {}
+      }, seed);
+    }
+    if (opts.setup) await opts.setup({ context, page });
+    await page.goto(pathToFileURL(path.join(dir, "index.html")).href);
+    await page.waitForFunction(() => document.body && (document.body.dataset.ready === "1" || !!document.querySelector("#rp-error:not([hidden])")));
+    const close = cleanup;
+    return { page, browser, context, errors, dir, close };
+  } catch (e) {
+    await cleanup();
+    throw e;
   }
-  await page.goto(pathToFileURL(path.join(dir, "index.html")).href);
-  await page.waitForFunction(() => document.body && (document.body.dataset.ready === "1" || !!document.querySelector("#rp-error:not([hidden])")));
-  const close = async () => { await browser.close(); fs.rmSync(dir, { recursive: true, force: true }); };
-  return { page, browser, context, errors, dir, close };
 }
 
 // Размеры документа и окна

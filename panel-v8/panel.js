@@ -284,6 +284,87 @@
     }
   };
 
+  // ---------- Проверка доступности (из mockups/_shared/probe.js) ----------
+  // fetch(url, {mode:"no-cors"}): любой ответ = хост доступен; сетевая ошибка / таймаут = недоступен. Работает из file://.
+  //   RP.probe.run(links, { onStart(id), onResult(id, res), onProgress(done, total), onDone(summary) })
+  //     res = { st: "up" | "down", ms, at: Date, err?: "timeout" | "network" }
+  //   RP.probe.every(ms, fn) — повтор по интервалу (по умолчанию 2 мин), возвращает функцию остановки.
+  (function () {
+    var TIMEOUT = 6000;   // мс на один хост
+    var PARALLEL = 6;     // не больше N запросов одновременно
+    var running = null;
+
+    function now() { return (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now(); }
+
+    function probeOne(url) {
+      var t0 = now();
+      var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+      var timer;
+      var timeout = new Promise(function (resolve) {
+        timer = setTimeout(function () { if (ctrl) ctrl.abort(); resolve({ st: "down", err: "timeout" }); }, TIMEOUT);
+      });
+      // кэш-бастер, чтобы браузер не отвечал из кэша
+      var u = url + (url.indexOf("?") < 0 ? "?" : "&") + "_rp=" + Date.now();
+      var req = fetch(u, { mode: "no-cors", cache: "no-store", credentials: "omit", redirect: "follow", signal: ctrl ? ctrl.signal : undefined })
+        .then(function () { return { st: "up" }; }, function () { return { st: "down", err: "network" }; });
+      return Promise.race([req, timeout]).then(function (r) {
+        clearTimeout(timer);
+        r.ms = Math.round(now() - t0);
+        r.at = new Date();
+        return r;
+      });
+    }
+
+    function run(links, h) {
+      h = h || {};
+      var list = (links || []).filter(function (l) { return l && l.url && /^https?:/i.test(l.url); });
+      var token = {};
+      running = token;
+      var i = 0, done = 0, up = 0, total = list.length;
+      list.forEach(function (l) { if (h.onStart) h.onStart(l.id); });
+      if (h.onProgress) h.onProgress(0, total);
+      return new Promise(function (resolve) {
+        if (!total) { finish(); return; }
+        function next() {
+          if (running !== token) return;           // запущена новая проверка — эта больше не пишет
+          if (i >= total) return;
+          var l = list[i++];
+          probeOne(l.url).then(function (res) {
+            if (running !== token) return;
+            done++; if (res.st === "up") up++;
+            if (h.onResult) h.onResult(l.id, res);
+            if (h.onProgress) h.onProgress(done, total);
+            if (done === total) finish(); else next();
+          });
+        }
+        function finish() {
+          var sum = { total: total, up: up, down: total - up, at: new Date() };
+          if (h.onDone) h.onDone(sum);
+          resolve(sum);
+        }
+        for (var k = 0; k < Math.min(PARALLEL, total); k++) next();
+      });
+    }
+
+    function every(ms, fn) {
+      var id = setInterval(fn, ms || 120000);
+      return function () { clearInterval(id); };
+    }
+
+    RP.probe = { run: run, every: every, probeOne: probeOne, TIMEOUT: TIMEOUT, PARALLEL: PARALLEL, INTERVAL: 120000 };
+  })();
+
+  // ---------- Статусы ссылок: id → { st: "wait"|"up"|"down", ms?, at?, err? } ----------
+  var STATUS = {};
+  RP.status = {
+    get: function (id) {
+      if (STATUS[id]) return STATUS[id];
+      var ui = RP.ui && RP.ui.st && RP.ui.st[id];   // local / skip — не проверяются
+      return { st: ui || "wait" };
+    },
+    set: function (id, res) { STATUS[id] = res; return res; }
+  };
+
   if (typeof document === "undefined") return;
 
   // ---------- UI ----------
@@ -512,6 +593,28 @@
   }
   S.layout = layout; S.placeColumns = placeColumns; S.fitDock = fitDock;
 
+  // ---------- Проверка доступности: запуск, прогресс, отражение статусов ----------
+  var checking = false;
+  function paintSt(id, st) {
+    $$('[data-link-id="' + id + '"]').forEach(function (e) { e.dataset.st = st; });
+  }
+  function checkable(l) { return !l.tool && l.check !== false && !!l.url; }
+  // opts.background — фоновая (по таймеру): без прогресса на кнопке; во время проверки повторный запуск игнорируется
+  function check(opts) {
+    if (checking || !S.data) return null;
+    var bg = !!(opts && opts.background), btn = $("#refresh");
+    checking = true;
+    if (!bg) { btn.classList.add("busy"); btn.setAttribute("aria-busy", "true"); btn.style.setProperty("--p", 0); }
+    // Известные статусы не сбрасываем в «проверяется»: ссылки без результата и так в wait
+    return RP.probe.run(S.data.links.filter(checkable), {
+      onResult: function (id, res) { RP.status.set(id, res); S.st[id] = res.st; paintSt(id, res.st); renderSum(); },
+      onProgress: function (done, total) { if (!bg) btn.style.setProperty("--p", total ? done / total : 1); }
+    }).then(function () {
+      checking = false; btn.classList.remove("busy"); btn.removeAttribute("aria-busy"); btn.style.removeProperty("--p"); renderSum();
+    });
+  }
+  S.check = check;
+
   // ---------- Тема: тёмная по умолчанию, светлая «Туман»; rp_theme ----------
   RP.theme = {
     get: function () { return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"; },
@@ -564,9 +667,11 @@
     RP.theme.paint();
     $("#theme").addEventListener("click", RP.theme.toggle);
     render(D);
+    $("#refresh").addEventListener("click", function () { check(); });
     var rT = 0; window.addEventListener("resize", function () { clearTimeout(rT); rT = setTimeout(layout, 120); });
     if (window.innerWidth >= 767) $("#q").focus(); else $("#q").placeholder = "Поиск ссылок";
     document.body.dataset.ready = "1";
+    check(); RP.probe.every(RP.probe.INTERVAL, function () { check({ background: true }); });   // только в браузере, не в Node vm
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
