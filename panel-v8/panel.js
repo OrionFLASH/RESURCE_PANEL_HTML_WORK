@@ -30,6 +30,10 @@
     "   adminScripts   — реестр будущих скриптов, сейчас пуст */"
   ].join("\n");
 
+  // id разделов и ссылок попадают в разметку и селекторы — только безопасные символы
+  var ID_RE = /^[a-z0-9_-]+$/i;
+  var ID_HINT = "допустимы латиница, цифры, - и _";
+
   function isObj(x) { return x && typeof x === "object" && !Array.isArray(x); }
 
   // Проверка данных: errors — критичные, warnings — некритичные.
@@ -45,6 +49,7 @@
     var secIds = {};
     sections.forEach(function (s, i) {
       if (!s || !s.id) { errors.push("Раздел №" + (i + 1) + ": нет id"); return; }
+      if (!ID_RE.test(s.id)) errors.push("Раздел №" + (i + 1) + ": id «" + s.id + "» — " + ID_HINT);
       if (secIds[s.id]) errors.push("Дубль id раздела: " + s.id);
       secIds[s.id] = true;
       if (!s.name) errors.push("Раздел " + s.id + ": нет name");
@@ -54,6 +59,7 @@
     links.forEach(function (l, i) {
       var tag = "Ссылка " + (l && l.id ? l.id : "№" + (i + 1));
       if (!l || !l.id) { errors.push(tag + ": нет id"); return; }
+      if (!ID_RE.test(l.id)) errors.push(tag + ": id «" + l.id + "» — " + ID_HINT);
       if (ids[l.id]) errors.push("Дубль id: " + l.id);
       ids[l.id] = true;
       if (!l.title) errors.push(tag + ": нет title");
@@ -71,7 +77,38 @@
     (Array.isArray(data.favoriteSeed) ? data.favoriteSeed : []).forEach(function (id) {
       if (!ids[id]) warnings.push("favoriteSeed: нет ссылки с id «" + id + "»");
     });
+    if (data.adminScripts != null && !Array.isArray(data.adminScripts)) warnings.push("adminScripts: ожидается массив");
+    (Array.isArray(data.adminScripts) ? data.adminScripts : []).forEach(function (a, i) {
+      if (!a || !ID_RE.test(a.id || "") || !a.file) warnings.push("adminScripts №" + (i + 1) + ": нужны id (" + ID_HINT + ") и file");
+    });
     return { ok: errors.length === 0, errors: errors, warnings: warnings };
+  }
+
+  // Ошибки полей формы ссылки (редактор): { title?, url?, section? } — тексты для показа у поля
+  function fieldErrors(l, data) {
+    var e = {}, secs = (data && data.sections) || [];
+    if (!String(l.title || "").trim()) e.title = "Укажите название";
+    if (!secs.some(function (s) { return s.id === l.section; })) e.section = "Выберите раздел";
+    if (!l.tool) {
+      var u = String(l.url || "");
+      if (!u.trim()) e.url = "Укажите адрес";
+      else if (/\s/.test(u)) e.url = "В адресе не должно быть пробелов";
+      else if (!/^https?:\/\//i.test(u)) e.url = "Адрес должен начинаться с http:// или https://";
+      else if (!/^https?:\/\/[^\/?#:]+/i.test(u)) e.url = "В адресе нет хоста";
+    }
+    return e;
+  }
+
+  // Уникальный id из названия: транслитерация, латиница/цифры/дефис, до 40 символов
+  var TR = { "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f", "х": "h", "ц": "c", "ч": "ch", "ш": "sh", "щ": "sch", "ъ": "",
+    "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya" };
+  function slug(text, taken) {
+    var t = Array.isArray(taken) ? taken : Object.keys(taken || {});
+    var s = String(text || "").toLowerCase().replace(/[а-яё]/g, function (c) { return TR[c]; })
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "") || "link";
+    if (t.indexOf(s) < 0) return s;
+    for (var n = 2; ; n++) if (t.indexOf(s + "-" + n) < 0) return s + "-" + n;
   }
 
   // Ссылка в одну строку, ключи в каноничном порядке; кириллица не экранируется.
@@ -191,7 +228,7 @@
   }
 
   RP.core = {
-    validate: validate, serializeLinks: serializeLinks, parseUrl: parseUrl, match: match,
+    validate: validate, fieldErrors: fieldErrors, slug: slug, ID_RE: ID_RE, serializeLinks: serializeLinks, parseUrl: parseUrl, match: match,
     rankFavorites: rankFavorites, decodePermission: decodePermission, balanceColumns: balanceColumns
   };
 
@@ -250,6 +287,7 @@
   // Иконки, которых нет в наборе v8: панель групп и «глаз» видимости
   ICONS.panel = '<rect x="2.5" y="3.5" width="15" height="13" rx="2.5"/><path d="M8 3.5v13M4.8 7h1M4.8 9.6h1M4.8 12.2h1"/>';
   ICONS.eye = '<path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10Z"/><circle cx="10" cy="10" r="2.3"/>';
+  ICONS.up = '<path d="m5 12 5-5 5 5"/>';
   ICONS.eyeoff = '<path d="M8.2 4.7A8 8 0 0 1 10 4.5c5 0 8 5.5 8 5.5a14 14 0 0 1-2.1 2.8M12.7 13.9A7 7 0 0 1 10 15.5c-5 0-8-5.5-8-5.5a14.5 14.5 0 0 1 3.5-4M3.5 3.5l13 13"/>';
 
   // ---------- Иконки: SVG-спрайт (сетка 20×20, контур 1.6, currentColor) ----------
@@ -890,7 +928,7 @@
   // ---------- Слои: модальное окно, шторка групп (Esc / клик мимо закрывают, фокус удерживается внутри) ----------
   var layer = null, layerBack = null, layerOnClose = null;
   function focusables(el) {
-    return $$("button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]", el)
+    return $$("button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], summary", el)
       .filter(function (x) { return x.offsetParent !== null; });
   }
   // opts: { focus?: элемент, onClose?(), noFocus?: true }
@@ -1113,6 +1151,448 @@
     }
   };
 
+  // ---------- Администрирование (§8): шторка за замком — редактор ссылок и площадка скриптов ----------
+  // Редактор правит рабочую копию данных в памяти; страница перерисовывается сразу; сохранение — только выгрузкой links.js.
+  (function () {
+    var A = {
+      base: null,     // последняя сохранённая версия (загруженная или скачанная)
+      work: null,     // рабочая копия — её показывает страница после первой правки
+      shown: null,    // снимок того, что сейчас отрисовано (для сброса статусов изменённых ссылок)
+      n: 0, tab: "links", view: "list", edit: null, q: "", sec: "", secPick: null,
+      open: { secs: false, seed: false }, scripts: {}
+    };
+    var ENV_OPT = [["", "—"], ["PROM", "PROM"], ["PSI", "ПСИ"], ["IFT", "ИФТ"]];
+    var SEG_OPT = [["", "—"], ["ALPHA", "Alpha"], ["SIGMA", "Sigma"]];
+    var OWN = ["id", "section", "title", "url", "env", "seg", "copy", "icon", "note", "meet", "tool", "check"];
+    function clone(o) { return JSON.parse(JSON.stringify(o)); }
+    function W() { return A.work; }
+    function idxOf(id) { for (var i = 0; i < W().links.length; i++) if (W().links[i].id === id) return i; return -1; }
+    function linkById(id) { return W().links[idxOf(id)]; }
+    function secName(id) { for (var i = 0; i < W().sections.length; i++) if (W().sections[i].id === id) return W().sections[i].name; return id; }
+    function plural(n, a, b, c) { var m = n % 100, k = n % 10; return m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c; }
+    function opts(list, val) {
+      return list.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === (val || "") ? " selected" : "") + ">" + esc(o[1]) + "</option>"; }).join("");
+    }
+    function ib(cls, icon, label, k, dis) {
+      return '<button class="btn ic ' + cls + '" type="button" aria-label="' + esc(label) + '" title="' + esc(label) + '" data-k="' + esc(k) + '"' + (dis ? " disabled" : "") + ">" + I(icon) + "</button>";
+    }
+    function init() {
+      if (A.work) return;
+      A.base = clone(S.data); A.work = clone(S.data); A.shown = clone(S.data);
+    }
+
+    // ----- Изменения: счётчик, предупреждение при закрытии вкладки, перерисовка страницы -----
+    function onUnload(e) { e.preventDefault(); e.returnValue = ""; return ""; }
+    function paintDirty() {
+      window.onbeforeunload = A.n ? onUnload : null;
+      var el = $("#aDirty"); if (!el) return;
+      el.textContent = "Несохранённых изменений: " + A.n; el.classList.toggle("on", !!A.n);
+      $("#aRevert").disabled = !A.n;
+      var v = RP.core.validate(W()), box = $("#aVal");
+      $("#aDown").disabled = !v.ok;
+      box.innerHTML = v.errors.concat(v.warnings).map(function (x, i) { return '<li class="' + (i < v.errors.length ? "err" : "") + '">' + esc(x) + "</li>"; }).join("");
+      box.hidden = !box.children.length;
+    }
+    var reT = 0;
+    function recheck() { clearTimeout(reT); if (!S.check()) reT = setTimeout(recheck, 1000); }   // идёт проверка — повторить после
+    // Применить рабочую копию: статусы изменённых/новых ссылок сбрасываются и перепроверяются
+    function apply(counted) {
+      var prev = {}, again = false;
+      (A.shown.links || []).forEach(function (l) { prev[l.id] = l; });
+      W().links.forEach(function (l) {
+        var p = prev[l.id];
+        if (p && p.url === l.url && p.check === l.check && p.tool === l.tool) return;
+        RP.status.set(l.id, undefined); delete S.st[l.id];
+        if (checkable(l)) again = true;
+      });
+      if (counted) A.n = RP.core.serializeLinks(W()) === RP.core.serializeLinks(A.base) ? 0 : A.n + 1;
+      render(W()); A.shown = clone(W());
+      if (again) recheck();
+      paintDirty(); paintBody();
+    }
+    function commit() { apply(true); }
+
+    // ----- Шторка -----
+    function build() {
+      var d = $("#drawer");
+      d.classList.add("adm");
+      d.innerHTML = '<button class="btn ic x" type="button" aria-label="Закрыть" title="Закрыть">' + I("close") + "</button>" +
+        '<h2 id="dTitle">Администрирование</h2><p>Правки видны на странице сразу и живут до перезагрузки — сохраните их, скачав links.js.</p>' +
+        '<div class="atabs" role="tablist" aria-label="Разделы администрирования">' +
+        '<button type="button" role="tab" id="atLinks" aria-controls="apLinks">Ссылки</button>' +
+        '<button type="button" role="tab" id="atScripts" aria-controls="apScripts">Скрипты</button></div>' +
+        '<div role="tabpanel" id="apLinks" aria-labelledby="atLinks">' +
+        '<div class="abar"><span class="adirty" id="aDirty" role="status"></span>' +
+        '<button class="btn" type="button" id="aRevert">' + I("refresh") + "Отменить изменения</button>" +
+        '<button class="btn pri" type="button" id="aDown">' + I("export") + "Скачать links.js</button></div>" +
+        '<p class="ahint">Браузер не может записать файл с диска: скачайте links.js и замените файл рядом с index.html.</p>' +
+        '<ul class="aval" id="aVal" hidden></ul><div id="aBody"></div></div>' +
+        '<div role="tabpanel" id="apScripts" aria-labelledby="atScripts" hidden></div>';
+      $(".x", d).addEventListener("click", function () { closeLayer(); });
+      $("#aDown").addEventListener("click", download);
+      $("#aRevert").addEventListener("click", revert);
+      var tabs = [$("#atLinks"), $("#atScripts")];
+      tabs.forEach(function (t, i) {
+        t.addEventListener("click", function () { setTab(i ? "scripts" : "links"); });
+        t.addEventListener("keydown", function (e) {
+          if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+          e.preventDefault(); var o = tabs[1 - i]; o.click(); o.focus();
+        });
+      });
+      $("#aBody").addEventListener("click", onBodyClick);
+      setTab(A.tab); paintDirty();
+    }
+    function setTab(t) {
+      A.tab = t;
+      var links = t === "links";
+      $("#atLinks").setAttribute("aria-selected", links ? "true" : "false"); $("#atLinks").tabIndex = links ? 0 : -1;
+      $("#atScripts").setAttribute("aria-selected", links ? "false" : "true"); $("#atScripts").tabIndex = links ? -1 : 0;
+      $("#apLinks").hidden = !links; $("#apScripts").hidden = links;
+      if (links) paintBody(); else paintScripts();
+    }
+    function openAdmin() {
+      if (!S.data) return;
+      init(); A.view = "list"; A.edit = null; A.secPick = null;
+      build();
+      var lock = $("#lock");
+      openLayer($("#drawer"), { onClose: function () { lock.innerHTML = I("lock"); lock.setAttribute("aria-expanded", "false"); } });
+      lock.innerHTML = I("unlock"); lock.setAttribute("aria-expanded", "true");
+    }
+
+    // Перерисовка содержимого вкладки «Ссылки» с сохранением фокуса (data-k)
+    function paintBody() {
+      var body = $("#aBody");
+      if (!body || A.tab !== "links") return;
+      var a = document.activeElement, k = a && body.contains(a) && a.dataset ? a.dataset.k : null;
+      var sc = $("#drawer").scrollTop;
+      // Состояние раскрытия «Разделы» / «Избранное» берём из DOM: событие toggle приходит асинхронно
+      if ($("#aSecs", body)) A.open.secs = $("#aSecs", body).open;
+      if ($("#aSeed", body)) A.open.seed = $("#aSeed", body).open;
+      if (A.view === "form") formView(body); else listView(body);
+      $("#drawer").scrollTop = sc;
+      if (k) { var f = $('[data-k="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]', body); if (f) f.focus({ preventScroll: true }); }
+    }
+
+    // ----- Список ссылок: поиск, фильтр по разделу, разделы и стартовое избранное -----
+    function listView(body) {
+      var D = W();
+      body.innerHTML =
+        '<div class="atools"><label class="as">' + I("search") + '<span class="sr">Найти ссылку в редакторе</span>' +
+        '<input id="aQ" type="search" autocomplete="off" spellcheck="false" placeholder="Название, адрес или id" data-k="q"></label>' +
+        '<label class="sr" for="aSec">Раздел</label><select id="aSec" data-k="sec">' +
+        opts([["", "Все разделы"]].concat(D.sections.map(function (s) { return [s.id, s.name]; })), A.sec) + "</select>" +
+        '<button class="btn pri" type="button" id="aAdd" data-k="add">' + I("plus") + "Добавить</button></div>" +
+        '<ul class="alist" id="aList" aria-label="Ссылки"></ul>' +
+        '<details class="adet" id="aSecs"' + (A.open.secs ? " open" : "") + "><summary>Разделы <em>" + D.sections.length + "</em></summary>" + secsHtml() + "</details>" +
+        '<details class="adet" id="aSeed"' + (A.open.seed ? " open" : "") + "><summary>Стартовое избранное <em>" + (D.favoriteSeed || []).length + "</em></summary>" + seedHtml() + "</details>";
+      var q = $("#aQ", body); q.value = A.q;
+      q.addEventListener("input", function () { A.q = q.value; paintRows(); });
+      $("#aSec", body).addEventListener("change", function (e) { A.sec = e.target.value; paintRows(); });
+      $("#aAdd", body).addEventListener("click", function () { A.view = "form"; A.edit = null; paintBody(); });
+      $$(".s-name", body).forEach(function (inp) {
+        inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); renameSec(inp); } });
+        inp.addEventListener("change", function () { renameSec(inp); });
+      });
+      var sNew = $("#sNew", body);
+      sNew.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addSec(); } });
+      paintRows();
+    }
+    function paintRows() {
+      var D = W(), q = A.q.trim().toLowerCase(), html = "", any = false;
+      D.sections.forEach(function (s) {
+        if (A.sec && A.sec !== s.id) return;
+        var all = D.links.filter(function (l) { return l.section === s.id; });
+        var rows = all.filter(function (l) { return !q || (l.title + " " + (l.url || "") + " " + l.id).toLowerCase().indexOf(q) >= 0; });
+        if (!rows.length) return;
+        any = true;
+        html += '<li class="ahd">' + I(RP.icons.has(s.icon) ? s.icon : "link") + "<span>" + esc(s.name) + "</span></li>";
+        rows.forEach(function (l) {
+          var i = all.indexOf(l);
+          html += '<li class="arow" data-lid="' + esc(l.id) + '">' +
+            '<button class="a-open" type="button" data-k="o:' + esc(l.id) + '" aria-label="Изменить «' + esc(l.title) + '»">' + I(S.iconOf(l)) +
+            '<span class="at">' + esc(l.title) + "</span>" + (l.meet ? '<span class="ab">встреча</span>' : "") + (l.tool ? '<span class="ab">инструмент</span>' : "") +
+            (l.copy ? I("copy", "ui-i cp") : "") + tagsHtml(l) + "</button>" +
+            ib("a-up", "up", "Выше: «" + l.title + "»", "u:" + l.id, i === 0) +
+            ib("a-dn", "down", "Ниже: «" + l.title + "»", "d:" + l.id, i === all.length - 1) +
+            ib("a-del", "trash", "Удалить «" + l.title + "»", "x:" + l.id) + "</li>";
+        });
+      });
+      $("#aList").innerHTML = any ? html : '<li class="anone">Нет ссылок' + (q ? " по запросу «" + esc(A.q.trim()) + "»" : "") + "</li>";
+    }
+    function secsHtml() {
+      var D = W(), cnt = {};
+      D.links.forEach(function (l) { cnt[l.section] = (cnt[l.section] || 0) + 1; });
+      return '<ul class="slist">' + D.sections.map(function (s, i) {
+        var n = cnt[s.id] || 0, open = A.secPick === s.id;
+        return '<li class="srow" data-sid="' + esc(s.id) + '">' +
+          '<button class="btn ic s-ic" type="button" aria-expanded="' + open + '" aria-label="Иконка раздела «' + esc(s.name) + '»" title="Сменить иконку" data-k="si:' + esc(s.id) + '">' + I(RP.icons.has(s.icon) ? s.icon : "link") + "</button>" +
+          '<input class="s-name" value="' + esc(s.name) + '" aria-label="Название раздела «' + esc(s.name) + '»" spellcheck="false" data-k="sn:' + esc(s.id) + '">' +
+          '<span class="s-n" title="Ссылок в разделе">' + n + "</span>" +
+          ib("s-up", "up", "Раздел выше: «" + s.name + "»", "su:" + s.id, i === 0) +
+          ib("s-dn", "down", "Раздел ниже: «" + s.name + "»", "sd:" + s.id, i === D.sections.length - 1) +
+          ib("s-del", "trash", n ? "Удалить можно только пустой раздел" : "Удалить раздел «" + s.name + "»", "sx:" + s.id, n > 0) +
+          (open ? pickHtml(s.icon, false, "Иконка раздела «" + s.name + "»") : "") + "</li>";
+      }).join("") + "</ul>" +
+        '<div class="sadd"><label class="sr" for="sNew">Название нового раздела</label><input id="sNew" placeholder="Новый раздел" autocomplete="off" data-k="sNew">' +
+        '<button class="btn" type="button" id="sAdd" data-k="sAdd">' + I("plus") + "Добавить раздел</button></div>";
+    }
+    function seedHtml() {
+      var D = W(), seed = D.favoriteSeed || [];
+      var free = D.links.filter(function (l) { return !l.meet && !l.tool && seed.indexOf(l.id) < 0; });
+      return '<p class="ahint">Показываются в «Избранном», пока нет кликов (до 9). Встречи и инструменты туда не попадают.</p>' +
+        '<ol class="flist">' + seed.map(function (id, i) {
+          var l = D.links[idxOf(id)];
+          return '<li data-fid="' + esc(id) + '"><span class="at">' + (l ? esc(l.title) + tagsHtml(l) : esc(id) + ' <span class="ab err">нет такой ссылки</span>') + "</span>" +
+            ib("f-up", "up", "Выше в избранном", "fu:" + id, i === 0) + ib("f-dn", "down", "Ниже в избранном", "fd:" + id, i === seed.length - 1) +
+            ib("f-del", "close", "Убрать из избранного", "fx:" + id) + "</li>";
+        }).join("") + "</ol>" +
+        '<div class="sadd"><label class="sr" for="fsAdd">Ссылка для избранного</label><select id="fsAdd" data-k="fsAdd"><option value="">Выберите ссылку…</option>' +
+        D.sections.map(function (s) {
+          var ls = free.filter(function (l) { return l.section === s.id; });
+          return ls.length ? '<optgroup label="' + esc(s.name) + '">' + ls.map(function (l) {
+            return '<option value="' + esc(l.id) + '">' + esc(l.title) + (l.env ? " · " + ENV_LBL[l.env] : "") + (l.seg ? " · " + SEG_LBL[l.seg] : "") + "</option>";
+          }).join("") + "</optgroup>" : "";
+        }).join("") + '</select><button class="btn" type="button" id="fsAddBtn" data-k="fsAddBtn">' + I("plus") + "Добавить</button></div>";
+    }
+    function pickHtml(cur, withDefault, label) {
+      return '<div class="ipick" role="group" aria-label="' + esc(label) + '">' +
+        (withDefault ? '<button type="button" class="ip-def" data-icon="" aria-pressed="' + !cur + '" title="Как у раздела">как у раздела</button>' : "") +
+        RP.icons.names().map(function (n) {
+          return '<button type="button" data-icon="' + n + '" aria-pressed="' + (cur === n) + '" aria-label="' + n + '" title="' + n + '">' + I(n) + "</button>";
+        }).join("") + "</div>";
+    }
+    function swap(arr, i, j) { if (j < 0 || j >= arr.length) return false; var t = arr[i]; arr[i] = arr[j]; arr[j] = t; return true; }
+    // Сдвиг ссылки внутри её раздела (порядок в массиве = порядок вывода)
+    function moveLink(id, dir) {
+      var L = W().links, i = idxOf(id), j = i + dir;
+      while (j >= 0 && j < L.length && L[j].section !== L[i].section) j += dir;
+      if (swap(L, i, j)) commit();
+    }
+    function onBodyClick(e) {
+      var b = e.target.closest("button"); if (!b || b.disabled) return;
+      var D = W(), row = b.closest("[data-lid]"), srow = b.closest("[data-sid]"), frow = b.closest("[data-fid]");
+      if (row) {
+        var id = row.dataset.lid;
+        if (b.classList.contains("a-open")) { A.view = "form"; A.edit = id; paintBody(); }
+        else if (b.classList.contains("a-up")) moveLink(id, -1);
+        else if (b.classList.contains("a-dn")) moveLink(id, 1);
+        else if (b.classList.contains("a-del")) {
+          var l = linkById(id);
+          D.links.splice(idxOf(id), 1);
+          D.favoriteSeed = (D.favoriteSeed || []).filter(function (x) { return x !== id; });
+          commit(); RP.toast("Удалено: " + l.title, "trash");
+        }
+        return;
+      }
+      if (srow) {
+        var sid = srow.dataset.sid, si = D.sections.map(function (s) { return s.id; }).indexOf(sid);
+        if (b.classList.contains("s-ic")) { A.secPick = A.secPick === sid ? null : sid; paintBody(); }
+        else if (b.dataset.icon != null && b.closest(".ipick")) { D.sections[si].icon = b.dataset.icon; A.secPick = null; commit(); var f = $('[data-k="si:' + sid + '"]'); if (f) f.focus(); }
+        else if (b.classList.contains("s-up")) { if (swap(D.sections, si, si - 1)) commit(); }
+        else if (b.classList.contains("s-dn")) { if (swap(D.sections, si, si + 1)) commit(); }
+        else if (b.classList.contains("s-del")) { var nm = D.sections[si].name; D.sections.splice(si, 1); if (A.sec === sid) A.sec = ""; commit(); RP.toast("Раздел удалён: " + nm, "trash"); }
+        return;
+      }
+      if (frow) {
+        var seed = D.favoriteSeed, fi = seed.indexOf(frow.dataset.fid);
+        if (b.classList.contains("f-up")) { if (swap(seed, fi, fi - 1)) commit(); }
+        else if (b.classList.contains("f-dn")) { if (swap(seed, fi, fi + 1)) commit(); }
+        else if (b.classList.contains("f-del")) { seed.splice(fi, 1); commit(); }
+        return;
+      }
+      if (b.id === "sAdd") addSec();
+      else if (b.id === "fsAddBtn") {
+        var v = $("#fsAdd").value; if (!v) { $("#fsAdd").focus(); return; }
+        D.favoriteSeed = (D.favoriteSeed || []).concat([v]); commit();
+      }
+    }
+    function renameSec(inp) {
+      var sid = inp.closest("[data-sid]").dataset.sid, s = W().sections.filter(function (x) { return x.id === sid; })[0];
+      if (!s) return;
+      var v = inp.value.trim();
+      if (!v) { inp.value = s.name; RP.toast("Название раздела не может быть пустым", "alert"); return; }
+      if (v === s.name) return;
+      s.name = v; commit();
+    }
+    function addSec() {
+      var inp = $("#sNew"), v = inp.value.trim();
+      if (!v) { inp.focus(); return; }
+      var id = RP.core.slug(v, W().sections.map(function (s) { return s.id; }));
+      W().sections.push({ id: id, name: v, icon: "link" });
+      commit(); RP.toast("Раздел добавлен: " + v, "check");
+    }
+
+    // ----- Форма ссылки -----
+    function fld(id, label, input, err) {
+      return '<label class="f" for="' + id + '">' + label + input + "</label>" + (err ? '<small class="fe" id="' + id + 'Err" aria-live="polite"></small>' : "");
+    }
+    function formView(body) {
+      var D = W(), cur = A.edit ? linkById(A.edit) : null;
+      if (A.edit && !cur) { A.view = "list"; return listView(body); }
+      var l = cur ? clone(cur) : { id: "", section: A.sec || (D.sections[D.sections.length - 1] || {}).id, title: "", url: "" };
+      if (!cur && !A.sec) { var last = D.sections.filter(function (s) { return s.id !== "tools"; }).pop(); if (last) l.section = last.id; }
+      body.innerHTML =
+        '<div class="afh"><button class="btn ic" type="button" id="eBack" aria-label="К списку ссылок" title="К списку">' + I("left") + "</button>" +
+        "<h3>" + (cur ? "Изменить ссылку" : "Новая ссылка") + "</h3>" + (cur ? '<small class="aid">id: <code>' + esc(cur.id) + "</code></small>" : '<small class="aid">id создаётся из названия</small>') + "</div>" +
+        '<form id="eForm" novalidate>' +
+        fld("eTitle", "Название", '<input id="eTitle" autocomplete="off" aria-describedby="eTitleErr">', true) +
+        (l.tool ? '<p class="ahint">Встроенный инструмент «' + esc(l.tool) + "» — адрес не нужен.</p>"
+          : fld("eUrl", "Адрес (http/https)", '<input id="eUrl" autocomplete="off" spellcheck="false" inputmode="url" aria-describedby="eUrlErr">', true)) +
+        fld("eSec", "Раздел", '<select id="eSec" aria-describedby="eSecErr">' + opts(D.sections.map(function (s) { return [s.id, s.name]; }), l.section) + "</select>", true) +
+        '<div class="f2">' + fld("eEnv", "Стенд", '<select id="eEnv">' + opts(ENV_OPT, l.env) + "</select>") +
+        fld("eSeg", "Сегмент", '<select id="eSeg">' + opts(SEG_OPT, l.seg) + "</select>") + "</div>" +
+        fld("eCopy", "Код копирования (в буфер при клике)", '<input id="eCopy" autocomplete="off" spellcheck="false">') +
+        '<div class="f" id="eIconL">Иконка' + pickHtml(RP.icons.has(l.icon) ? l.icon : "", true, "Иконка ссылки").replace('class="ipick"', 'class="ipick" id="eIcon"') + "</div>" +
+        fld("eNote", "Комментарий (в подсказке)", '<textarea id="eNote" rows="2"></textarea>') +
+        '<label class="sw"><input type="checkbox" id="eMeet"' + (l.meet ? " checked" : "") + "> Встреча Jazz — показывать в полосе «Встречи»</label>" +
+        (l.tool ? "" : '<label class="sw"><input type="checkbox" id="eNoCheck"' + (l.check === false ? " checked" : "") + "> Не проверять доступность</label>") +
+        '<p class="fe" id="eErr" aria-live="polite"></p>' +
+        '<div class="row"><button class="btn" type="button" id="eCancel">Отмена</button><button class="btn pri" type="submit" id="eSave">' + I("check") + "Сохранить</button></div></form>";
+      $("#eTitle").value = l.title || ""; if ($("#eUrl")) $("#eUrl").value = l.url || "";
+      $("#eCopy").value = l.copy || ""; $("#eNote").value = l.note || "";
+      var form = $("#eForm"), icon = RP.icons.has(l.icon) ? l.icon : "";
+      function read() {
+        var o = { id: cur ? cur.id : "" };
+        o.section = $("#eSec").value; o.title = $("#eTitle").value.trim();
+        if (l.tool) o.tool = l.tool; else o.url = $("#eUrl").value.trim();
+        var env = $("#eEnv").value, seg = $("#eSeg").value, cp = $("#eCopy").value.trim(), nt = $("#eNote").value.trim();
+        if (env) o.env = env; if (seg) o.seg = seg; if (cp) o.copy = cp; if (icon) o.icon = icon; if (nt) o.note = nt;
+        if ($("#eMeet").checked) o.meet = true;
+        if ($("#eNoCheck") && $("#eNoCheck").checked) o.check = false;
+        // Неизвестные поля ссылки сохраняются как были
+        if (cur) Object.keys(cur).forEach(function (k) { if (OWN.indexOf(k) < 0) o[k] = cur[k]; });
+        if (!o.id) o.id = RP.core.slug(o.title || "link", D.links.map(function (x) { return x.id; }));
+        return o;
+      }
+      // Сборка данных с этой ссылкой (без изменения рабочей копии)
+      function draft(o) {
+        var d = clone(D), i = cur ? idxOf(cur.id) : -1;
+        if (i >= 0 && d.links[i].section === o.section) { d.links[i] = o; return d; }
+        if (i >= 0) d.links.splice(i, 1);
+        // новая ссылка или смена раздела — в конец раздела
+        var at = -1; d.links.forEach(function (x, j) { if (x.section === o.section) at = j; });
+        d.links.splice(at < 0 ? d.links.length : at + 1, 0, o);
+        return d;
+      }
+      function check() {
+        var o = read(), fe = RP.core.fieldErrors(o, D), bad = false;
+        [["title", "eTitle"], ["url", "eUrl"], ["section", "eSec"]].forEach(function (p) {
+          var inp = $("#" + p[1]), msg = $("#" + p[1] + "Err");
+          if (!inp || !msg) return;
+          var shown = fe[p[0]] && (inp.dataset.touched || p[0] === "section");
+          msg.textContent = shown ? fe[p[0]] : "";
+          if (fe[p[0]]) inp.setAttribute("aria-invalid", "true"); else inp.removeAttribute("aria-invalid");
+          bad = bad || !!fe[p[0]];
+        });
+        var v = bad ? null : RP.core.validate(draft(o));
+        $("#eErr").textContent = v && !v.ok ? v.errors[0] : "";
+        $("#eSave").disabled = bad || !!(v && !v.ok);
+        return !$("#eSave").disabled && o;
+      }
+      form.addEventListener("input", function (e) { if (e.target.id) e.target.dataset.touched = "1"; check(); });
+      form.addEventListener("change", function (e) { if (e.target.id) e.target.dataset.touched = "1"; check(); });
+      $("#eIcon").addEventListener("click", function (e) {
+        var b = e.target.closest("[data-icon]"); if (!b) return;
+        icon = b.dataset.icon;
+        $$("[data-icon]", this).forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        check();
+      });
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        ["eTitle", "eUrl"].forEach(function (id) { if ($("#" + id)) $("#" + id).dataset.touched = "1"; });
+        var o = check(); if (!o) { var bad = $('[aria-invalid="true"]', form); if (bad) bad.focus(); return; }
+        A.work = draft(o); A.view = "list"; A.edit = null;
+        commit();
+        var f = $('[data-k="o:' + o.id + '"]'); if (f) { f.focus({ preventScroll: true }); f.scrollIntoView({ block: "nearest" }); }
+        RP.toast(cur ? "Изменения применены: " + o.title : "Ссылка добавлена: " + o.title, "check");
+      });
+      function back() { var id = cur && cur.id; A.view = "list"; A.edit = null; paintBody(); var f = id && $('[data-k="o:' + id + '"]'); if (f) f.focus(); }
+      $("#eCancel").addEventListener("click", back); $("#eBack").addEventListener("click", back);
+      if (cur) { $("#eTitle").dataset.touched = "1"; if ($("#eUrl")) $("#eUrl").dataset.touched = "1"; }
+      check();
+      $("#eTitle").focus();
+    }
+
+    // ----- Выгрузка и отмена -----
+    function download() {
+      var v = RP.core.validate(W());
+      if (!v.ok) { RP.toast("Сначала исправьте ошибки: " + v.errors[0], "alert"); return; }
+      var blob = new Blob([RP.core.serializeLinks(W())], { type: "text/javascript;charset=utf-8" });
+      var url = URL.createObjectURL(blob), a = document.createElement("a");
+      a.href = url; a.download = "links.js"; a.hidden = true;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      A.base = clone(W()); A.n = 0; paintDirty();
+      RP.toast("links.js скачан — замените файл рядом с index.html", "export");
+    }
+    function revert() {
+      A.work = clone(A.base); A.n = 0; A.view = "list"; A.edit = null; A.secPick = null;
+      apply(false);
+      RP.toast("Изменения отменены", "refresh");
+    }
+
+    // ----- Вкладка «Скрипты»: реестр adminScripts, загрузка файла, копирование отдельным кликом -----
+    function loadScript(entry) {
+      return new Promise(function (resolve, reject) {
+        var id = entry && entry.id, file = entry && entry.file;
+        if (!file) { reject(new Error("У скрипта «" + id + "» не указан файл (file)")); return; }
+        if (window.RP_ADMIN && Object.prototype.hasOwnProperty.call(window.RP_ADMIN, id)) delete window.RP_ADMIN[id];   // берём свежую версию файла
+        var s = document.createElement("script");
+        s.src = file;
+        s.onload = function () {
+          s.remove();
+          var r = window.RP_ADMIN && Object.prototype.hasOwnProperty.call(window.RP_ADMIN, id) ? window.RP_ADMIN[id] : null;
+          if (r && typeof r.code === "string") resolve({ title: String(r.title || entry.title || id), code: r.code });
+          else reject(new Error("Файл " + file + " загружен, но не задаёт RP_ADMIN[\"" + id + "\"] с полем code"));
+        };
+        s.onerror = function () { s.remove(); reject(new Error("Не удалось загрузить " + file + " — проверьте, что файл лежит по этому пути рядом с index.html")); };
+        document.head.appendChild(s);
+      });
+    }
+    function paintScripts() {
+      var box = $("#apScripts"), list = Array.isArray(W().adminScripts) ? W().adminScripts : [];
+      if (!list.length) {
+        box.innerHTML = '<div class="es">' + I("bundle") + "<b>Скриптов пока нет</b>" +
+          "Скрипт — это файл <code>admin/&lt;id&gt;.js</code> рядом с index.html и запись о нём в <code>adminScripts</code> в links.js. " +
+          "Формат файла и порядок подключения описаны в <code>admin/README.md</code>.</div>";
+        return;
+      }
+      box.innerHTML = '<p class="ahint">«Загрузить» подключает файл скрипта, «Копировать» — отдельным кликом кладёт его текст в буфер для консоли.</p>' +
+        list.map(function (e, i) {
+          var st = A.scripts[e.id] || {};
+          return '<div class="scr live" data-scr="' + esc(e.id) + '" data-i="' + i + '">' + I("file") +
+            '<div class="sct"><b>' + esc(st.title || e.title || e.id) + "</b>" + (e.desc ? "<small>" + esc(e.desc) + "</small>" : "") +
+            '<small><code>' + esc(e.file || "") + "</code>" + (st.code != null ? " · " + st.code.length + " " + plural(st.code.length, "символ", "символа", "символов") : "") + "</small>" +
+            '<p class="sc-err" role="alert">' + esc(st.err || "") + "</p></div>" +
+            (st.code != null
+              ? '<button class="btn pri sc-copy" type="button">' + I("copy") + "Копировать</button>"
+              : '<button class="btn sc-load" type="button"' + (st.busy ? " disabled" : "") + ">" + I("upload") + (st.busy ? "Загрузка…" : "Загрузить") + "</button>") +
+            "</div>";
+        }).join("");
+      $$(".scr", box).forEach(function (card) {
+        var e = list[+card.dataset.i], ld = $(".sc-load", card), cp = $(".sc-copy", card);
+        if (ld) ld.addEventListener("click", function () {
+          A.scripts[e.id] = { busy: true }; paintScripts();
+          loadScript(e).then(function (r) {
+            A.scripts[e.id] = { title: r.title, code: r.code }; paintScripts();
+            var c = $('.scr[data-i="' + card.dataset.i + '"] .sc-copy'); if (c) c.focus();
+          }, function (err) {
+            A.scripts[e.id] = { err: err.message }; paintScripts();
+            var l2 = $('.scr[data-i="' + card.dataset.i + '"] .sc-load'); if (l2) l2.focus();
+          });
+        });
+        if (cp) cp.addEventListener("click", function () {
+          var code = A.scripts[e.id].code, n = code.length;
+          RP.copy(code, function (ok) {
+            RP.toast(ok ? "Скопировано: " + n + " " + plural(n, "символ", "символа", "символов") : "Не удалось скопировать", ok ? "copy" : "alert");
+          });
+        });
+      });
+    }
+
+    RP.admin = { open: openAdmin, loadScript: loadScript, state: A };
+  })();
+
   // ---------- Тема: тёмная по умолчанию, светлая «Туман»; rp_theme ----------
   RP.theme = {
     get: function () { return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"; },
@@ -1167,6 +1647,8 @@
     render(D);
     bindLinks(); bindTip(); bindSearch(); bindLayers(); bindGroups();
     $("#refresh").addEventListener("click", function () { check(); });
+    $("#lock").setAttribute("aria-controls", "drawer"); $("#lock").setAttribute("aria-expanded", "false");
+    $("#lock").addEventListener("click", function () { RP.admin.open(); });
     var rT = 0; window.addEventListener("resize", function () { clearTimeout(rT); rT = setTimeout(layout, 120); });
     if (window.innerWidth >= 767) $("#q").focus(); else $("#q").placeholder = "Поиск ссылок";
     document.body.dataset.ready = "1";

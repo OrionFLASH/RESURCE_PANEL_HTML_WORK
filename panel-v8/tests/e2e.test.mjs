@@ -734,3 +734,223 @@ test("скрыта одна группа + несуществующий запр
     assert.equal((await idxSecs(page)).length, 10);
     assert.deepEqual(realErrors(errors), []);
   }));
+
+// ---------- Администрирование (§8): редактор ссылок и площадка скриптов ----------
+const drawerOn = (page) => page.evaluate(() => document.querySelector("#drawer").classList.contains("on"));
+const dirtyText = (page) => page.innerText("#aDirty");
+async function openAdmin(page) {
+  await page.click("#lock");
+  await page.waitForSelector("#drawer.on #aList");
+}
+async function editLink(page, id) {
+  await page.fill("#aQ", "");
+  await page.click(`#aList [data-lid="${id}"] .a-open`);
+  await page.waitForSelector("#drawer #eTitle");
+}
+
+test("админка: замок открывает панель с вкладками «Ссылки» / «Скрипты»; правка названия сразу на странице; счётчик; beforeunload; отмена", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    assert.equal(await drawerOn(page), false);
+    await openAdmin(page);
+    assert.equal(await drawerOn(page), true);
+    const tabs = await page.$$eval('#drawer [role="tab"]', (a) => a.map((t) => t.textContent.trim()));
+    assert.deepEqual(tabs, ["Ссылки", "Скрипты"]);
+    assert.match(await dirtyText(page), /несохранённых изменений: 0/i);
+    // ссылки в списке админки не являются ссылками страницы (нет data-link-id)
+    assert.equal(await page.locator("#drawer [data-link-id]").count(), 0);
+    await editLink(page, "kap-prom");
+    assert.equal(await page.inputValue("#eTitle"), "КАП");
+    await page.fill("#eTitle", "КАП боевой");
+    await page.click("#eSave");
+    assert.equal((await page.innerText("#ln-kap-prom .tt")).trim(), "КАП боевой");
+    assert.match(await dirtyText(page), /несохранённых изменений: 1/i);
+    assert.equal(await page.evaluate(() => typeof window.onbeforeunload), "function");
+    // список админки обновлён
+    assert.match(await page.innerText('#aList [data-lid="kap-prom"]'), /КАП боевой/);
+    // «Отменить изменения» — исходные данные, счётчик 0, предупреждения нет
+    await page.click("#aRevert");
+    assert.equal((await page.innerText("#ln-kap-prom .tt")).trim(), "КАП");
+    assert.match(await dirtyText(page), /несохранённых изменений: 0/i);
+    assert.equal(await page.evaluate(() => window.onbeforeunload), null);
+    // Esc закрывает панель и возвращает фокус на замок
+    await page.keyboard.press("Escape");
+    assert.equal(await drawerOn(page), false);
+    assert.equal(await page.evaluate(() => document.activeElement.id), "lock");
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("админка: добавить ссылку с кодом omega\\x, невалидный URL, удалить, «Скачать links.js» → подмена файла даёт те же изменения", async () => {
+  let text = "";
+  await withPanel(interact(), async ({ page, errors }) => {
+    await openAdmin(page);
+    // переименование
+    await editLink(page, "kap-prom");
+    await page.fill("#eTitle", "КАП боевой");
+    await page.click("#eSave");
+    // новая ссылка в «Репозитории»
+    await page.click("#aAdd");
+    await page.waitForSelector("#drawer #eTitle");
+    await page.fill("#eTitle", "Новый репозиторий");
+    await page.selectOption("#eSec", "repo");
+    await page.fill("#eUrl", "ftp://bad");
+    assert.match(await page.innerText("#eUrlErr"), /http/);
+    assert.equal(await page.isDisabled("#eSave"), true);
+    await page.fill("#eUrl", "https://stash.test/new");
+    assert.equal((await page.innerText("#eUrlErr")).trim(), "");
+    assert.equal(await page.isDisabled("#eSave"), false);
+    await page.fill("#eCopy", "omega\\x");
+    await page.selectOption("#eSeg", "SIGMA");
+    await page.click('#eIcon [data-icon="star"]');
+    await page.click("#eSave");
+    const nid = await page.evaluate(() => RP.ui.data.links.find((l) => l.title === "Новый репозиторий").id);
+    assert.match(nid, /^[a-z0-9_-]+$/);
+    assert.equal(await page.locator(`#sec-repo #ln-${nid}`).count(), 1);
+    assert.equal(await page.evaluate((id) => RP.ui.byId[id].copy, nid), "omega\\x");
+    assert.equal(await page.evaluate((id) => RP.ui.byId[id].icon, nid), "star");
+    assert.match(await dirtyText(page), /несохранённых изменений: 2/i);
+    // удаление
+    await page.fill("#aQ", "");
+    await page.click('#aList [data-lid="r-sowa"] .a-del');
+    assert.equal(await page.locator("#ln-r-sowa").count(), 0);
+    assert.match(await dirtyText(page), /несохранённых изменений: 3/i);
+    // выгрузка
+    assert.match(await page.innerText("#drawer"), /замените файл рядом с index\.html/);
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#aDown")]);
+    assert.equal(dl.suggestedFilename(), "links.js");
+    text = fs.readFileSync(await dl.path(), "utf8");
+    assert.ok(text.includes('"title":"КАП боевой"'));
+    assert.ok(text.includes('"copy":"omega\\\\x"'));
+    assert.ok(!text.includes('"id":"r-sowa"'));
+    assert.deepEqual(realErrors(errors), []);
+  });
+  await withPanel({ ...interact(), links: text }, async ({ page, errors }) => {
+    assert.equal((await page.innerText("#ln-kap-prom .tt")).trim(), "КАП боевой");
+    assert.equal(await page.locator("#ln-r-sowa").count(), 0);
+    const l = await page.evaluate(() => RP.ui.data.links.find((x) => x.title === "Новый репозиторий"));
+    assert.equal(l.copy, "omega\\x");
+    assert.equal(l.section, "repo");
+    assert.equal(await page.locator(`#sec-repo #ln-${l.id}`).count(), 1);
+    await page.click(`#ln-${l.id}`);
+    await page.waitForFunction(() => document.querySelectorAll("#toasts .toast").length > 0);
+    assert.equal(await clip(page), "omega\\x");
+    assert.deepEqual(realErrors(errors), []);
+  });
+});
+
+test("админка: смена URL перепроверяет доступность ссылки; перемещение вверх/вниз меняет порядок", () =>
+  withPanel({
+    ...interact(),
+    setup: async ({ page }) => {
+      await interact().setup({ page });
+      await page.route((u) => /down-host/.test(u.href), (route) => route.abort("connectionrefused").catch(() => {}));
+    }
+  }, async ({ page, errors }) => {
+    await page.waitForFunction(() => document.querySelector("#ln-qlik").dataset.st === "up");
+    await openAdmin(page);
+    await editLink(page, "qlik");
+    await page.fill("#eUrl", "https://down-host.test/");
+    await page.click("#eSave");
+    await page.waitForFunction(() => document.querySelector("#ln-qlik").dataset.st === "down", null, { timeout: 8000 });
+    // порядок в разделе
+    const order = () => page.$$eval("#sec-repo .ln", (a) => a.map((e) => e.dataset.linkId));
+    const before = await order();
+    await page.click(`#aList [data-lid="${before[1]}"] .a-up`);
+    const after = await order();
+    assert.deepEqual(after.slice(0, 2), [before[1], before[0]]);
+    await page.click(`#aList [data-lid="${before[1]}"] .a-dn`);
+    assert.deepEqual(await order(), before);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("админка: разделы — переименовать, сменить иконку, добавить, порядок; стартовое избранное", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await openAdmin(page);
+    await page.click("#aSecs > summary");
+    const name = page.locator('#aSecs [data-sid="repo"] .s-name');
+    await name.fill("Код <b>и</b> репо");
+    await name.press("Enter");
+    assert.equal((await page.innerText("#sec-repo .sh span")).trim(), "Код <b>и</b> репо");
+    assert.equal(await page.locator("#sec-repo .sh b").count(), 0);
+    assert.equal((await page.innerText('#gpList .gr[data-sec="repo"] .nm')).trim(), "Код <b>и</b> репо");
+    // иконка раздела
+    await page.click('#aSecs [data-sid="repo"] .s-ic');
+    await page.click('#aSecs [data-sid="repo"] .ipick [data-icon="galaxy"]');
+    assert.equal(await page.getAttribute("#sec-repo .sh use", "href"), "#rp-i-galaxy");
+    // новый раздел
+    await page.fill("#sNew", "Новый раздел");
+    await page.click("#sAdd");
+    const sid = await page.evaluate(() => RP.ui.data.sections.find((s) => s.name === "Новый раздел").id);
+    assert.match(sid, /^[a-z0-9_-]+$/);
+    assert.equal(await page.locator(`#gpList .gr[data-sec="${sid}"]`).count(), 1);
+    // порядок разделов: «Новый раздел» выше «Инструменты»
+    await page.click(`#aSecs [data-sid="${sid}"] .s-up`);
+    const secs = await page.evaluate(() => RP.ui.data.sections.map((s) => s.id));
+    assert.deepEqual(secs.slice(-2), [sid, "tools"]);
+    // избранное (без кликов = favoriteSeed): убрать h-prom-a — док начинается со следующей; добавить qlik — она в доке
+    const dock = () => page.$$eval("#dock [data-link-id]", (a) => a.map((e) => e.dataset.linkId));
+    assert.equal((await dock())[0], "h-prom-a");
+    await page.click("#aSeed > summary");
+    await page.click('#aSeed [data-fid="h-prom-a"] .f-del');
+    assert.equal((await dock())[0], "h-prom-s");
+    assert.equal(await page.locator('#dock [data-link-id="qlik"]').count(), 0);
+    await page.selectOption("#fsAdd", "qlik");
+    await page.click("#fsAddBtn");
+    assert.deepEqual((await dock()).slice(0, 9), ["h-prom-s", "h-psi-a", "kap-prom", "kap-psi", "sand", "chat", "jazz", "mail", "qlik"]);
+    assert.equal(await page.evaluate(() => RP.ui.data.favoriteSeed.at(-1)), "qlik");
+    assert.match(await dirtyText(page), /несохранённых изменений: 6/i);
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#aDown")]);
+    const text = fs.readFileSync(await dl.path(), "utf8");
+    assert.ok(text.includes('{"id":"repo","name":"Код <b>и</b> репо","icon":"galaxy"}'));
+    assert.match(await dirtyText(page), /несохранённых изменений: 0/i);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("скрипты: пустой adminScripts → пустое состояние с пояснением", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await openAdmin(page);
+    await page.click("#atScripts");
+    const t = await page.innerText("#apScripts");
+    assert.match(t, /Скриптов пока нет/);
+    assert.match(t, /adminScripts/);
+    assert.match(t, /admin\/README\.md/);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+const withScripts = (extra) => {
+  const d = Function("window", LINKS_SRC + "; return window.RP_LINKS;")({});
+  d.adminScripts = [{ id: "demo", title: "Демо", desc: "Проверочный скрипт", file: "admin/demo.js" }];
+  return { ...interact(), links: "window.RP_LINKS = " + JSON.stringify(d) + ";\n", ...extra };
+};
+const DEMO_CODE = 'console.log("demo \\\\ ok");';
+
+test("скрипты: «Загрузить» → «Копировать» → код в буфере, тост с числом символов; RP.admin.loadScript", () =>
+  withPanel(withScripts({
+    files: { "admin/demo.js": 'window.RP_ADMIN = window.RP_ADMIN || {}; RP_ADMIN["demo"] = { title: "Демо", code: ' + JSON.stringify(DEMO_CODE) + " };\n" }
+  }), async ({ page, errors }) => {
+    await openAdmin(page);
+    await page.click("#atScripts");
+    assert.match(await page.innerText("#apScripts"), /Демо/);
+    assert.equal(await page.locator("#apScripts .sc-copy").count(), 0);
+    await page.click("#apScripts .sc-load");
+    await page.waitForSelector("#apScripts .sc-copy");
+    await page.click("#apScripts .sc-copy");
+    await page.waitForFunction(() => [...document.querySelectorAll("#toasts .toast")].some((t) => /символ/.test(t.textContent)));
+    assert.equal(await clip(page), DEMO_CODE);
+    assert.ok((await toasts(page)).some((t) => t.includes(String(DEMO_CODE.length))));
+    const r = await page.evaluate(() => RP.admin.loadScript({ id: "demo", file: "admin/demo.js" }));
+    assert.deepEqual(r, { title: "Демо", code: DEMO_CODE });
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("скрипты: отсутствующий файл → сообщение с путём admin/demo.js", () =>
+  withPanel(withScripts(), async ({ page, errors }) => {
+    await openAdmin(page);
+    await page.click("#atScripts");
+    await page.click("#apScripts .sc-load");
+    await page.waitForSelector("#apScripts .sc-err:not(:empty)");
+    assert.match(await page.innerText("#apScripts .sc-err"), /admin\/demo\.js/);
+    const msg = await page.evaluate(() => RP.admin.loadScript({ id: "nope", file: "admin/nope.js" }).then(() => "ok", (e) => e instanceof Error && e.message));
+    assert.match(msg, /admin\/nope\.js/);
+    assert.equal(await page.locator("#apScripts .sc-copy").count(), 0);
+    assert.deepEqual(realErrors(errors), []);
+  }));

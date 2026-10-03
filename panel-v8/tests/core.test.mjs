@@ -160,3 +160,39 @@ test("balanceColumns", () => {
   const max = Math.max(...cols.map((c) => c.reduce((s, i) => s + sizes[i], 0)));
   assert.equal(max, 27);
 });
+
+test("validate: id разделов и ссылок — только латиница, цифры, - и _", () => {
+  const d = clone(loadLinks());
+  d.sections.push({ id: 'x"><img src=x>', name: "Плохой", icon: "link" });
+  d.links.push({ id: "a b", section: "repo", title: "Т", url: "https://x.test/" });
+  const r = core.validate(d);
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('x"><img src=x>') && /латиница/.test(e)), r.errors.join("\n"));
+  assert.ok(r.errors.some((e) => e.includes("a b") && /латиница/.test(e)), r.errors.join("\n"));
+  assert.ok(loadLinks().links.every((l) => /^[a-z0-9_-]+$/i.test(l.id)));
+});
+
+test("slug: транслитерация, уникальность, допустимые символы", () => {
+  assert.equal(core.slug("КАП боевой", []), "kap-boevoy");
+  assert.equal(core.slug("Герои продаж · ПСИ", []), "geroi-prodazh-psi");
+  assert.equal(core.slug("kap-prom", ["kap-prom"]), "kap-prom-2");
+  assert.equal(core.slug("kap-prom", ["kap-prom", "kap-prom-2"]), "kap-prom-3");
+  assert.equal(core.slug("!!!", []), "link");
+  assert.equal(core.slug("", ["link"]), "link-2");
+  const long = core.slug("Очень длинное название ссылки, которое не должно превращаться в бесконечный идентификатор", []);
+  assert.ok(long.length <= 40 && /^[a-z0-9_-]+$/.test(long) && !/-$/.test(long), long);
+});
+
+test("fieldErrors: сообщения по полям формы ссылки", () => {
+  const d = loadLinks();
+  const ok = { id: "n1", section: "repo", title: "Новая", url: "https://x.test/a" };
+  assert.deepEqual({ ...core.fieldErrors(ok, d) }, {});
+  const e = core.fieldErrors({ id: "n1", section: "nope", title: " ", url: "ftp://x" }, d);
+  assert.match(e.title, /название/i);
+  assert.match(e.url, /http/);
+  assert.match(e.section, /раздел/i);
+  assert.match(core.fieldErrors({ ...ok, url: "" }, d).url, /адрес/i);
+  assert.match(core.fieldErrors({ ...ok, url: "https://" }, d).url, /хост|адрес/i);
+  assert.match(core.fieldErrors({ ...ok, url: "https://a b.ru" }, d).url, /пробел/i);
+  assert.equal(core.fieldErrors({ id: "t", section: "tools", title: "Инструмент", tool: "decoder" }, d).url, undefined);
+});
