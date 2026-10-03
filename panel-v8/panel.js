@@ -97,7 +97,103 @@
     return out.join("\n") + "\n";
   }
 
-  RP.core = { validate: validate, serializeLinks: serializeLinks };
+  // ---------- URL ----------
+  function dec(s) { try { return decodeURIComponent(s.replace(/\+/g, " ")); } catch (e) { return s; } }
+
+  function parseUrl(url) {
+    var m = /^[a-z][a-z0-9+.-]*:\/\/(?:[^\/?#@]*@)?([^\/?#:]+)(?::(\d+))?([^?#]*)(?:\?([^#]*))?/i.exec(String(url || ""));
+    if (!m) return { host: "", path: url, params: [] };
+    var params = [];
+    if (m[4]) m[4].split("&").forEach(function (p) {
+      if (!p) return;
+      var i = p.indexOf("=");
+      params.push(i < 0 ? [dec(p), ""] : [dec(p.slice(0, i)), dec(p.slice(i + 1))]);
+    });
+    return { host: m[1], port: m[2] || "", path: m[3] ? dec(m[3]) : "/", params: params };
+  }
+
+  // ---------- Поиск ----------
+  var ENV_ALIAS = { PROM: "PROM ПРОМ", PSI: "PSI ПСИ", IFT: "IFT ИФТ" };
+  var SEG_ALIAS = { ALPHA: "ALPHA Альфа", SIGMA: "SIGMA Сигма" };
+
+  function match(link, sectionName, query) {
+    var tk = String(query || "").toLowerCase().split(/\s+/).filter(Boolean);
+    if (!tk.length) return { hit: true, ranges: [] };
+    var hay = [link.title, link.url ? parseUrl(link.url).host : "", sectionName || "",
+      link.env ? ENV_ALIAS[link.env] || link.env : "", link.seg ? SEG_ALIAS[link.seg] || link.seg : "",
+      link.note || ""].join(" ").toLowerCase();
+    var hit = tk.every(function (t) { return hay.indexOf(t) >= 0; });
+    if (!hit) return { hit: false, ranges: [] };
+    var low = String(link.title || "").toLowerCase(), marks = [];
+    tk.forEach(function (t) {
+      var i = low.indexOf(t);
+      while (i >= 0) { marks.push([i, i + t.length]); i = low.indexOf(t, i + t.length); }
+    });
+    marks.sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+    var ranges = [];
+    marks.forEach(function (m) {
+      var last = ranges[ranges.length - 1];
+      if (last && m[0] <= last[1]) last[1] = Math.max(last[1], m[1]);
+      else ranges.push([m[0], m[1]]);
+    });
+    return { hit: true, ranges: ranges };
+  }
+
+  // ---------- Избранное ----------
+  function rankFavorites(links, clicks, seed, limit) {
+    limit = limit == null ? 9 : limit;
+    clicks = clicks || {}; seed = seed || [];
+    var items = [];
+    links.forEach(function (l, i) {
+      if (l.meet || l.tool) return;
+      var si = seed.indexOf(l.id);
+      items.push({ id: l.id, n: +clicks[l.id] || 0, s: si < 0 ? Infinity : si, i: i });
+    });
+    items.sort(function (a, b) { return b.n - a.n || (a.s === b.s ? 0 : a.s < b.s ? -1 : 1) || a.i - b.i; });
+    return items.slice(0, limit).map(function (x) { return x.id; });
+  }
+
+  // ---------- Декодер permission ----------
+  function decodePermission(text) {
+    var parts = String(text == null ? "" : text).trim().split(",").map(function (p) { return p.trim(); });
+    var bin = "";
+    parts.reverse().forEach(function (p) {
+      if (!/^[0-9a-f]+$/i.test(p)) throw new Error("Некорректный ввод");
+      var b = parseInt(p, 16).toString(2);
+      while (b.length < 32) b = "0" + b;
+      bin += b;
+    });
+    bin = bin.split("").reverse().join("");
+    var bits = [];
+    for (var i = 0; i < bin.length; i++) if (bin.charAt(i) === "1") bits.push(i);
+    return { binary: bin.replace(/(.{8})(?=.)/g, "$1 "), bits: bits };
+  }
+
+  // ---------- Колонки ----------
+  // Разбиение на n подряд идущих колонок с минимальной максимальной суммой (динамика).
+  function balanceColumns(sizes, n) {
+    var m = sizes.length, pre = [0];
+    sizes.forEach(function (s, i) { pre.push(pre[i] + s); });
+    var INF = Infinity, best = [], cut = [];
+    for (var k = 0; k <= n; k++) { best.push([]); cut.push([]); for (var j = 0; j <= m; j++) { best[k].push(INF); cut[k].push(0); } }
+    best[0][0] = 0;
+    for (k = 1; k <= n; k++) for (j = 0; j <= m; j++) for (var i = 0; i <= j; i++) {
+      var v = Math.max(best[k - 1][i], pre[j] - pre[i]);
+      if (v < best[k][j]) { best[k][j] = v; cut[k][j] = i; }
+    }
+    var cols = [], end = m;
+    for (k = n; k >= 1; k--) {
+      var st = cut[k][end], col = [];
+      for (var q = st; q < end; q++) col.push(q);
+      cols.unshift(col); end = st;
+    }
+    return cols;
+  }
+
+  RP.core = {
+    validate: validate, serializeLinks: serializeLinks, parseUrl: parseUrl, match: match,
+    rankFavorites: rankFavorites, decodePermission: decodePermission, balanceColumns: balanceColumns
+  };
 
   // UI-модули подключаются в следующих задачах, только при наличии document.
   if (typeof document !== "undefined") { /* boot */ }
