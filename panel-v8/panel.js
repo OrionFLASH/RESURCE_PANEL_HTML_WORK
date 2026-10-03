@@ -639,22 +639,23 @@
     if (back && back.focus && back !== document.body) try { back.focus({ preventScroll: true }); } catch (e) {}
     return ok;
   }
-  // RP.copy(text, done?) -> boolean: false — копирование точно не удалось (синхронно).
-  // done(ok) вызывается по итогу: сразу для запасного пути, после промиса — для navigator.clipboard.
+  // RP.copy(text, done?) -> boolean: false — копирование точно не удалось.
+  // Сначала синхронно (execCommand в обработчике клика — до того, как window.open заберёт фокус),
+  // при неудаче — navigator.clipboard.writeText (асинхронно). done(ok) сообщает итог.
   RP.copy = function (text, done) {
     text = String(text);
     done = done || function () {};
+    if (copyLegacy(text)) { done(true); return true; }
     var cb = null;
-    try { cb = navigator.clipboard && typeof navigator.clipboard.writeText === "function" && window.isSecureContext !== false ? navigator.clipboard : null; } catch (e) { cb = null; }
+    try { cb = navigator.clipboard && typeof navigator.clipboard.writeText === "function" ? navigator.clipboard : null; } catch (e) { cb = null; }
     if (cb) {
       try {
-        cb.writeText(text).then(function () { done(true); }, function () { done(copyLegacy(text)); });
+        cb.writeText(text).then(function () { done(true); }, function () { done(false); });
         return true;
       } catch (e) {}
     }
-    var ok = copyLegacy(text);
-    done(ok);
-    return ok;
+    done(false);
+    return false;
   };
 
   // ---------- Клики по ссылкам ----------

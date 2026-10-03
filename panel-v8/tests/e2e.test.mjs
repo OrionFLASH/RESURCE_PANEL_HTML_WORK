@@ -291,15 +291,16 @@ function interact({ noClipboard = false, execOk = true } = {}) {
     setup: async ({ page }) => {
       await page.route((u) => /^https?:/.test(u.href), (route) => route.fulfill({ status: 200, contentType: "text/plain", body: "ok" }).catch(() => {}));
       await page.addInitScript(({ noClipboard, execOk }) => {
-        window.__opened = [];
-        window.open = function (u) { window.__opened.push(String(u)); return null; };
-        window.__exec = [];
+        window.__opened = []; window.__seq = []; window.__exec = []; window.__wt = [];
+        window.open = function (u) { window.__opened.push(String(u)); window.__seq.push("open:" + u); return null; };
         const orig = document.execCommand.bind(document);
         document.execCommand = function (cmd) {
-          const a = document.activeElement;
-          window.__exec.push([cmd, a && "value" in a ? a.value : ""]);
-          return execOk ? orig.apply(document, arguments) || true : false;
+          const a = document.activeElement, v = a && "value" in a ? a.value : "";
+          window.__exec.push([cmd, v]); window.__seq.push("exec:" + v);
+          return execOk ? orig.apply(document, arguments) : false;
         };
+        const wt = Clipboard.prototype.writeText;
+        Clipboard.prototype.writeText = function (t) { window.__wt.push(String(t)); window.__seq.push("write:" + t); return wt.call(this, t); };
         if (noClipboard) Object.defineProperty(Navigator.prototype, "clipboard", { configurable: true, get() { return undefined; } });
       }, { noClipboard, execOk });
     }
@@ -318,6 +319,9 @@ test("клик по ссылке с кодом: код в буфер, тост, 
     assert.ok((await toasts(page)).includes("Скопировано: 92863949"));
     assert.deepEqual(await opened(page), [URL_OF("h-psi-a")]);
     assert.deepEqual(await page.evaluate(() => RP.store.get("rp_clicks")), { "h-psi-a": 1 });
+    // R7: синхронное копирование — до открытия вкладки; clipboard API не нужен
+    assert.deepEqual(await page.evaluate(() => window.__seq), ["exec:92863949", "open:" + URL_OF("h-psi-a")]);
+    assert.deepEqual(await page.evaluate(() => window.__wt), []);
     await page.click("#ln-varm");
     await page.waitForFunction(() => document.querySelectorAll("#toasts .toast").length > 1);
     assert.equal(await clip(page), "omega\\01803187");
@@ -370,6 +374,15 @@ test("без navigator.clipboard: execCommand('copy') через скрытый 
     assert.ok((await toasts(page)).includes("Скопировано: lakomkin-oo"));
     assert.deepEqual(await opened(page), [URL_OF("ctl")]);
     assert.equal(await page.locator("textarea").count(), 0);
+  }));
+
+test("execCommand не сработал → navigator.clipboard.writeText; ссылка открывается", () =>
+  withPanel(interact({ execOk: false }), async ({ page }) => {
+    await page.click("#ln-ctl");
+    await page.waitForFunction(() => document.querySelectorAll("#toasts .toast").length > 0);
+    assert.deepEqual(await page.evaluate(() => window.__seq), ["exec:lakomkin-oo", "write:lakomkin-oo", "open:" + URL_OF("ctl")]);
+    assert.equal(await clip(page), "lakomkin-oo");
+    assert.ok((await toasts(page)).includes("Скопировано: lakomkin-oo"));
   }));
 
 test("копирование не удалось: тост «Не удалось скопировать», ссылка всё равно открывается", () =>
