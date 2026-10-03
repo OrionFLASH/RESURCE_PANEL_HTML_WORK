@@ -544,7 +544,8 @@
       .filter(function (e) { return e && !e.hidden && !e.classList.contains("off"); });
     idx.innerHTML = ""; idx.style.setProperty("--cols", cols);
     var F = S.filter;
-    if (!secs.length && S.off.length && S.data.sections.every(function (s) { return S.off.indexOf(s.id) >= 0 || S.secEl[s.id].hidden; })) {
+    // Только если «глазом» скрыты все группы; иначе пустой результат — ветка «Ничего не нашлось»
+    if (!secs.length && S.off.length && S.data.sections.every(function (s) { return S.off.indexOf(s.id) >= 0; })) {
       var z = document.createElement("div");
       z.className = "empty"; z.setAttribute("role", "status");
       z.innerHTML = "<b>Все группы скрыты</b>Включите нужные группы в панели слева или верните все сразу." +

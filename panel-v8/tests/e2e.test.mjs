@@ -718,3 +718,19 @@ test("RP.modal.open/close: произвольное содержимое, Esc з
     assert.equal(await page.evaluate(() => document.querySelector("#scrim").classList.contains("on")), false);
     assert.deepEqual(realErrors(errors), []);
   }));
+
+test("скрыта одна группа + несуществующий запрос → «Ничего не нашлось», а не «Все группы скрыты»", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await page.hover('#gpList .gr[data-sec="data"]');
+    await page.click('#gpList .gr[data-sec="data"] .gr-eye');
+    await page.fill("#q", "zzz");
+    await page.waitForSelector("#idx .empty");
+    const t = await page.innerText("#idx .empty");
+    assert.match(t, /Ничего не нашлось/);
+    assert.doesNotMatch(t, /Все группы скрыты/);
+    await page.click("#idx .empty #reset");
+    assert.equal(await page.inputValue("#q"), "");
+    assert.deepEqual(await page.evaluate(() => RP.store.get("rp_groups")), ["data"]);
+    assert.equal((await idxSecs(page)).length, 10);
+    assert.deepEqual(realErrors(errors), []);
+  }));
