@@ -1,0 +1,183 @@
+/* web-SPOD-Edit — дизайн-токены интерфейса v8 (#65, ROADMAP 28.0).
+   Две темы: тёмная (по умолчанию, не зависит от настройки системы) и светлая «Туман».
+   Тема — атрибут <html data-theme="dark|light">, ставит app/ui/theme_boot.js из localStorage.spod_ui_theme.
+   Атрибут можно ставить и на любой блок — тема действует внутри него (витрина показывает обе рядом).
+   Набор переменных в обеих темах одинаковый (проверяет tests/test_web_ui_tokens.mjs). */
+
+/* ——— Общее для обеих тем: шрифты, размеры, радиусы ——— */
+:root {
+  --font: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-d: "Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --mono: "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --fs-xs: 11px;
+  --fs-s: 12.5px;
+  --fs-m: 13px;
+  --fs-l: 15px;
+  --fs-xl: 20px;
+  --fs-xxl: 26px;
+  --fw-r: 400;
+  --fw-sb: 600;
+  --fw-b: 700;
+
+  --h-s: 28px;
+  --h-m: 34px;
+  --r-s: 6px;
+  --r-m: 10px;
+  --r-l: 16px;
+  --r-xl: 22px;
+
+  --top-h: 56px;
+  --dock-safe: 0px;
+  --z-top: 30;
+  --z-dock: 40;
+  --z-pill: 41;
+  --z-pop: 60;
+  --z-omni: 80;
+  --z-modal: 90;
+  --z-toast: 95;
+  --z-tip: 99;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+
+/* ——— Тёмная (по умолчанию) ——— */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0A0F0D;
+  --sf: #111815;
+  --sf2: #16201C;
+  --sf3: #1C2723;
+  --inp: #0E1512;
+  --ink: #E4EDE8;
+  --ink2: #B6C4BD;
+  --mut: #869690;
+  --line: #222D29;
+  --line2: #32403A;
+
+  --g: #35B955;
+  --g-ink: #5ED47A;
+  --g-t: rgba(53, 185, 85, .14);
+  --g-btn: #35B955;
+  --on-g: #04160A;
+  --g-glow: rgba(53, 185, 85, .35);
+
+  --amber: #E4A83A;
+  --amber-ink: #E4A83A;
+  --amber-t: rgba(228, 168, 58, .15);
+  --red: #F06B5A;
+  --red-ink: #F06B5A;
+  --red-t: rgba(240, 107, 90, .15);
+  --slate: #93A5BC;
+  --slate-t: rgba(147, 165, 188, .14);
+  --violet: #A294FF;
+  --violet-t: rgba(162, 148, 255, .14);
+  --blue: #6AA2FF;
+
+  --grid-dot: rgba(228, 237, 232, .08);
+  --glass: rgba(20, 28, 25, .74);
+  --glass-b: rgba(40, 52, 47, .9);
+  --glass-edge: rgba(255, 255, 255, .07);
+  --scrim: rgba(3, 8, 6, .55);
+  --sh1: 0 0 0 1px rgba(255, 255, 255, .05);
+  --sh2: 0 8px 22px -8px rgba(0, 0, 0, .6), 0 0 0 1px rgba(255, 255, 255, .06);
+  --sh3: 0 28px 70px -20px rgba(0, 0, 0, .8), 0 0 0 1px rgba(255, 255, 255, .08);
+  --island: #1F2A25;
+  --island-ink: #E4EDE8;
+  --island-line: rgba(255, 255, 255, .1);
+  --focus: #5ED47A;
+
+  /* тема старых экранов fill (fill/fill_theme.css): насколько «поднимать» тёмные цвета текста старых экранов к --ink
+     и сколько брать от пастельной заливки старых экранов поверх --sf */
+  --lg-lift: 62%;
+  --lg-tint: 16%;
+}
+
+/* ——— Светлая «Туман»: приглушённая, иерархия — фоном и линией, а не белизной ——— */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #DCE3DF;
+  --sf: #E9EEEB;
+  --sf2: #E2E8E4;
+  --sf3: #D5DDD8;
+  --inp: #F2F5F3;
+  --ink: #17221D;
+  --ink2: #33413A;
+  --mut: #56655D;
+  --line: #C3CEC8;
+  --line2: #AEBBB4;
+
+  --g: #1E8A36;
+  --g-ink: #146B2A;
+  --g-t: #CFE5D5;
+  --g-btn: #1B7F32;
+  --on-g: #FFFFFF;
+  --g-glow: rgba(30, 138, 54, .22);
+
+  --amber: #9A6700;
+  --amber-ink: #7A5200;
+  --amber-t: #F1E3C2;
+  --red: #B8392A;
+  --red-ink: #9A2E21;
+  --red-t: #F2D9D3;
+  --slate: #4F6073;
+  --slate-t: #D8E0E8;
+  --violet: #5B49BE;
+  --violet-t: #E0DBF5;
+  --blue: #2F5FA8;
+
+  --grid-dot: rgba(23, 34, 29, .1);
+  --glass: rgba(233, 238, 235, .82);
+  --glass-b: rgba(242, 245, 243, .7);
+  --glass-edge: rgba(23, 34, 29, .08);
+  --scrim: rgba(23, 34, 29, .3);
+  --sh1: 0 1px 2px rgba(23, 34, 29, .06), 0 0 0 1px rgba(23, 34, 29, .06);
+  --sh2: 0 6px 18px -6px rgba(23, 34, 29, .2), 0 0 0 1px rgba(23, 34, 29, .07);
+  --sh3: 0 24px 60px -18px rgba(23, 34, 29, .35), 0 4px 12px -4px rgba(23, 34, 29, .12), 0 0 0 1px rgba(23, 34, 29, .07);
+  --island: #26332C;
+  --island-ink: #EAF2ED;
+  --island-line: rgba(255, 255, 255, .12);
+  --focus: #1E8A36;
+
+  --lg-lift: 0%;
+  --lg-tint: 38%;
+}
+
+/* Фон страницы задаётся сразу — без белой вспышки у фреймов */
+html {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* Печать (28.10): всегда светлая палитра, без теней — на бумаге тёмная тема и стекло не читаются */
+@media print {
+  :root, html[data-theme] {
+    color-scheme: light;
+    --bg: #FFFFFF; --sf: #FFFFFF; --sf2: #F4F6F5; --sf3: #ECEFED; --inp: #FFFFFF;
+    --ink: #000000; --ink2: #222222; --mut: #555555; --line: #BBBBBB; --line2: #999999;
+    --g: #1E8A36; --g-ink: #146B2A; --g-t: #E3F1E6; --g-btn: #1B7F32; --on-g: #FFFFFF; --g-glow: transparent;
+    --amber: #9A6700; --amber-ink: #7A5200; --amber-t: #F6EBD3; --red: #B8392A; --red-ink: #9A2E21; --red-t: #F6E2DD;
+    --slate: #4F6073; --slate-t: #E3E8EE; --violet: #5B49BE; --violet-t: #E8E4F8; --blue: #2F5FA8;
+    --glass: #FFFFFF; --glass-b: #FFFFFF; --glass-edge: transparent; --scrim: transparent; --grid-dot: transparent;
+    --sh1: none; --sh2: none; --sh3: none; --island: #FFFFFF; --island-ink: #000000; --island-line: #BBBBBB;
+  }
+  html, body { background: #FFFFFF !important; }
+}
+
+/* ——— Ресурсная панель: цвета стендов (по риску) и сегментов сети ——— */
+:root, [data-theme="dark"] {
+  --env-prom: #F06B5A; --env-prom-t: rgba(240,107,90,.16);
+  --env-psi:  #E4A83A; --env-psi-t:  rgba(228,168,58,.16);
+  --env-ift:  #6AA2FF; --env-ift-t:  rgba(106,162,255,.16);
+  --env-oth:  #93A5BC; --env-oth-t:  rgba(147,165,188,.12);
+  --seg-alpha: #A294FF; --seg-alpha-t: rgba(162,148,255,.15);
+  --seg-sigma: #4FC6C0; --seg-sigma-t: rgba(79,198,192,.15);
+}
+[data-theme="light"] {
+  --env-prom: #B8392A; --env-prom-t: #F2D9D3;
+  --env-psi:  #8A5C00; --env-psi-t:  #F1E3C2;
+  --env-ift:  #2F5FA8; --env-ift-t:  #D6E2F4;
+  --env-oth:  #4F6073; --env-oth-t:  #D8E0E8;
+  --seg-alpha: #5B49BE; --seg-alpha-t: #E0DBF5;
+  --seg-sigma: #1C7A74; --seg-sigma-t: #CDEAE7;
+}
