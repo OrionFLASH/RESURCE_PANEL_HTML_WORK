@@ -19,7 +19,7 @@ test("открытие без ошибок консоли; 86 ссылок + 2 �
       return {
         ids: ids.size, wait: wait.size,
         tools: document.querySelectorAll("#idx [data-link-id][data-tool]").length,
-        rows: document.querySelectorAll("#idx [data-link-id]").length,
+        rows: document.querySelectorAll("#idx [data-link-id]:not([hidden])").length,
         meets: document.querySelectorAll("#meets [data-link-id]").length,
         favs: document.querySelectorAll("#dock [data-link-id]").length,
         sections: document.querySelectorAll("#idx [data-section-id]").length,
@@ -30,10 +30,10 @@ test("открытие без ошибок консоли; 86 ссылок + 2 �
     assert.equal(r.ids, 88);
     assert.equal(r.wait, 86);
     assert.equal(r.tools, 2);
-    assert.equal(r.rows, 84);
+    assert.equal(r.rows, 75);   // 84 строк минус 9 закреплённых в «Избранном» (§12)
     assert.equal(r.meets, 4);
     assert.equal(r.favs, 9);
-    assert.equal(r.sections, 11);
+    assert.equal(r.sections, 10);   // «Коммуникации» целиком в избранном и встречах — пустой раздел не показывается (§12)
     assert.equal(r.error, true);
   }));
 
@@ -131,7 +131,7 @@ test("links.js с ошибкой данных (дубль id) → #rp-error с �
 test("localStorage бросает исключение → страница отрисована, ошибок нет", () =>
   withPanel({ width: 1440, height: 900, storage: "throw" }, async ({ page, errors }) => {
     assert.deepEqual(errors, []);
-    assert.equal(await page.locator("#idx [data-link-id]").count(), 84);
+    assert.equal(await page.locator("#idx [data-link-id]:not([hidden])").count(), 75);
     await page.click("#theme");
     assert.equal(await page.getAttribute("html", "data-theme"), "light");
     assert.deepEqual(errors, []);
@@ -287,14 +287,14 @@ test("1440×900, раздел с 30 добавленными ссылками: �
     assert.ok(m.sw <= m.iw, `scrollWidth ${m.sw} > ${m.iw}`);
     assert.ok(m.sh > m.ih, "ожидалась прокрутка страницы");
     const r = await page.evaluate(() => {
-      const rows = [...document.querySelectorAll("#idx .ln")];
+      const rows = [...document.querySelectorAll("#idx .ln:not([hidden])")];
       const idx = document.querySelector("#idx");
       const ov = getComputedStyle(idx).overflowY;
       window.scrollTo(0, document.documentElement.scrollHeight);
       const last = rows.map((e) => e.getBoundingClientRect().bottom + window.scrollY).reduce((a, b) => Math.max(a, b), 0);
       return { ov, idxClip: idx.scrollHeight - idx.clientHeight, small: rows.filter((e) => e.getBoundingClientRect().height < 20).length, last, doc: document.documentElement.scrollHeight, n: rows.length };
     });
-    assert.equal(r.n, 84 + 30);
+    assert.equal(r.n, 75 + 30);
     assert.equal(r.small, 0);
     assert.ok(!(r.ov === "hidden" && r.idxClip > 1), "указатель обрезает строки");
     assert.ok(r.last <= r.doc + 1, "последняя строка вне документа");
@@ -332,7 +332,7 @@ const URL_OF = (id) => (LINKS_SRC.match(new RegExp('"id":"' + id + '"[^\\n]*?"ur
 
 test("клик по ссылке с кодом: код в буфер, тост, открыт URL, rp_clicks +1", () =>
   withPanel(interact(), async ({ page, errors }) => {
-    await page.click("#ln-h-psi-a");
+    await page.click('#dock [data-link-id="h-psi-a"]');
     await page.waitForFunction(() => document.querySelectorAll("#toasts .toast").length > 0);
     assert.equal(await clip(page), "92863949");
     assert.ok((await toasts(page)).includes("Скопировано: 92863949"));
@@ -413,7 +413,7 @@ test("копирование не удалось: тост «Не удалось
 
 test("наведение: подсказка с хостом, контуром, статусом и подсказкой по клику", () =>
   withPanel(interact(), async ({ page }) => {
-    await page.hover("#ln-h-psi-a");
+    await page.hover('#dock [data-link-id="h-psi-a"]');
     await page.waitForSelector("#tip.on", { timeout: 2000 });
     const t = await page.innerText("#tip");
     assert.match(t, /iam-enigma-psi\.omega\.sbrf\.ru/);
@@ -442,7 +442,7 @@ test("поиск «пси alpha»: остаются только совпаде�
     assert.equal(r.exp, "true");
     await page.focus("#q");
     await page.keyboard.press("Escape");
-    await page.waitForFunction(() => document.querySelectorAll("#idx .ln[hidden]").length === 0);
+    await page.waitForFunction(() => document.querySelectorAll("#idx .ln[hidden]:not(.away)").length === 0);
     assert.equal(await page.inputValue("#q"), "");
     assert.equal(await page.getAttribute("#q", "aria-expanded"), "false");
   }));
@@ -484,11 +484,11 @@ test("фильтр «ИФТ» оставляет только ИФТ и инст
     assert.equal(await page.getAttribute('#fEnv .chip[data-val=""]', "aria-pressed"), "false");
     await page.reload();
     await page.waitForFunction(() => document.body.dataset.ready === "1");
-    assert.equal(await page.locator("#idx .ln[hidden]").count(), 0);
+    assert.equal(await page.locator("#idx .ln[hidden]:not(.away)").count(), 0);
     assert.equal(await page.getAttribute('#fEnv .chip[data-val=""]', "aria-pressed"), "true");
   }));
 
-test("избранное: пустой rp_clicks → 9 из favoriteSeed; 3 клика по qlik → после перезагрузки первый", () =>
+test("избранное: пустой rp_clicks → 9 закреплённых; 3 клика по qlik → после перезагрузки добирается после закреплённых", () =>
   withPanel(interact(), async ({ page }) => {
     const dock = () => page.$$eval("#dock [data-link-id]", (a) => a.map((e) => e.dataset.linkId));
     const seed = ["h-prom-a", "h-prom-s", "h-psi-a", "kap-prom", "kap-psi", "sand", "chat", "jazz", "mail"];
@@ -498,8 +498,9 @@ test("избранное: пустой rp_clicks → 9 из favoriteSeed; 3 кл
     await page.reload();
     await page.waitForFunction(() => document.body.dataset.ready === "1");
     const d = await dock();
-    assert.equal(d[0], "qlik");
-    assert.equal(d.length, 9);
+    assert.deepEqual(d.slice(0, 9), seed);             // сначала закреплённые
+    assert.equal(d[9], "qlik");                        // затем автодобор по кликам
+    assert.equal(d.length, 10);
   }));
 
 test("встречи: полоса из 4 чипов, в разделе «Коммуникации» их нет; клик открывает встречу", () =>
@@ -525,7 +526,7 @@ test("ничего не найдено: «zz<b>zz» (экранирование)
     assert.equal(await page.locator("#idx .ln").count(), 0);
     await page.click("#idx .empty #reset");
     await page.waitForFunction(() => !document.querySelector("#idx .empty"));
-    assert.equal(await page.locator("#idx .ln:not([hidden])").count(), 84);
+    assert.equal(await page.locator("#idx .ln:not([hidden])").count(), 75);
     assert.equal(await page.inputValue("#q"), "");
     assert.equal(await page.getAttribute('#fSeg .chip[data-val=""]', "aria-pressed"), "true");
     assert.equal(await page.getAttribute('#fSeg .chip[data-val="SIGMA"]', "aria-pressed"), "false");
@@ -536,6 +537,8 @@ test("ничего не найдено: «zz<b>zz» (экранирование)
 
 // ---------- Панель групп: состояния, поиск групп, «глаз», Alt+клик, шторка ----------
 const SEC_IDS = ["comms", "heroes", "kap", "sup", "access", "itsm", "data", "docs", "jira", "repo", "tools"];
+// Разделов в указателе по умолчанию: «Коммуникации» целиком в избранном и встречах и не показываются (§12)
+const SHOWN = SEC_IDS.length - 1;
 const idxSecs = (page) => page.$$eval("#idx [data-section-id]", (a) => a.map((e) => e.dataset.sectionId));
 
 test("панель групп: кнопка циклит open → compact → hidden, rp_rail переживает перезагрузку", () =>
@@ -585,7 +588,7 @@ test("панель групп: «глаз» скрывает раздел (rp_gr
     await page.hover('#gpList .gr[data-sec="data"]');
     await page.click('#gpList .gr[data-sec="data"] .gr-eye');
     assert.equal((await idxSecs(page)).includes("data"), false);
-    assert.equal((await idxSecs(page)).length, 10);
+    assert.equal((await idxSecs(page)).length, SHOWN - 1);
     assert.deepEqual(await page.evaluate(() => RP.store.get("rp_groups")), ["data"]);
     assert.equal(await page.getAttribute('#gpList .gr[data-sec="data"] .gr-eye', "aria-pressed"), "false");
     assert.equal(await page.evaluate(() => document.querySelector('#gpList .gr[data-sec="data"]').classList.contains("off")), true);
@@ -596,7 +599,7 @@ test("панель групп: «глаз» скрывает раздел (rp_gr
     await page.waitForFunction(() => document.body.dataset.ready === "1");
     assert.equal((await idxSecs(page)).includes("data"), false);
     await page.click("#gpAll");
-    assert.equal((await idxSecs(page)).length, 11);
+    assert.equal((await idxSecs(page)).length, SHOWN);
     assert.deepEqual(await page.evaluate(() => RP.store.get("rp_groups")), []);
     assert.equal(await page.isHidden("#gpAll"), true);
     assert.deepEqual(realErrors(errors), []);
@@ -609,7 +612,7 @@ test("панель групп: Alt+клик оставляет одну груп
     assert.equal((await page.evaluate(() => RP.store.get("rp_groups"))).length, 10);
     assert.match(await page.innerText("#gpAll"), /скрыто 10/);
     await page.click('#gpList .gr[data-sec="heroes"] .gr-go', { modifiers: ["Alt"] });
-    assert.equal((await idxSecs(page)).length, 11);
+    assert.equal((await idxSecs(page)).length, SHOWN);
     assert.deepEqual(realErrors(errors), []);
   }));
 
@@ -619,7 +622,7 @@ test("все группы скрыты: короткое сообщение и �
     assert.match(t, /Все группы скрыты/);
     assert.match(await page.innerText("#gpAll"), /скрыто 11/);
     await page.click("#idx .empty #reset");
-    assert.equal((await idxSecs(page)).length, 11);
+    assert.equal((await idxSecs(page)).length, SHOWN);
     assert.deepEqual(await page.evaluate(() => RP.store.get("rp_groups")), []);
     assert.deepEqual(realErrors(errors), []);
   }));
@@ -750,7 +753,7 @@ test("скрыта одна группа + несуществующий запр
     await page.click("#idx .empty #reset");
     assert.equal(await page.inputValue("#q"), "");
     assert.deepEqual(await page.evaluate(() => RP.store.get("rp_groups")), ["data"]);
-    assert.equal((await idxSecs(page)).length, 10);
+    assert.equal((await idxSecs(page)).length, SHOWN - 1);
     assert.deepEqual(realErrors(errors), []);
   }));
 
@@ -781,14 +784,14 @@ test("админка: замок открывает панель с вкладк
     assert.equal(await page.inputValue("#eTitle"), "КАП");
     await page.fill("#eTitle", "КАП боевой");
     await page.click("#eSave");
-    assert.equal((await page.innerText("#ln-kap-prom .tt")).trim(), "КАП боевой");
+    assert.equal((await page.innerText('#dock [data-link-id="kap-prom"] .lb')).trim(), "КАП боевой");
     assert.match(await dirtyText(page), /несохранённых изменений: 1/i);
     assert.equal(await page.evaluate(() => typeof window.onbeforeunload), "function");
     // список админки обновлён
     assert.match(await page.innerText('#aList [data-lid="kap-prom"]'), /КАП боевой/);
     // «Отменить изменения» — исходные данные, счётчик 0, предупреждения нет
     await page.click("#aRevert");
-    assert.equal((await page.innerText("#ln-kap-prom .tt")).trim(), "КАП");
+    assert.equal((await page.innerText('#dock [data-link-id="kap-prom"] .lb')).trim(), "КАП");
     assert.match(await dirtyText(page), /несохранённых изменений: 0/i);
     assert.equal(await page.evaluate(() => window.onbeforeunload), null);
     // Esc закрывает панель и возвращает фокус на замок
@@ -843,7 +846,7 @@ test("админка: добавить ссылку с кодом omega\\x, не
     assert.deepEqual(realErrors(errors), []);
   });
   await withPanel({ ...interact(), links: text }, async ({ page, errors }) => {
-    assert.equal((await page.innerText("#ln-kap-prom .tt")).trim(), "КАП боевой");
+    assert.equal((await page.innerText('#dock [data-link-id="kap-prom"] .lb')).trim(), "КАП боевой");
     assert.equal(await page.locator("#ln-r-sowa").count(), 0);
     const l = await page.evaluate(() => RP.ui.data.links.find((x) => x.title === "Новый репозиторий"));
     assert.equal(l.copy, "omega\\x");
@@ -905,17 +908,17 @@ test("админка: разделы — переименовать, смени�
     await page.click(`#aSecs [data-sid="${sid}"] .s-up`);
     const secs = await page.evaluate(() => RP.ui.data.sections.map((s) => s.id));
     assert.deepEqual(secs.slice(-2), [sid, "tools"]);
-    // избранное (без кликов = favoriteSeed): убрать h-prom-a — док начинается со следующей; добавить qlik — она в доке
+    // избранное: убрать h-prom-a — док начинается со следующей; добавить qlik — она в доке
     const dock = () => page.$$eval("#dock [data-link-id]", (a) => a.map((e) => e.dataset.linkId));
     assert.equal((await dock())[0], "h-prom-a");
-    await page.click("#aSeed > summary");
-    await page.click('#aSeed [data-fid="h-prom-a"] .f-del');
+    await page.click("#aFav > summary");
+    await page.click('#aFav [data-fid="h-prom-a"] .f-del');
     assert.equal((await dock())[0], "h-prom-s");
     assert.equal(await page.locator('#dock [data-link-id="qlik"]').count(), 0);
     await page.selectOption("#fsAdd", "qlik");
     await page.click("#fsAddBtn");
     assert.deepEqual((await dock()).slice(0, 9), ["h-prom-s", "h-psi-a", "kap-prom", "kap-psi", "sand", "chat", "jazz", "mail", "qlik"]);
-    assert.equal(await page.evaluate(() => RP.ui.data.favoriteSeed.at(-1)), "qlik");
+    assert.equal(await page.evaluate(() => RP.ui.data.favorites.at(-1)), "qlik");
     assert.match(await dirtyText(page), /несохранённых изменений: 6/i);
     const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#aDown")]);
     const text = fs.readFileSync(await dl.path(), "utf8");
@@ -978,9 +981,9 @@ test("скрипты: отсутствующий файл → сообщение
 test("подсказка не всплывает снова после клика по ссылке (с кодом, без кода, ⌘+клик)", () =>
   withPanel(interact(), async ({ page }) => {
     const tipOn = () => page.evaluate(() => document.querySelector("#tip").classList.contains("on"));
-    await page.hover("#ln-h-psi-a");
+    await page.hover('#dock [data-link-id="h-psi-a"]');
     await page.waitForSelector("#tip.on", { timeout: 2000 });
-    await page.click("#ln-h-psi-a");
+    await page.click('#dock [data-link-id="h-psi-a"]');
     await page.waitForTimeout(120);
     assert.equal(await tipOn(), false, "после клика с кодом");
     await page.click("#ln-qlik");
@@ -1063,7 +1066,8 @@ test("админка: переименование раздела и сразу 
     const r = await page.evaluate((sid) => ({ order: RP.ui.data.sections.map((s) => s.id), name: RP.ui.data.sections.find((s) => s.id === sid).name }), first);
     assert.equal(r.name, "Переименовано");
     assert.equal(r.order[1], first);
-    assert.equal((await page.innerText(`#sec-${first} .sh span`)).trim(), "Переименовано");
+    // первый раздел («Коммуникации») пуст на странице (§12) — заголовок проверяем в построенном элементе раздела
+    assert.equal(await page.evaluate((sid) => RP.ui.secEl[sid].querySelector(".sh span").textContent, first), "Переименовано");
     assert.equal(await page.getAttribute(`#aSecs [data-sid="${first}"] .s-dn`, "aria-label"), "Раздел ниже: «Переименовано»");
     assert.match(await dirtyText(page), /несохранённых изменений: 2/i);
     assert.deepEqual(realErrors(errors), []);
@@ -1093,3 +1097,229 @@ test("проверка: исключение в обработчике резу�
     assert.equal(r.busy, false);
     assert.equal(r.next, true);
   }));
+
+// ---------- Доработка 1 (§12): избранное и встречи из админки, двухстрочные названия ----------
+const dockIds = (page) => page.$$eval("#dock [data-link-id]", (a) => a.map((e) => e.dataset.linkId));
+const meetIds = (page) => page.$$eval("#meets [data-link-id]", (a) => a.map((e) => e.dataset.linkId));
+// Видимые строки раздела в указателе
+const secIds = (page, sid) => page.$$eval(`#idx [data-section-id="${sid}"] [data-link-id]`, (a) => a.filter((e) => e.offsetParent !== null).map((e) => e.dataset.linkId));
+
+test("§12 данные по умолчанию: закреплённые в «Избранном» и не в разделах; 4 встречи, в «Коммуникациях» их нет", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    const fav = ["h-prom-a", "h-prom-s", "h-psi-a", "kap-prom", "kap-psi", "sand", "chat", "jazz", "mail"];
+    assert.deepEqual(await dockIds(page), fav);
+    assert.ok(!(await secIds(page, "heroes")).includes("h-prom-a"));
+    assert.ok((await secIds(page, "heroes")).includes("h-psi-s"));
+    assert.ok(!(await secIds(page, "kap")).includes("kap-prom"));
+    assert.deepEqual(await meetIds(page), ["daily", "k2", "pereval", "open"]);
+    const comms = await secIds(page, "comms");
+    assert.ok(["daily", "k2", "pereval", "open"].every((id) => !comms.includes(id)));
+    // «Коммуникации» опустели (все ссылки — в избранном и встречах) — раздел не показывается
+    assert.equal(await page.locator('#idx [data-section-id="comms"]:visible').count(), 0);
+    // поиск показывает закреплённую ссылку и в её разделе, Enter открывает её
+    await page.fill("#q", "герои продаж prom sigma");
+    await page.waitForFunction(() => document.querySelector("#cnt").textContent.includes(" из "));
+    assert.deepEqual(await secIds(page, "heroes"), ["h-prom-s"]);
+    await page.fill("#q", "");
+    await page.waitForFunction(() => !document.querySelector("#cnt").textContent.includes(" из "));
+    assert.ok(!(await secIds(page, "heroes")).includes("h-prom-s"));
+    // закреплённая из опустевшего раздела тоже находится поиском
+    await page.fill("#q", "сберчат");
+    await page.waitForFunction(() => document.querySelector("#cnt").textContent.includes(" из "));
+    assert.deepEqual(await secIds(page, "comms"), ["chat"]);
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#cnt").textContent.includes(" из "));
+    assert.equal(await page.locator('#idx [data-section-id="comms"]:visible').count(), 0);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("§12 админка: ★ у qlik — в избранном и не в разделе; «Скрыть из раздела» снята — и там, и там", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await openAdmin(page);
+    const star = page.locator('#aList [data-lid="qlik"] .a-fav');
+    assert.equal(await star.getAttribute("aria-pressed"), "false");
+    await star.click();
+    assert.equal(await page.locator('#aList [data-lid="qlik"] .a-fav').getAttribute("aria-pressed"), "true");
+    assert.equal((await dockIds(page)).at(-1), "qlik");
+    assert.ok(!(await secIds(page, "data")).includes("qlik"));
+    await editLink(page, "qlik");
+    assert.equal(await page.isChecked("#eFav"), true);
+    assert.equal(await page.isChecked("#eFavHide"), true);
+    await page.uncheck("#eFavHide");
+    await page.click("#eSave");
+    assert.ok((await dockIds(page)).includes("qlik"));
+    assert.ok((await secIds(page, "data")).includes("qlik"));
+    assert.equal(await page.evaluate(() => RP.ui.byId.qlik.favHide), false);
+    // снять ★ — уходит из избранного, остаётся в разделе
+    await page.click('#aList [data-lid="qlik"] .a-fav');
+    assert.ok(!(await dockIds(page)).includes("qlik"));
+    assert.ok((await secIds(page, "data")).includes("qlik"));
+    assert.ok(!(await page.evaluate(() => RP.ui.data.favorites)).includes("qlik"));
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("§12 админка: видео у jazz — во встречах, не в «Коммуникациях»; «Скрыть из раздела» снята — и там, и там", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await openAdmin(page);
+    const cam = page.locator('#aList [data-lid="jazz"] .a-meet');
+    assert.equal(await cam.getAttribute("aria-pressed"), "false");
+    await cam.click();
+    assert.equal(await page.locator('#aList [data-lid="jazz"] .a-meet').getAttribute("aria-pressed"), "true");
+    assert.deepEqual(await meetIds(page), ["jazz", "daily", "k2", "pereval", "open"]);
+    assert.ok(!(await dockIds(page)).includes("jazz"), "встреча не остаётся в избранном");
+    assert.ok(!(await secIds(page, "comms")).includes("jazz"));
+    await editLink(page, "jazz");
+    assert.equal(await page.isChecked("#eMeet"), true);
+    assert.equal(await page.isChecked("#eMeetHide"), true);
+    await page.uncheck("#eMeetHide");
+    await page.click("#eSave");
+    assert.ok((await meetIds(page)).includes("jazz"));
+    assert.deepEqual(await secIds(page, "comms"), ["jazz"]);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("§12 админка: блок «Избранное» — порядок ↑↓, «Добирать по частоте кликов», предупреждение «не поместилось»", () =>
+  withPanel({ ...interact(), seed: { rp_clicks: JSON.stringify({ qlik: 3, sprint: 1 }) } }, async ({ page, errors }) => {
+    const fav = ["h-prom-a", "h-prom-s", "h-psi-a", "kap-prom", "kap-psi", "sand", "chat", "jazz", "mail"];
+    assert.deepEqual(await dockIds(page), fav.concat(["qlik", "sprint"]));
+    await openAdmin(page);
+    await page.click("#aFav > summary");
+    await page.click('#aFav [data-fid="h-prom-s"] .f-up');
+    assert.deepEqual((await dockIds(page)).slice(0, 3), ["h-prom-s", "h-prom-a", "h-psi-a"]);
+    await page.click('#aFav [data-fid="h-prom-s"] .f-dn');
+    assert.deepEqual((await dockIds(page)).slice(0, 3), fav.slice(0, 3));
+    // без автодобора — только закреплённые
+    assert.equal(await page.isChecked("#aFavAuto"), true);
+    await page.uncheck("#aFavAuto");
+    assert.deepEqual(await dockIds(page), fav);
+    assert.equal(await page.evaluate(() => RP.ui.data.settings.favAuto), false);
+    assert.equal(await page.locator("#aFavOver").isVisible(), false);
+    // закрепить ещё — пока не перестанут помещаться
+    const slots = await page.evaluate(() => RP.ui.slots);
+    assert.ok(slots >= 4);
+    const extra = await page.evaluate((n) => RP.ui.data.links.filter((l) => !l.fav && !l.meet && !l.tool).slice(0, n).map((l) => l.id), slots - fav.length + 2);
+    for (const id of extra) await page.click(`#aList [data-lid="${id}"] .a-fav`);
+    assert.equal((await dockIds(page)).length, slots);
+    const over = extra.slice(-2);
+    assert.match(await page.innerText("#aFavOver"), /не поместил\S* 2/i);
+    // не поместившиеся остаются в своих разделах
+    for (const id of over) {
+      const sid = await page.evaluate((x) => RP.ui.byId[x].section, id);
+      assert.ok((await secIds(page, sid)).includes(id), id);
+    }
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("§12 админка: блок «Встречи» — порядок ↑↓ и «убрать»", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await openAdmin(page);
+    await page.click("#aMeets > summary");
+    await page.click('#aMeets [data-mid="k2"] .m-up');
+    assert.deepEqual(await meetIds(page), ["k2", "daily", "pereval", "open"]);
+    await page.click('#aMeets [data-mid="open"] .m-del');
+    assert.deepEqual(await meetIds(page), ["k2", "daily", "pereval"]);
+    assert.ok((await secIds(page, "comms")).includes("open"));
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("§12 выгрузка после правок избранного и встреч → загрузка того же файла даёт то же состояние", async () => {
+  let text = "", state = null;
+  const snap = (page) => page.evaluate(() => ({
+    dock: [...document.querySelectorAll("#dock [data-link-id]")].map((e) => e.dataset.linkId),
+    meets: [...document.querySelectorAll("#meets [data-link-id]")].map((e) => e.dataset.linkId),
+    comms: [...document.querySelectorAll('#idx [data-section-id="comms"] [data-link-id]')].filter((e) => e.offsetParent).map((e) => e.dataset.linkId),
+    data: [...document.querySelectorAll('#idx [data-section-id="data"] [data-link-id]')].filter((e) => e.offsetParent).map((e) => e.dataset.linkId),
+    favAuto: RP.ui.data.settings.favAuto
+  }));
+  await withPanel(interact(), async ({ page, errors }) => {
+    await openAdmin(page);
+    await page.click('#aList [data-lid="qlik"] .a-fav');
+    await editLink(page, "qlik");
+    await page.uncheck("#eFavHide");
+    await page.click("#eSave");
+    await page.click('#aList [data-lid="jazz"] .a-meet');
+    await page.click("#aFav > summary");
+    await page.click('#aFav [data-fid="qlik"] .f-up');
+    await page.uncheck("#aFavAuto");
+    state = await snap(page);
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#aDown")]);
+    text = fs.readFileSync(await dl.path(), "utf8");
+    assert.ok(!text.includes("favoriteSeed"));
+    assert.ok(text.includes('"settings": {"favAuto":false}'));
+    assert.deepEqual(realErrors(errors), []);
+  });
+  assert.ok(state.dock.includes("qlik") && state.data.includes("qlik") && state.meets[0] === "jazz");
+  await withPanel({ ...interact(), links: text }, async ({ page, errors }) => {
+    assert.deepEqual(await snap(page), state);
+    assert.deepEqual(realErrors(errors), []);
+  });
+});
+
+test("§12 старый links.js (favoriteSeed, без favorites) загружается без ошибок и показывает это избранное", () => {
+  const old = LINKS_SRC
+    .replace(/  "favorites": .*\n/, '  "favoriteSeed": ["kap-prom","daily","qlik"],\n')
+    .replace(/  "settings": .*\n/, "")
+    .replace(/,"fav":true/g, "");
+  assert.ok(!old.includes('"favorites"') && !old.includes('"fav"'));
+  return withPanel({ ...interact(), links: old }, async ({ page, errors }) => {
+    assert.deepEqual(errors, []);
+    assert.deepEqual(await dockIds(page), ["kap-prom", "qlik"]);
+    assert.ok(!(await secIds(page, "data")).includes("qlik"));
+    assert.equal((await meetIds(page)).length, 4);
+    assert.equal(await page.evaluate(() => RP.ui.data.favoriteSeed), undefined);
+  });
+});
+
+// Длинное название ≈60 символов
+const LONG = (i) => `Очень длинное название ссылки номер ${i} про отчёты и выгрузки данных`;
+const longSrc = (ids) => ids.reduce((src, id, i) =>
+  src.replace(new RegExp('("id":"' + id + '"[^\\n]*?"title":")[^"]*'), "$1" + LONG(i)), LINKS_SRC);
+// Высота блока названия в строках, обрезка
+const titleBox = (page, sel) => page.$eval(sel, (t) => {
+  const cs = getComputedStyle(t), lh = parseFloat(cs.lineHeight), r = t.getBoundingClientRect(), row = t.closest("[data-link-id]");
+  return { lines: r.height / lh, clamp: cs.webkitLineClamp, rowCut: row.scrollHeight - row.clientHeight, inRow: r.bottom <= row.getBoundingClientRect().bottom + 0.5 && r.top >= row.getBoundingClientRect().top - 0.5 };
+});
+
+test("§12 двухстрочные названия: строка указателя, плитка избранного и чип встречи — ровно 2 строки, без обрезки", () =>
+  withPanel({ ...interact(), links: longSrc(["qlik", "h-prom-a", "daily"]) }, async ({ page, errors }) => {
+    for (const sel of ["#ln-qlik .tt", '#dock [data-link-id="h-prom-a"] .lb', '#meets [data-link-id="daily"] .tt']) {
+      const b = await titleBox(page, sel);
+      assert.ok(Math.abs(b.lines - 2) < 0.15, `${sel}: строк ${b.lines}`);
+      assert.equal(String(b.clamp), "2", sel);
+      assert.ok(b.rowCut <= 1, `${sel}: строка обрезана на ${b.rowCut}px`);
+      assert.ok(b.inRow, `${sel}: название выходит за строку`);
+    }
+    // короткое название — одна строка
+    const s = await titleBox(page, "#ln-hue .tt");
+    assert.ok(Math.abs(s.lines - 1) < 0.15, `hue: строк ${s.lines}`);
+    // полное название — в подсказке
+    await page.hover("#ln-qlik");
+    await page.waitForSelector("#tip.on");
+    assert.match(await page.innerText("#tip h3"), new RegExp(LONG(0)));
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+for (const [w, h] of [[1440, 900], [1920, 1080]]) for (const rail of ["open", "compact"]) {
+  test(`§12 ${w}×${h}, панель ${rail}: 10 длинных названий — без прокрутки, строки не обрезаны`, () => {
+    const ids = ["qlik", "qs", "giga", "nav", "dtk", "varm", "sprint", "esr", "r-sowa", "kap-ift"];
+    const src = longSrc(ids);
+    return withPanel({ width: w, height: h, links: src, seed: { rp_rail: JSON.stringify(rail) } }, async ({ page, errors }) => {
+      const found = await page.evaluate((ids) => ids.filter((id) => RP.ui.byId[id] && RP.ui.byId[id].title.startsWith("Очень")).length, ids);
+      assert.equal(found, ids.length, "все 10 названий подменены");
+      const m = await metrics(page);
+      assert.ok(m.sh <= m.ih, `scrollHeight ${m.sh} > ${m.ih} (${m.den})`);
+      assert.ok(m.sw <= m.iw, `scrollWidth ${m.sw} > ${m.iw}`);
+      const r = await page.evaluate(() => {
+        const idx = document.querySelector("#idx").getBoundingClientRect();
+        const rows = [...document.querySelectorAll("#idx [data-link-id]")].filter((e) => e.offsetParent);
+        return {
+          cut: rows.filter((e) => e.getBoundingClientRect().bottom > idx.bottom + 1).length,
+          over: rows.filter((e) => { const t = e.querySelector(".tt"); return t.getBoundingClientRect().height > parseFloat(getComputedStyle(t).lineHeight) * 2.2; }).length
+        };
+      });
+      assert.equal(r.cut, 0);
+      assert.equal(r.over, 0);
+      assert.deepEqual(errors, []);
+    });
+  });
+}

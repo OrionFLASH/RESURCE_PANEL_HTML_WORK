@@ -6,14 +6,15 @@
   var ENVS = ["PROM", "PSI", "IFT"];
   var SEGS = ["ALPHA", "SIGMA"];
   var TOOLS = ["decoder", "role"];
-  var KEY_ORDER = ["id", "section", "title", "url", "env", "seg", "copy", "icon", "note", "meet", "tool", "check"];
+  var KEY_ORDER = ["id", "section", "title", "url", "env", "seg", "copy", "icon", "note", "fav", "favHide", "meet", "meetHide", "tool", "check"];
 
   var HEADER = [
     "/* Данные ресурсной панели. Редактируется вручную или через админку (панель групп → замок).",
     "   Формат (window.RP_LINKS):",
     "   version        — версия формата (сейчас 1)",
     "   sections       — разделы: { id, name, icon }; порядок = порядок вывода",
-    "   favoriteSeed   — id ссылок для стартового «Избранного», пока нет кликов",
+    "   favorites      — порядок закреплённых в «Избранном» ссылок (id ссылок с fav: true)",
+    "   settings       — { favAuto: true } — добирать свободные места избранного самыми частыми по кликам",
     "   links          — ссылки, по одной на строку:",
     "     id       — уникальный идентификатор",
     "     section  — id раздела из sections",
@@ -24,7 +25,10 @@
     "     copy     — код, копируется в буфер при клике (необязательно)",
     "     icon     — имя иконки; иначе иконка раздела (необязательно)",
     "     note     — комментарий в подсказке (необязательно)",
+    "     fav      — true: закреплена в «Избранном» (необязательно)",
+    "     favHide  — false: показывать и в разделе, пока она в «Избранном» (по умолчанию скрыта)",
     "     meet     — true: встреча Jazz, попадает в полосу «Встречи» (необязательно)",
+    "     meetHide — false: показывать встречу и в разделе (по умолчанию скрыта)",
     "     tool     — decoder | role: встроенный инструмент вместо URL (необязательно)",
     "     check    — false: не проверять доступность (необязательно)",
     "   adminScripts   — реестр будущих скриптов, сейчас пуст */"
@@ -74,6 +78,21 @@
       if (l.seg != null && SEGS.indexOf(l.seg) < 0) errors.push(tag + ": недопустимый seg «" + l.seg + "»");
     });
 
+    links.forEach(function (l) {
+      if (!l || !l.id) return;
+      ["fav", "favHide", "meet", "meetHide"].forEach(function (k) {
+        if (l[k] != null && typeof l[k] !== "boolean") errors.push("Ссылка " + l.id + ": " + k + " — ожидается true или false");
+      });
+    });
+    if (data.favorites != null && !Array.isArray(data.favorites)) errors.push("favorites: ожидается массив id ссылок");
+    (Array.isArray(data.favorites) ? data.favorites : []).forEach(function (id) {
+      if (!ids[id]) warnings.push("favorites: нет ссылки с id «" + id + "»");
+    });
+    if (data.settings != null) {
+      if (!isObj(data.settings)) errors.push("settings: ожидается объект");
+      else if (data.settings.favAuto != null && typeof data.settings.favAuto !== "boolean") errors.push("settings.favAuto: ожидается true или false");
+    }
+    // Старый формат (до доработки 1): favoriteSeed превращается в favorites при загрузке (normalize)
     if (data.favoriteSeed != null && !Array.isArray(data.favoriteSeed)) errors.push("favoriteSeed: ожидается массив id ссылок");
     (Array.isArray(data.favoriteSeed) ? data.favoriteSeed : []).forEach(function (id) {
       if (!ids[id]) warnings.push("favoriteSeed: нет ссылки с id «" + id + "»");
@@ -120,13 +139,37 @@
     return JSON.stringify(o);
   }
 
+  // Приведение к новому формату (§12): favoriteSeed → favorites + fav:true (без встреч и инструментов);
+  // favorites и fav согласуются; settings.favAuto по умолчанию true. Чистая функция, идемпотентна.
+  function normalize(data) {
+    if (!isObj(data) || !Array.isArray(data.links)) return data;
+    var d = JSON.parse(JSON.stringify(data)), byId = {};
+    d.links.forEach(function (l) { if (isObj(l) && l.id) byId[l.id] = l; });
+    if (d.favorites == null && Array.isArray(d.favoriteSeed)) {
+      d.favorites = d.favoriteSeed.filter(function (id) { var l = byId[id]; return !l || (!l.meet && !l.tool); });
+    }
+    delete d.favoriteSeed;
+    if (d.favorites == null) d.favorites = [];
+    if (Array.isArray(d.favorites)) {
+      var seen = {};
+      d.favorites = d.favorites.filter(function (id) { if (seen[id]) return false; seen[id] = true; return true; });
+      d.favorites.forEach(function (id) { if (byId[id] && byId[id].fav == null) byId[id].fav = true; });
+      d.links.forEach(function (l) { if (isObj(l) && l.fav === true && !seen[l.id]) { d.favorites.push(l.id); seen[l.id] = true; } });
+    }
+    if (d.settings == null) d.settings = {};
+    if (isObj(d.settings) && d.settings.favAuto === undefined) d.settings.favAuto = true;
+    return d;
+  }
+
   function serializeLinks(data) {
+    data = normalize(data);
     var out = [HEADER, "window.RP_LINKS = {"];
     out.push("  \"version\": " + JSON.stringify(data.version) + ",");
     out.push("  \"sections\": [");
     out.push((data.sections || []).map(function (s) { return "    " + JSON.stringify(s); }).join(",\n"));
     out.push("  ],");
-    out.push("  \"favoriteSeed\": " + JSON.stringify(data.favoriteSeed || []) + ",");
+    out.push("  \"favorites\": " + JSON.stringify(data.favorites || []) + ",");
+    out.push("  \"settings\": " + JSON.stringify(data.settings || {}) + ",");
     out.push("  \"links\": [");
     out.push((data.links || []).map(function (l) { return "    " + linkLine(l); }).join(",\n"));
     out.push("  ],");
@@ -178,17 +221,32 @@
   }
 
   // ---------- Избранное ----------
-  function rankFavorites(links, clicks, seed, limit) {
-    limit = limit == null ? 9 : limit;
-    clicks = clicks || {}; seed = seed || [];
-    var items = [];
-    links.forEach(function (l, i) {
-      if (l.meet || l.tool) return;
-      var si = seed.indexOf(l.id);
-      items.push({ id: l.id, n: +clicks[l.id] || 0, s: si < 0 ? Infinity : si, i: i });
-    });
-    items.sort(function (a, b) { return b.n - a.n || (a.s === b.s ? 0 : a.s < b.s ? -1 : 1) || a.i - b.i; });
-    return items.slice(0, limit).map(function (x) { return x.id; });
+  // Закреплённые (fav, кроме встреч): по порядку favorites, затем остальные fav в порядке данных; первые slots — показаны.
+  // favAuto — свободные места добираются самыми частыми по кликам (только clicks > 0; без встреч, инструментов, показанных).
+  function pickFavorites(links, favorites, clicks, slots, favAuto) {
+    clicks = clicks || {}; favorites = Array.isArray(favorites) ? favorites : [];
+    var byId = {}, pinned = [], used = {};
+    links.forEach(function (l) { byId[l.id] = l; });
+    function pin(l) { if (l && l.fav === true && !l.meet && !used[l.id]) { used[l.id] = true; pinned.push(l.id); } }
+    favorites.forEach(function (id) { pin(byId[id]); });
+    links.forEach(pin);
+    var shown = pinned.slice(0, slots), overflow = pinned.slice(slots), pinnedShown = shown.slice();
+    if (favAuto !== false && shown.length < slots) {
+      var on = {};
+      shown.forEach(function (id) { on[id] = true; });
+      links.map(function (l, i) { return { l: l, n: +clicks[l.id] || 0, i: i }; })
+        .filter(function (x) { return x.n > 0 && !x.l.meet && !x.l.tool && !on[x.l.id]; })
+        .sort(function (a, b) { return b.n - a.n || a.i - b.i; })
+        .forEach(function (x) { if (shown.length < slots) shown.push(x.l.id); });
+    }
+    return { shown: shown, pinnedShown: pinnedShown, overflow: overflow };
+  }
+  // id ссылок, которых нет в разделах: показанные закреплённые (favHide !== false) и встречи (meetHide !== false)
+  function hiddenInIndex(data, pinnedShown) {
+    var h = new Set(), byId = {};
+    data.links.forEach(function (l) { byId[l.id] = l; if (l.meet && l.meetHide !== false) h.add(l.id); });
+    (pinnedShown || []).forEach(function (id) { if (byId[id] && byId[id].favHide !== false) h.add(id); });
+    return h;
   }
 
   // ---------- Декодер permission ----------
@@ -230,7 +288,7 @@
 
   RP.core = {
     validate: validate, fieldErrors: fieldErrors, slug: slug, ID_RE: ID_RE, serializeLinks: serializeLinks, parseUrl: parseUrl, match: match,
-    rankFavorites: rankFavorites, decodePermission: decodePermission, balanceColumns: balanceColumns
+    normalize: normalize, pickFavorites: pickFavorites, hiddenInIndex: hiddenInIndex, decodePermission: decodePermission, balanceColumns: balanceColumns
   };
 
   // ---------- Набор иконок v8 (из mockups/_shared/icons.js) ----------
@@ -427,6 +485,7 @@
     lineEl: {}, secEl: {}, meetEl: {}, secN: {},
     off: null,             // id разделов, скрытых в указателе (rp_groups)
     cols: 4, laidOut: false,
+    slots: 0, pick: null, hide: null, clicks: null,   // избранное: мест, выбор pickFavorites, скрытые в разделах id, клики при открытии
     ENV: ENV_LBL, SEG: SEG_LBL, esc: esc, $: $, $$: $$
   };
 
@@ -452,8 +511,11 @@
   }
 
   // ---------- Отрисовка ----------
+  // Строки указателя: встречи с meetHide !== false не строятся; показанные закреплённые (favHide !== false) —
+  // строятся, но скрыты (.away), пока нет поискового запроса. Раздел без видимых строк не показывается (.void).
   function buildIndex() {
     S.lineEl = {}; S.secEl = {}; S.secN = {};
+    var hide = S.hide || new Set();
     S.data.sections.forEach(function (s) {
       var sec = document.createElement("section");
       sec.className = "sec"; sec.id = "sec-" + s.id; sec.dataset.sectionId = s.id; sec.setAttribute("aria-labelledby", "h-" + s.id);
@@ -461,18 +523,20 @@
       sec.innerHTML = '<h2 class="sh" id="h-' + s.id + '">' + I(RP.icons.has(s.icon) ? s.icon : "link") + "<span>" + esc(s.name) + "</span><em></em></h2>";
       var n = 0;
       S.data.links.forEach(function (l) {
-        if (l.section !== s.id || l.meet) return;
+        if (l.section !== s.id || (l.meet && hide.has(l.id))) return;
         var el = linkEl(l, "ln");
         el.id = "ln-" + l.id; el.setAttribute("aria-label", ariaOf(l));
         el.innerHTML = I(iconOf(l)) + '<span class="tt">' + esc(l.title) + "</span>" + (l.copy ? I("copy", "ui-i cp") : "") +
           '<span class="ld"></span>' + tagsHtml(l) + '<span class="dot"></span>';
-        S.lineEl[l.id] = el; sec.appendChild(el); n++;
+        if (hide.has(l.id)) { el.classList.add("away"); el.hidden = true; } else n++;
+        S.lineEl[l.id] = el; sec.appendChild(el);
       });
+      sec.classList.toggle("void", !n && !!sec.querySelector(".ln"));
       $("em", sec).textContent = n;
       S.secN[s.id] = n; S.secEl[s.id] = sec;
     });
   }
-  // Встречи Jazz (meet:true) — полосой под избранным, в указателе их нет
+  // Встречи Jazz (meet:true) — полосой под избранным, порядок = порядок в данных
   function buildMeets() {
     var box = $("#meets"); box.innerHTML = ""; S.meetEl = {};
     S.data.links.forEach(function (l) {
@@ -484,10 +548,10 @@
     });
     box.parentNode.hidden = !box.children.length;
   }
-  // Избранное: порядок считается один раз при открытии (иконки не прыгают)
+  // Избранное: закреплённые + автодобор (клики берутся один раз при открытии — иконки не прыгают)
   function buildDock() {
     var dock = $("#dock"); dock.innerHTML = "";
-    RP.core.rankFavorites(S.data.links, RP.store.get("rp_clicks", {}), S.data.favoriteSeed, 9).forEach(function (id) {
+    S.pick.shown.forEach(function (id) {
       var l = S.byId[id], a = linkEl(l, "app");
       a.setAttribute("aria-label", ariaOf(l));
       a.innerHTML = '<span class="sq">' + I(iconOf(l)) + '<span class="dot"></span>' + (l.copy ? '<span class="cp">' + I("copy") + "</span>" : "") +
@@ -495,6 +559,33 @@
       dock.appendChild(a);
     });
     $(".favs").hidden = !dock.children.length;
+  }
+  // Мест в избранном: сколько плиток помещается в одну строку (не меньше 4)
+  function favSlots() {
+    var favs = $(".favs"), was = favs.hidden;
+    favs.hidden = false;
+    var probe = $(".app", $("#dock")), tmp = null;
+    if (!probe) { tmp = probe = document.createElement("span"); probe.className = "app"; $("#dock").appendChild(probe); }
+    var tile = probe.offsetWidth || 92, gap = parseFloat(getComputedStyle($("#dock")).columnGap) || 6;
+    if (tmp) tmp.remove();
+    var cs = getComputedStyle(favs), avail;
+    if (window.innerWidth < 767) avail = favs.clientWidth - 32;
+    else avail = favs.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - $("#favCap").offsetWidth - (parseFloat(cs.columnGap) || 14);
+    favs.hidden = was;
+    return Math.max(4, Math.floor((avail + gap) / (tile + gap)));
+  }
+  // Пересчёт избранного и скрытых строк при смене числа мест (или после правки данных); true — указатель перестроен
+  function syncFav() {
+    var n = favSlots();
+    if (n === S.slots && S.pick) return false;
+    var D = S.data, auto = !(D.settings && D.settings.favAuto === false);
+    S.slots = n;
+    S.pick = RP.core.pickFavorites(D.links, D.favorites, S.clicks, n, auto);
+    S.hide = RP.core.hiddenInIndex(D, S.pick.pinnedShown);
+    buildDock(); buildIndex(); buildGroups(); paintGroups();
+    var gq = $("#gq"); if (gq && gq.value) gq.dispatchEvent(new Event("input"));
+    if (S.onFav) S.onFav();
+    return true;
   }
   function buildGroups() {
     $("#gpList").innerHTML = S.data.sections.map(function (s) {
@@ -534,9 +625,10 @@
     D.links.forEach(function (l) { S.byId[l.id] = l; if (!S.st[l.id] || S.st[l.id] === "local" || S.st[l.id] === "skip") S.st[l.id] = initialSt(l); });
     $("#subt").textContent = D.links.length + " рабочих ссылок · " + D.sections.length + " разделов";
     $("#cnt").textContent = D.links.length + " ссылок";
-    buildIndex(); buildMeets(); buildDock(); buildGroups(); paintGroups(); renderSum();
+    if (!S.clicks) { S.clicks = RP.store.get("rp_clicks", {}); if (!S.clicks || typeof S.clicks !== "object" || Array.isArray(S.clicks)) S.clicks = {}; }
+    S.pick = null;
+    buildMeets(); renderSum();
     layout();
-    if (S.apply) S.apply();
   }
   S.render = render;
 
@@ -605,22 +697,17 @@
       idx.appendChild(e); $("#reset").addEventListener("click", function () { S.resetAll(); }); return;
     }
     if (!secs.length) return;
-    var w = secs.map(function (s) { return $$(".ln:not([hidden])", s).length + 1.6; });
+    // Вес раздела — реальная высота при ширине колонки (названия переносятся на 2 строки), в строках
+    var probe = document.createElement("div"); probe.className = "col"; idx.appendChild(probe);
+    secs.forEach(function (s) { probe.appendChild(s); });
+    var rh = parseFloat(getComputedStyle(document.body).getPropertyValue("--rh")) || 30;
+    var w = secs.map(function (s) { return s.offsetHeight / rh + 0.45; });
+    probe.remove();
     groupsFor(w, cols).forEach(function (g) {
       var c = document.createElement("div"); c.className = "col";
       g.forEach(function (i) { c.appendChild(secs[i]); });
       idx.appendChild(c);
     });
-  }
-  // Избранное: столько «иконок», сколько помещается в ширину (без горизонтальной прокрутки)
-  function fitDock() {
-    var favs = $(".favs"), apps = $$(".app", $("#dock"));
-    apps.forEach(function (a) { a.classList.remove("over"); });
-    if (window.innerWidth < 767 || !apps.length) return;
-    var cs = getComputedStyle(favs);
-    var avail = favs.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - $("#favCap").offsetWidth - 14;
-    var n = Math.max(1, Math.floor((avail + 6) / (apps[0].offsetWidth + 6)));
-    apps.forEach(function (a, i) { a.classList.toggle("over", i >= n); });
   }
   // Ступени плотности: кегль строки → допустимые высоты строки; сначала кегль ≥ 14px, затем запасные
   var STEPS = [[15, [30, 29, 28]], [14.5, [28, 27]], [14, [27, 26, 25, 24]], [13.5, [24, 23]], [13, [23, 22, 21]]];
@@ -628,7 +715,7 @@
   function fit() {
     var b = document.body, idx = $("#idx");
     if (window.innerWidth < 1024 || window.innerHeight < 560) {
-      b.classList.remove("fit", "compact"); b.style.removeProperty("--rh"); b.style.removeProperty("--fs-row"); fitDock();
+      b.classList.remove("fit", "compact"); b.style.removeProperty("--rh"); b.style.removeProperty("--fs-row");
       placeColumns(S.cols = idx.clientWidth >= 700 ? 2 : 1); b.dataset.den = "scroll"; return;
     }
     b.classList.add("fit");
@@ -639,7 +726,7 @@
     var tiers = [STEPS.filter(function (s) { return s[0] >= 14; }), STEPS.filter(function (s) { return s[0] < 14; })];
     // Порядок: крупный кегль → меньше колонок (шире названия) → выше строка; плотная шапка — только если иначе не влезает
     for (var t = 0; t < tiers.length; t++) for (var h = 0; h < 2; h++) {
-      b.classList.toggle("compact", h === 1); fitDock();
+      b.classList.toggle("compact", h === 1);
       for (var f = 0; f < tiers[t].length; f++) for (var c = minCols; c <= maxCols; c++) for (var r = 0; r < tiers[t][f][1].length; r++) {
         var s = [tiers[t][f][0], tiers[t][f][1][r]];
         setDen(s); placeColumns(S.cols = c);
@@ -647,19 +734,21 @@
       }
     }
     // Не влезло даже в самой плотной ступени — обычная прокрутка
-    b.classList.remove("fit", "compact"); setDen([14, 26]); fitDock(); placeColumns(S.cols = maxCols); b.dataset.den = "scroll";
+    b.classList.remove("fit", "compact"); setDen([14, 26]); placeColumns(S.cols = maxCols); b.dataset.den = "scroll";
   }
   // Плотность подбирается по полному списку: поиск и фильтры не меняют шаг строк
+  // Скрытые в разделах (.away) строки в подборе не участвуют; поиск/фильтры затем восстанавливает apply()
   function layout() {
     if (!S.data) return;
     applyRail();
-    var hid = $$(".ln[hidden], .sec[hidden]");
-    hid.forEach(function (e) { e.hidden = false; });
+    syncFav();
+    $$(".ln[hidden], .sec[hidden]").forEach(function (e) { e.hidden = false; });
+    $$(".ln.away, .sec.void").forEach(function (e) { e.hidden = true; });
     fit();
-    hid.forEach(function (e) { e.hidden = true; });
-    S.laidOut = true; placeColumns(S.cols);
+    S.laidOut = true;
+    if (S.apply) S.apply(); else placeColumns(S.cols);
   }
-  S.layout = layout; S.placeColumns = placeColumns; S.fitDock = fitDock;
+  S.layout = layout; S.placeColumns = placeColumns; S.syncFav = syncFav;
 
   // ---------- Проверка доступности: запуск, прогресс, отражение статусов ----------
   var checking = false;
@@ -863,13 +952,13 @@
   }
   function apply() {
     if (!S.data) return;
-    var n = 0, total = S.data.links.length, on = !!(F.q.trim() || F.env || F.seg);
+    var n = 0, total = S.data.links.length, on = !!(F.q.trim() || F.env || F.seg), qOn = !!F.q.trim();
     S.data.links.forEach(function (l) {
-      var m = passes(l), el = S.lineEl[l.id] || S.meetEl[l.id];
+      var m = passes(l), ln = S.lineEl[l.id], mt = S.meetEl[l.id];
       if (m.hit) n++;
-      if (!el) return;
-      if (S.lineEl[l.id]) el.hidden = !m.hit; else el.classList.toggle("mute", !m.hit);
-      $(".tt", el).innerHTML = hl(l.title, m.hit ? m.ranges : []);
+      // Закреплённая, скрытая из раздела, возвращается в раздел только на время поиска (Enter/↑↓ находят её)
+      if (ln) { ln.hidden = !m.hit || (ln.classList.contains("away") && !qOn); $(".tt", ln).innerHTML = hl(l.title, m.hit ? m.ranges : []); }
+      if (mt) { mt.classList.toggle("mute", !m.hit); $(".tt", mt).innerHTML = hl(l.title, m.hit ? m.ranges : []); }
     });
     S.data.sections.forEach(function (s) {
       var sec = S.secEl[s.id]; if (!sec) return;
@@ -1043,6 +1132,7 @@
     if (layer === $("#gp")) closeLayer();
     if (S.off.indexOf(id) >= 0) setOff(S.off.filter(function (x) { return x !== id; }));
     var sec = S.secEl[id];
+    if (sec && sec.hidden && sec.classList.contains("void") && !S.filter.q.trim()) { RP.toast("Ссылки группы «" + S.secById[id].name + "» — в избранном и встречах", "info"); return; }
     if (!sec || sec.hidden) { RP.toast("В группе «" + S.secById[id].name + "» нет ссылок по текущему поиску", "info"); return; }
     requestAnimationFrame(function () { flash(sec); });
   }
@@ -1174,12 +1264,12 @@
       work: null,     // рабочая копия — её показывает страница после первой правки
       shown: null,    // снимок того, что сейчас отрисовано (для сброса статусов изменённых ссылок)
       n: 0, tab: "links", view: "list", edit: null, q: "", sec: "", secPick: null,
-      open: { secs: false, seed: false }, scripts: {},
+      open: { secs: false, fav: false, meets: false }, scripts: {},
       draft: null     // черновик открытой формы ссылки: переживает Esc, клик мимо и смену вкладки
     };
     var ENV_OPT = [["", "—"], ["PROM", "PROM"], ["PSI", "ПСИ"], ["IFT", "ИФТ"]];
     var SEG_OPT = [["", "—"], ["ALPHA", "Alpha"], ["SIGMA", "Sigma"]];
-    var OWN = ["id", "section", "title", "url", "env", "seg", "copy", "icon", "note", "meet", "tool", "check"];
+    var OWN = ["id", "section", "title", "url", "env", "seg", "copy", "icon", "note", "fav", "favHide", "meet", "meetHide", "tool", "check"];
     function clone(o) { return JSON.parse(JSON.stringify(o)); }
     function W() { return A.work; }
     function idxOf(id) { for (var i = 0; i < W().links.length; i++) if (W().links[i].id === id) return i; return -1; }
@@ -1286,13 +1376,39 @@
       var sc = $("#drawer").scrollTop;
       // Состояние раскрытия «Разделы» / «Избранное» берём из DOM: событие toggle приходит асинхронно
       if ($("#aSecs", body)) A.open.secs = $("#aSecs", body).open;
-      if ($("#aSeed", body)) A.open.seed = $("#aSeed", body).open;
+      if ($("#aFav", body)) A.open.fav = $("#aFav", body).open;
+      if ($("#aMeets", body)) A.open.meets = $("#aMeets", body).open;
       if (A.view === "form") formView(body); else listView(body);
       $("#drawer").scrollTop = sc;
       if (k) { var f = $('[data-k="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]', body); if (f) f.focus({ preventScroll: true }); }
     }
 
-    // ----- Список ссылок: поиск, фильтр по разделу, разделы и стартовое избранное -----
+    // ----- Избранное и встречи (§12): флаги ссылки, порядок favorites; ★ и встреча взаимоисключающие -----
+    function setFav(l, on) {
+      var D = W();
+      D.favorites = (D.favorites || []).filter(function (x) { return x !== l.id; });
+      if (on) { l.fav = true; D.favorites.push(l.id); if (l.meet) { delete l.meet; delete l.meetHide; } }
+      else { delete l.fav; delete l.favHide; }
+    }
+    function setMeet(l, on) {
+      if (on) { l.meet = true; if (l.fav) setFav(l, false); }
+      else { delete l.meet; delete l.meetHide; }
+    }
+    // Предупреждение о закреплённых, не поместившихся в строку избранного
+    function overText() {
+      var o = (S.pick && S.pick.overflow) || [], n = o.length;
+      return n ? "Не " + plural(n, "поместилась", "поместились", "поместились") + " " + n + " из " + (n + S.pick.pinnedShown.length) +
+        " — в строке " + S.slots + " " + plural(S.slots, "место", "места", "мест") + "; " + plural(n, "она остаётся", "они остаются", "они остаются") + " в своём разделе" : "";
+    }
+    function paintOver() {
+      var el = $("#aFavOver"); if (!el) return;
+      var t = overText(), over = (S.pick && S.pick.overflow) || [];
+      $("span", el).textContent = t; el.hidden = !t;
+      $$("#aFav [data-fid]").forEach(function (li) { li.classList.toggle("over", over.indexOf(li.dataset.fid) >= 0); });
+    }
+    S.onFav = paintOver;
+
+    // ----- Список ссылок: поиск, фильтр по разделу, разделы, избранное, встречи -----
     function listView(body) {
       var D = W();
       body.innerHTML =
@@ -1303,7 +1419,8 @@
         '<button class="btn pri" type="button" id="aAdd" data-k="add">' + I("plus") + "Добавить</button></div>" +
         '<ul class="alist" id="aList" aria-label="Ссылки"></ul>' +
         '<details class="adet" id="aSecs"' + (A.open.secs ? " open" : "") + "><summary>Разделы <em>" + D.sections.length + "</em></summary>" + secsHtml() + "</details>" +
-        '<details class="adet" id="aSeed"' + (A.open.seed ? " open" : "") + "><summary>Стартовое избранное <em>" + (D.favoriteSeed || []).length + "</em></summary>" + seedHtml() + "</details>";
+        '<details class="adet" id="aFav"' + (A.open.fav ? " open" : "") + "><summary>Избранное <em>" + (D.favorites || []).length + "</em></summary>" + favHtml() + "</details>" +
+        '<details class="adet" id="aMeets"' + (A.open.meets ? " open" : "") + "><summary>Встречи <em>" + D.links.filter(function (l) { return l.meet; }).length + "</em></summary>" + meetsHtml() + "</details>";
       var q = $("#aQ", body); q.value = A.q;
       q.addEventListener("input", function () { A.q = q.value; paintRows(); });
       $("#aSec", body).addEventListener("change", function (e) { A.sec = e.target.value; paintRows(); });
@@ -1312,6 +1429,8 @@
         inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); renameSec(inp); } });
         inp.addEventListener("change", function () { renameSec(inp); });
       });
+      $("#aFavAuto", body).addEventListener("change", function (e) { W().settings = W().settings || {}; W().settings.favAuto = e.target.checked; commit(); });
+      paintOver();
       var sNew = $("#sNew", body);
       sNew.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addSec(); } });
       paintRows();
@@ -1329,8 +1448,10 @@
           var i = all.indexOf(l);
           html += '<li class="arow" data-lid="' + esc(l.id) + '">' +
             '<button class="a-open" type="button" data-k="o:' + esc(l.id) + '" aria-label="Изменить «' + esc(l.title) + '»">' + I(S.iconOf(l)) +
-            '<span class="at">' + esc(l.title) + "</span>" + (l.meet ? '<span class="ab">встреча</span>' : "") + (l.tool ? '<span class="ab">инструмент</span>' : "") +
+            '<span class="at">' + esc(l.title) + "</span>" + (l.tool ? '<span class="ab">инструмент</span>' : "") +
             (l.copy ? I("copy", "ui-i cp") : "") + tagsHtml(l) + "</button>" +
+            tg("a-fav", "star", l.fav === true && !l.meet, (l.fav && !l.meet ? "Убрать из избранного" : "В избранное") + ": «" + l.title + "»", "f:" + l.id) +
+            tg("a-meet", "video", !!l.meet, (l.meet ? "Убрать из встреч" : "Сделать встречей") + ": «" + l.title + "»", "m:" + l.id, !!l.tool) +
             ib("a-up", "up", "Выше: «" + l.title + "»", "u:" + l.id, i === 0) +
             ib("a-dn", "down", "Ниже: «" + l.title + "»", "d:" + l.id, i === all.length - 1) +
             ib("a-del", "trash", "Удалить «" + l.title + "»", "x:" + l.id) + "</li>";
@@ -1355,23 +1476,39 @@
         '<div class="sadd"><label class="sr" for="sNew">Название нового раздела</label><input id="sNew" placeholder="Новый раздел" autocomplete="off" data-k="sNew">' +
         '<button class="btn" type="button" id="sAdd" data-k="sAdd">' + I("plus") + "Добавить раздел</button></div>";
     }
-    function seedHtml() {
-      var D = W(), seed = D.favoriteSeed || [];
-      var free = D.links.filter(function (l) { return !l.meet && !l.tool && seed.indexOf(l.id) < 0; });
-      return '<p class="ahint">Показываются в «Избранном», пока нет кликов (до 9). Встречи и инструменты туда не попадают.</p>' +
-        '<ol class="flist">' + seed.map(function (id, i) {
+    // Переключатель-иконка в строке списка (★ избранное, камера — встреча)
+    function tg(cls, icon, on, label, k, dis) {
+      return '<button class="btn ic tg ' + cls + '" type="button" aria-pressed="' + on + '" aria-label="' + esc(label) + '" title="' + esc(label) + '" data-k="' + esc(k) + '"' + (dis ? " disabled" : "") + ">" + I(icon) + "</button>";
+    }
+    function favHtml() {
+      var D = W(), fav = D.favorites || [], auto = !(D.settings && D.settings.favAuto === false);
+      var free = D.links.filter(function (l) { return !l.meet && fav.indexOf(l.id) < 0; });
+      return '<p class="ahint">Закреплённые ссылки идут первыми, по этому порядку, и пока показаны в «Избранном» — скрыты из своих разделов (в форме ссылки можно оставить и там). Мест — сколько плиток помещается в строку.</p>' +
+        '<p class="awarn" id="aFavOver" role="status" hidden>' + I("alert") + "<span></span></p>" +
+        '<ol class="flist">' + fav.map(function (id, i) {
           var l = D.links[idxOf(id)];
-          return '<li data-fid="' + esc(id) + '"><span class="at">' + (l ? esc(l.title) + tagsHtml(l) : esc(id) + ' <span class="ab err">нет такой ссылки</span>') + "</span>" +
-            ib("f-up", "up", "Выше в избранном", "fu:" + id, i === 0) + ib("f-dn", "down", "Ниже в избранном", "fd:" + id, i === seed.length - 1) +
+          return '<li data-fid="' + esc(id) + '">' + I("star", "ui-i fi") + '<span class="at">' + (l ? esc(l.title) + tagsHtml(l) : esc(id) + ' <span class="ab err">нет такой ссылки</span>') +
+            '<span class="ab ov">не поместилась</span></span>' +
+            ib("f-up", "up", "Выше в избранном", "fu:" + id, i === 0) + ib("f-dn", "down", "Ниже в избранном", "fd:" + id, i === fav.length - 1) +
             ib("f-del", "close", "Убрать из избранного", "fx:" + id) + "</li>";
         }).join("") + "</ol>" +
+        '<label class="sw"><input type="checkbox" id="aFavAuto" data-k="favAuto"' + (auto ? " checked" : "") + "> Добирать по частоте кликов — свободные места занимают самые открываемые ссылки</label>" +
         '<div class="sadd"><label class="sr" for="fsAdd">Ссылка для избранного</label><select id="fsAdd" data-k="fsAdd"><option value="">Выберите ссылку…</option>' +
         D.sections.map(function (s) {
           var ls = free.filter(function (l) { return l.section === s.id; });
           return ls.length ? '<optgroup label="' + esc(s.name) + '">' + ls.map(function (l) {
             return '<option value="' + esc(l.id) + '">' + esc(l.title) + (l.env ? " · " + ENV_LBL[l.env] : "") + (l.seg ? " · " + SEG_LBL[l.seg] : "") + "</option>";
           }).join("") + "</optgroup>" : "";
-        }).join("") + '</select><button class="btn" type="button" id="fsAddBtn" data-k="fsAddBtn">' + I("plus") + "Добавить</button></div>";
+        }).join("") + '</select><button class="btn" type="button" id="fsAddBtn" data-k="fsAddBtn">' + I("plus") + "Закрепить</button></div>";
+    }
+    function meetsHtml() {
+      var ms = W().links.filter(function (l) { return l.meet; });
+      return '<p class="ahint">Полоса «Встречи» под избранным, в этом порядке. Встреча скрыта из своего раздела, если в форме не снят флажок «Скрыть из раздела».</p>' +
+        (ms.length ? '<ol class="flist">' + ms.map(function (l, i) {
+          return '<li data-mid="' + esc(l.id) + '">' + I("video", "ui-i fi") + '<span class="at">' + esc(l.title) + (l.meetHide === false ? '<span class="ab">и в разделе</span>' : "") + "</span>" +
+            ib("m-up", "up", "Выше: «" + l.title + "»", "mu:" + l.id, i === 0) + ib("m-dn", "down", "Ниже: «" + l.title + "»", "md:" + l.id, i === ms.length - 1) +
+            ib("m-del", "close", "Убрать из встреч: «" + l.title + "»", "mx:" + l.id) + "</li>";
+        }).join("") + "</ol>" : '<p class="ahint">Встреч нет — отметьте ссылку значком камеры в списке.</p>');
     }
     function pickHtml(cur, withDefault, label) {
       return '<div class="ipick" role="group" aria-label="' + esc(label) + '">' +
@@ -1389,16 +1526,18 @@
     }
     function onBodyClick(e) {
       var b = e.target.closest("button"); if (!b || b.disabled) return;
-      var D = W(), row = b.closest("[data-lid]"), srow = b.closest("[data-sid]"), frow = b.closest("[data-fid]");
+      var D = W(), row = b.closest("[data-lid]"), srow = b.closest("[data-sid]"), frow = b.closest("[data-fid]"), mrow = b.closest("[data-mid]");
       if (row) {
         var id = row.dataset.lid;
         if (b.classList.contains("a-open")) { A.view = "form"; A.edit = id; paintBody(); }
+        else if (b.classList.contains("a-fav")) { var lf = linkById(id), wasM = !!lf.meet; setFav(lf, !(lf.fav && !lf.meet)); commit(); if (wasM && lf.fav) RP.toast("«" + lf.title + "» — в избранном, убрана из встреч", "star"); }
+        else if (b.classList.contains("a-meet")) { var lm = linkById(id), wasF = !!lm.fav; setMeet(lm, !lm.meet); commit(); if (wasF && lm.meet) RP.toast("«" + lm.title + "» — встреча, убрана из избранного", "video"); }
         else if (b.classList.contains("a-up")) moveLink(id, -1);
         else if (b.classList.contains("a-dn")) moveLink(id, 1);
         else if (b.classList.contains("a-del")) {
           var l = linkById(id);
           D.links.splice(idxOf(id), 1);
-          D.favoriteSeed = (D.favoriteSeed || []).filter(function (x) { return x !== id; });
+          D.favorites = (D.favorites || []).filter(function (x) { return x !== id; });
           commit(); RP.toast("Удалено: " + l.title, "trash");
         }
         return;
@@ -1413,16 +1552,24 @@
         return;
       }
       if (frow) {
-        var seed = D.favoriteSeed, fi = seed.indexOf(frow.dataset.fid);
-        if (b.classList.contains("f-up")) { if (swap(seed, fi, fi - 1)) commit(); }
-        else if (b.classList.contains("f-dn")) { if (swap(seed, fi, fi + 1)) commit(); }
-        else if (b.classList.contains("f-del")) { seed.splice(fi, 1); commit(); }
+        var fav = D.favorites, fi = fav.indexOf(frow.dataset.fid);
+        if (b.classList.contains("f-up")) { if (swap(fav, fi, fi - 1)) commit(); }
+        else if (b.classList.contains("f-dn")) { if (swap(fav, fi, fi + 1)) commit(); }
+        else if (b.classList.contains("f-del")) { var lx = linkById(frow.dataset.fid); if (lx) setFav(lx, false); else fav.splice(fi, 1); commit(); }
+        return;
+      }
+      if (mrow) {
+        // Порядок встреч = порядок ссылок meet в данных: меняемся местами с соседней встречей
+        var L = D.links, mi = idxOf(mrow.dataset.mid), dir = b.classList.contains("m-up") ? -1 : 1, mj = mi + dir;
+        if (b.classList.contains("m-del")) { setMeet(L[mi], false); commit(); return; }
+        while (mj >= 0 && mj < L.length && !L[mj].meet) mj += dir;
+        if (swap(L, mi, mj)) commit();
         return;
       }
       if (b.id === "sAdd") addSec();
       else if (b.id === "fsAddBtn") {
         var v = $("#fsAdd").value; if (!v) { $("#fsAdd").focus(); return; }
-        D.favoriteSeed = (D.favoriteSeed || []).concat([v]); commit();
+        setFav(linkById(v), true); commit();
       }
     }
     function renameSec(inp) {
@@ -1475,14 +1622,17 @@
         fld("eCopy", "Код копирования (в буфер при клике)", '<input id="eCopy" autocomplete="off" spellcheck="false">') +
         '<div class="f" id="eIconL">Иконка' + pickHtml(RP.icons.has(l.icon) ? l.icon : "", true, "Иконка ссылки").replace('class="ipick"', 'class="ipick" id="eIcon"') + "</div>" +
         fld("eNote", "Комментарий (в подсказке)", '<textarea id="eNote" rows="2"></textarea>') +
-        '<label class="sw"><input type="checkbox" id="eMeet"' + (l.meet ? " checked" : "") + "> Встреча Jazz — показывать в полосе «Встречи»</label>" +
+        '<div class="fpair"><label class="sw"><input type="checkbox" id="eFav"' + (l.fav && !l.meet ? " checked" : "") + ">" + I("star", "ui-i fi") + "В избранном</label>" +
+        '<label class="sw swh"><input type="checkbox" id="eFavHide"' + (l.favHide !== false ? " checked" : "") + "> Скрыть из раздела</label></div>" +
+        '<div class="fpair"><label class="sw"><input type="checkbox" id="eMeet"' + (l.meet ? " checked" : "") + (l.tool ? " disabled" : "") + ">" + I("video", "ui-i fi") + "Встреча — в полосе «Встречи»</label>" +
+        '<label class="sw swh"><input type="checkbox" id="eMeetHide"' + (l.meetHide !== false ? " checked" : "") + "> Скрыть из раздела</label></div>" +
         (l.tool ? "" : '<label class="sw"><input type="checkbox" id="eNoCheck"' + (l.check === false ? " checked" : "") + "> Не проверять доступность</label>") +
         '<p class="fe" id="eErr" aria-live="polite"></p>' +
         '<div class="row"><button class="btn" type="button" id="eCancel">Отмена</button><button class="btn pri" type="submit" id="eSave">' + I("check") + "Сохранить</button></div></form>";
       $("#eTitle").value = l.title || ""; if ($("#eUrl")) $("#eUrl").value = l.url || "";
       $("#eCopy").value = l.copy || ""; $("#eNote").value = l.note || "";
       var form = $("#eForm"), icon = RP.icons.has(l.icon) ? l.icon : "";
-      var DF = ["eTitle", "eUrl", "eSec", "eEnv", "eSeg", "eCopy", "eNote"], DC = ["eMeet", "eNoCheck"];
+      var DF = ["eTitle", "eUrl", "eSec", "eEnv", "eSeg", "eCopy", "eNote"], DC = ["eFav", "eFavHide", "eMeet", "eMeetHide", "eNoCheck"];
       // Черновик: значения полей формы до «Сохранить» / «Отмена»
       function keep() {
         var d = { edit: A.edit, v: {}, c: {}, t: [], icon: icon };
@@ -1504,7 +1654,8 @@
         if (l.tool) o.tool = l.tool; else o.url = $("#eUrl").value.trim();
         var env = $("#eEnv").value, seg = $("#eSeg").value, cp = $("#eCopy").value.trim(), nt = $("#eNote").value.trim();
         if (env) o.env = env; if (seg) o.seg = seg; if (cp) o.copy = cp; if (icon) o.icon = icon; if (nt) o.note = nt;
-        if ($("#eMeet").checked) o.meet = true;
+        if ($("#eFav").checked) { o.fav = true; if (!$("#eFavHide").checked) o.favHide = false; }
+        if ($("#eMeet").checked) { o.meet = true; if (!$("#eMeetHide").checked) o.meetHide = false; }
         if ($("#eNoCheck") && $("#eNoCheck").checked) o.check = false;
         // Неизвестные поля ссылки сохраняются как были
         if (cur) Object.keys(cur).forEach(function (k) { if (OWN.indexOf(k) < 0) o[k] = cur[k]; });
@@ -1514,6 +1665,8 @@
       // Сборка данных с этой ссылкой (без изменения рабочей копии)
       function draft(o) {
         var d = clone(D), i = cur ? idxOf(cur.id) : -1;
+        d.favorites = (d.favorites || []).filter(function (x) { return x !== o.id || o.fav; });
+        if (o.fav && d.favorites.indexOf(o.id) < 0) d.favorites.push(o.id);
         if (i >= 0 && d.links[i].section === o.section) { d.links[i] = o; return d; }
         if (i >= 0) d.links.splice(i, 1);
         // новая ссылка или смена раздела — в конец раздела
@@ -1536,6 +1689,16 @@
         $("#eSave").disabled = bad || !!(v && !v.ok);
         return !$("#eSave").disabled && o;
       }
+      // ★ и встреча взаимоисключающие; «Скрыть из раздела» активна только при своём флажке
+      function pair() {
+        $("#eFavHide").disabled = !$("#eFav").checked;
+        $("#eMeetHide").disabled = !$("#eMeet").checked;
+      }
+      form.addEventListener("change", function (e) {
+        if (e.target.id === "eFav" && e.target.checked) $("#eMeet").checked = false;
+        if (e.target.id === "eMeet" && e.target.checked) $("#eFav").checked = false;
+        pair();
+      });
       form.addEventListener("input", function (e) { if (e.target.id) e.target.dataset.touched = "1"; check(); keep(); });
       form.addEventListener("change", function (e) { if (e.target.id) e.target.dataset.touched = "1"; check(); keep(); });
       $("#eIcon").addEventListener("click", function (e) {
@@ -1556,7 +1719,7 @@
       function back() { var id = cur && cur.id; A.draft = null; A.view = "list"; A.edit = null; paintBody(); var f = id && $('[data-k="o:' + id + '"]'); if (f) f.focus(); }
       $("#eCancel").addEventListener("click", back); $("#eBack").addEventListener("click", back);
       if (cur) { $("#eTitle").dataset.touched = "1"; if ($("#eUrl")) $("#eUrl").dataset.touched = "1"; }
-      check();
+      pair(); check();
       $("#eTitle").focus();
     }
 
@@ -1678,6 +1841,7 @@
       }
       return fail("Ошибка в links.js: не задан window.RP_LINKS", "Файл должен начинаться с «window.RP_LINKS = {».");
     }
+    D = RP.core.normalize(D);   // старый формат (favoriteSeed) → новый; редактор и выгрузка работают с ним
     var v = RP.core.validate(D);
     v.warnings.forEach(function (w) { console.warn("links.js: " + w); });
     if (!v.ok) {

@@ -2,7 +2,8 @@
    Формат (window.RP_LINKS):
    version        — версия формата (сейчас 1)
    sections       — разделы: { id, name, icon }; порядок = порядок вывода
-   favoriteSeed   — id ссылок для стартового «Избранного», пока нет кликов
+   favorites      — порядок закреплённых в «Избранном» ссылок (id ссылок с fav: true)
+   settings       — { favAuto: true } — добирать свободные места избранного самыми частыми по кликам
    links          — ссылки, по одной на строку:
      id       — уникальный идентификатор
      section  — id раздела из sections
@@ -13,7 +14,10 @@
      copy     — код, копируется в буфер при клике (необязательно)
      icon     — имя иконки; иначе иконка раздела (необязательно)
      note     — комментарий в подсказке (необязательно)
+     fav      — true: закреплена в «Избранном» (необязательно)
+     favHide  — false: показывать и в разделе, пока она в «Избранном» (по умолчанию скрыта)
      meet     — true: встреча Jazz, попадает в полосу «Встречи» (необязательно)
+     meetHide — false: показывать встречу и в разделе (по умолчанию скрыта)
      tool     — decoder | role: встроенный инструмент вместо URL (необязательно)
      check    — false: не проверять доступность (необязательно)
    adminScripts   — реестр будущих скриптов, сейчас пуст */
@@ -32,26 +36,27 @@ window.RP_LINKS = {
     {"id":"repo","name":"Репозитории","icon":"code"},
     {"id":"tools","name":"Инструменты","icon":"cmd"}
   ],
-  "favoriteSeed": ["h-prom-a","h-prom-s","h-psi-a","kap-prom","kap-psi","sand","chat","jazz","daily","mail"],
+  "favorites": ["h-prom-a","h-prom-s","h-psi-a","kap-prom","kap-psi","sand","chat","jazz","mail"],
+  "settings": {"favAuto":true},
   "links": [
-    {"id":"chat","section":"comms","title":"СберЧат","url":"https://sberchat.sberbank.ru","icon":"chat"},
-    {"id":"jazz","section":"comms","title":"SberJazz","url":"https://jazz.sberbank.ru","icon":"video"},
-    {"id":"mail","section":"comms","title":"Почта","url":"https://mail.sberbank.ru/owa/#path=/mail","seg":"SIGMA","icon":"mail"},
+    {"id":"chat","section":"comms","title":"СберЧат","url":"https://sberchat.sberbank.ru","icon":"chat","fav":true},
+    {"id":"jazz","section":"comms","title":"SberJazz","url":"https://jazz.sberbank.ru","icon":"video","fav":true},
+    {"id":"mail","section":"comms","title":"Почта","url":"https://mail.sberbank.ru/owa/#path=/mail","seg":"SIGMA","icon":"mail","fav":true},
     {"id":"daily","section":"comms","title":"Дейли · Герои продаж","url":"https://jazz.sberbank.ru/sber-7g5cqu?psw=OBUVBwADHB0IBRIRXxcLDgcPDw","icon":"video","meet":true},
     {"id":"k2","section":"comms","title":"ПКАП встреча (K2)","url":"https://jazz.sberbank.ru/sber-gzdl5c?psw=OEcNEgsBXAZeVwoEVBVLFVFdFw","icon":"video","meet":true},
     {"id":"pereval","section":"comms","title":"ПКАП · Перевала Сергей","url":"https://jazz.sberbank.ru/sber-jd9r1x?psw=OBoIEQsCHAVcCg8HVBYLFlMAEg","icon":"video","meet":true},
     {"id":"open","section":"comms","title":"Встреча (open)","url":"https://jazz.sberbank.ru/sber-mnv6vl?psw=OEEKAUUdDBVeUQ0XGgkbBlFbEA","icon":"video","meet":true},
-    {"id":"h-prom-a","section":"heroes","title":"Герои продаж","url":"https://efs-our-business-prom.omega.sbrf.ru/salesheroes","env":"PROM","seg":"ALPHA"},
-    {"id":"h-prom-s","section":"heroes","title":"Герои продаж","url":"https://sh.sberbank.ru","env":"PROM","seg":"SIGMA"},
-    {"id":"h-psi-a","section":"heroes","title":"Герои продаж","url":"https://iam-enigma-psi.omega.sbrf.ru/salesheroes","env":"PSI","seg":"ALPHA","copy":"92863949"},
+    {"id":"h-prom-a","section":"heroes","title":"Герои продаж","url":"https://efs-our-business-prom.omega.sbrf.ru/salesheroes","env":"PROM","seg":"ALPHA","fav":true},
+    {"id":"h-prom-s","section":"heroes","title":"Герои продаж","url":"https://sh.sberbank.ru","env":"PROM","seg":"SIGMA","fav":true},
+    {"id":"h-psi-a","section":"heroes","title":"Герои продаж","url":"https://iam-enigma-psi.omega.sbrf.ru/salesheroes","env":"PSI","seg":"ALPHA","copy":"92863949","fav":true},
     {"id":"h-psi-s","section":"heroes","title":"Герои продаж","url":"https://salesheroes-psi.sigma.sbrf.ru","env":"PSI","seg":"SIGMA"},
     {"id":"h-ift-sb","section":"heroes","title":"Герои продаж СБ","url":"https://efs-ift-sb.delta.sbrf.ru/salesheroes","env":"IFT","seg":"SIGMA"},
     {"id":"h-ift-gf","section":"heroes","title":"Герои продаж ГФ","url":"https://efs-ift-gf.delta.sbrf.ru/salesheroes","env":"IFT","seg":"SIGMA"},
-    {"id":"sand","section":"heroes","title":"Песочница","url":"https://bf-enigma-ift.delta.sbrf.ru/","env":"IFT","seg":"SIGMA"},
+    {"id":"sand","section":"heroes","title":"Песочница","url":"https://bf-enigma-ift.delta.sbrf.ru/","env":"IFT","seg":"SIGMA","fav":true},
     {"id":"sand21","section":"heroes","title":"Песочница /21","url":"https://bf-enigma-ift.delta.sbrf.ru/21","env":"IFT","seg":"SIGMA"},
     {"id":"sandp","section":"heroes","title":"Песочница · профиль","url":"https://bf-enigma-ift.delta.sbrf.ru/salesheroes/gamification/profile","env":"IFT","seg":"SIGMA"},
-    {"id":"kap-prom","section":"kap","title":"КАП","url":"https://pvlos-sys000001.omega.sbrf.ru/SberDataCorr","env":"PROM","seg":"ALPHA"},
-    {"id":"kap-psi","section":"kap","title":"КАП","url":"https://tvlos-sys000001.cloud.omega.sbrf.ru","env":"PSI","seg":"ALPHA","copy":"92863949"},
+    {"id":"kap-prom","section":"kap","title":"КАП","url":"https://pvlos-sys000001.omega.sbrf.ru/SberDataCorr","env":"PROM","seg":"ALPHA","fav":true},
+    {"id":"kap-psi","section":"kap","title":"КАП","url":"https://tvlos-sys000001.cloud.omega.sbrf.ru","env":"PSI","seg":"ALPHA","copy":"92863949","fav":true},
     {"id":"kap-psi-new","section":"kap","title":"КАП (new)","url":"https://tslos-sys000002.cloud.omega.sbrf.ru/","env":"PSI","seg":"ALPHA","copy":"92863949"},
     {"id":"kap-ift","section":"kap","title":"КАП · data-load","url":"https://tvldw-sys000008.cloud.delta.sbrf.ru:3001/SberDataCorr/PCAP_KKSB_PG_GAME/data-load","env":"IFT","seg":"SIGMA","copy":"92863949"},
     {"id":"ctl","section":"kap","title":"Загрузка данных CTL","url":"https://ctl-ift.qa.df.sbrf.ru:9080/#/sign-in","env":"IFT","seg":"SIGMA","copy":"lakomkin-oo"},

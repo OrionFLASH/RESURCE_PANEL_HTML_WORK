@@ -55,9 +55,9 @@ test("недопустимые env и seg", () => {
   assert.equal(core.validate(d2).ok, false);
 });
 
-test("favoriteSeed с несуществующим id — предупреждение", () => {
+test("favoriteSeed с несуществующим id — предупреждение (старый формат)", () => {
   const d = clone(loadLinks());
-  d.favoriteSeed.push("ghost");
+  d.favoriteSeed = ["h-prom-a", "ghost"];
   const r = core.validate(d);
   assert.equal(r.ok, true);
   assert.ok(r.warnings.some((w) => w.includes("ghost")));
@@ -72,7 +72,7 @@ test("favoriteSeed не массив — ошибка", () => {
 });
 
 test("serializeLinks: круговой обмен", () => {
-  const d = loadLinks();
+  const d = clone(core.normalize(loadLinks()));
   const text = core.serializeLinks(d);
   assert.ok(text.startsWith("/*"));
   assert.ok(text.includes("window.RP_LINKS = "));
@@ -134,20 +134,6 @@ test("match: ranges для подсветки в title, раздел, хост, 
   assert.equal(core.match(d.links.find((x) => x.tool), "Раздел", "zzzz").hit, false);
 });
 
-test("rankFavorites", () => {
-  const d = loadLinks();
-  // seed без встреч/инструментов (daily — встреча), первые 9
-  const byId = Object.fromEntries(d.links.map((l) => [l.id, l]));
-  const seed = d.favoriteSeed.filter((id) => !byId[id].meet && !byId[id].tool).slice(0, 9);
-  assert.deepEqual(Array.from(core.rankFavorites(d.links, {}, d.favoriteSeed)), seed);
-  const r = Array.from(core.rankFavorites(d.links, { "kap-prom": 5, chat: 2 }, d.favoriteSeed));
-  assert.deepEqual(r.slice(0, 2), ["kap-prom", "chat"]);
-  assert.equal(r.length, 9);
-  const tool = d.links.find((l) => l.tool).id;
-  const m = Array.from(core.rankFavorites(d.links, { [tool]: 99 }, d.favoriteSeed));
-  assert.ok(!m.includes(tool));
-});
-
 test("decodePermission", () => {
   assert.deepEqual(Array.from(core.decodePermission("5").bits), [0, 2]);
   assert.deepEqual(Array.from(core.decodePermission("1,0").bits), [0]);
@@ -203,4 +189,141 @@ test("fieldErrors: сообщения по полям формы ссылки", 
   assert.match(core.fieldErrors({ ...ok, url: "https://" }, d).url, /хост|адрес/i);
   assert.match(core.fieldErrors({ ...ok, url: "https://a b.ru" }, d).url, /пробел/i);
   assert.equal(core.fieldErrors({ id: "t", section: "tools", title: "Инструмент", tool: "decoder" }, d).url, undefined);
+});
+
+// ---------- Доработка 1 (§12): избранное и встречи из админки ----------
+const OLD = () => ({
+  version: 1,
+  sections: [{ id: "s", name: "Раздел", icon: "link" }],
+  favoriteSeed: ["h-prom-a", "daily"],
+  links: [
+    { id: "h-prom-a", section: "s", title: "Герои", url: "https://a.test/" },
+    { id: "daily", section: "s", title: "Дейли", url: "https://j.test/", meet: true },
+    { id: "x", section: "s", title: "X", url: "https://x.test/" }
+  ],
+  adminScripts: []
+});
+
+test("реальные данные: новый формат — favorites, fav у закреплённых, settings.favAuto, без favoriteSeed", () => {
+  const d = loadLinks();
+  assert.ok(Array.isArray(d.favorites) && d.favorites.length > 0);
+  assert.equal(d.favoriteSeed, undefined);
+  assert.deepEqual(d.settings, { favAuto: true });
+  const byId = Object.fromEntries(d.links.map((l) => [l.id, l]));
+  d.favorites.forEach((id) => { assert.equal(byId[id].fav, true, id); assert.ok(!byId[id].meet, id); });
+  assert.equal(d.links.filter((l) => l.fav).length, d.favorites.length);
+  assert.equal(d.links.filter((l) => l.meet).length, 4);
+});
+
+test("normalize: старый favoriteSeed → favorites + fav:true, встречи исключены, settings по умолчанию", () => {
+  const src = OLD();
+  const n = core.normalize(src);
+  assert.deepEqual(Array.from(n.favorites), ["h-prom-a"]);
+  assert.equal(n.favoriteSeed, undefined);
+  const byId = Object.fromEntries(n.links.map((l) => [l.id, l]));
+  assert.equal(byId["h-prom-a"].fav, true);
+  assert.equal(byId.daily.fav, undefined);
+  assert.equal(byId.daily.meet, true);
+  assert.equal(byId.x.fav, undefined);
+  assert.equal(n.settings.favAuto, true);
+  assert.deepEqual(src.favoriteSeed, ["h-prom-a", "daily"], "исходный объект не меняется");
+  assert.equal(core.validate(n).ok, true, core.validate(n).errors.join("\n"));
+});
+
+test("normalize: идемпотентна; favorites и fav согласуются; favAuto:false сохраняется", () => {
+  const n1 = core.normalize(OLD());
+  assert.deepEqual(clone(core.normalize(n1)), clone(n1));
+  const d = clone(n1);
+  d.links[2].fav = true;                 // fav без записи в favorites — дописывается в конец
+  d.settings = { favAuto: false };
+  const n2 = core.normalize(d);
+  assert.deepEqual(Array.from(n2.favorites), ["h-prom-a", "x"]);
+  assert.equal(n2.settings.favAuto, false);
+  const d3 = clone(n1);
+  d3.favorites = ["x", "h-prom-a"];     // id в favorites без fav — получает fav:true
+  delete d3.links[0].fav;
+  const n3 = core.normalize(d3);
+  assert.deepEqual(Array.from(n3.favorites), ["x", "h-prom-a"]);
+  assert.equal(n3.links[0].fav, true);
+  assert.equal(n3.links[2].fav, true);
+  const real = loadLinks();
+  assert.deepEqual(clone(core.normalize(real)), real);
+});
+
+test("validate: favorites не массив, нестроковые флаги fav/favHide/meetHide/favAuto — ошибки; неизвестный id — предупреждение", () => {
+  const base = core.normalize(OLD());
+  const bad = (mut, key) => {
+    const d = clone(base); mut(d);
+    const r = core.validate(d);
+    assert.equal(r.ok, false, key);
+    assert.ok(r.errors.some((e) => e.includes(key)), key + ": " + r.errors.join("; "));
+  };
+  bad((d) => { d.favorites = "h-prom-a"; }, "favorites");
+  bad((d) => { d.links[0].fav = "yes"; }, "fav");
+  bad((d) => { d.links[0].favHide = 0; }, "favHide");
+  bad((d) => { d.links[1].meetHide = "no"; }, "meetHide");
+  bad((d) => { d.settings.favAuto = "true"; }, "favAuto");
+  bad((d) => { d.settings = []; }, "settings");
+  const d = clone(base); d.favorites.push("ghost");
+  const r = core.validate(d);
+  assert.equal(r.ok, true);
+  assert.ok(r.warnings.some((w) => w.includes("ghost")));
+  const ok = clone(base); ok.links[0].favHide = false; ok.links[1].meetHide = false; ok.settings.favAuto = false;
+  assert.equal(core.validate(ok).ok, true);
+});
+
+const PL = () => [
+  { id: "a", fav: true }, { id: "b" }, { id: "c", fav: true }, { id: "d" }, { id: "m", meet: true },
+  { id: "t", tool: "decoder" }, { id: "e", fav: true }, { id: "f" }
+];
+const pick = (...a) => clone(core.pickFavorites(...a));
+
+test("pickFavorites: закреплённые по порядку favorites, затем fav вне списка; переполнение", () => {
+  const r = pick(PL(), ["c", "a"], {}, 6, true);
+  assert.deepEqual(r.shown, ["c", "a", "e"]);
+  assert.deepEqual(r.pinnedShown, ["c", "a", "e"]);
+  assert.deepEqual(r.overflow, []);
+  const o = pick(PL(), ["c", "a", "e"], {}, 2, true);
+  assert.deepEqual(o.shown, ["c", "a"]);
+  assert.deepEqual(o.pinnedShown, ["c", "a"]);
+  assert.deepEqual(o.overflow, ["e"]);
+});
+
+test("pickFavorites: автодобор по кликам (без встреч, инструментов, уже показанных); favAuto=false — без добора", () => {
+  const clicks = { m: 50, t: 40, a: 30, f: 5, b: 5, d: 9 };
+  const r = pick(PL(), ["a"], clicks, 6, true);
+  assert.deepEqual(r.shown, ["a", "c", "e", "d", "b", "f"]);   // равные клики — порядок данных
+  assert.deepEqual(r.pinnedShown, ["a", "c", "e"]);
+  const s = pick(PL(), ["a"], clicks, 4, true);
+  assert.deepEqual(s.shown, ["a", "c", "e", "d"]);
+  const n = pick(PL(), ["a"], clicks, 6, false);
+  assert.deepEqual(n.shown, ["a", "c", "e"]);
+  // нет кликов и нет закреплённых — пусто
+  const z = pick([{ id: "x" }, { id: "y" }], [], {}, 6, true);
+  assert.deepEqual(z.shown, []);
+  // встреча с fav не попадает в избранное
+  const mf = pick([{ id: "m", meet: true, fav: true }, { id: "x", fav: true }], ["m", "x"], {}, 6, true);
+  assert.deepEqual(mf.shown, ["x"]);
+});
+
+test("hiddenInIndex: показанные закреплённые (кроме favHide:false) и встречи (кроме meetHide:false)", () => {
+  const data = { links: [
+    { id: "a", fav: true }, { id: "b", fav: true, favHide: false }, { id: "c", fav: true },
+    { id: "m1", meet: true }, { id: "m2", meet: true, meetHide: false }, { id: "x" }
+  ] };
+  const h = core.hiddenInIndex(data, ["a", "b"]);
+  assert.deepEqual([...h].sort(), ["a", "m1"]);
+});
+
+test("serializeLinks: новый формат — favorites и settings, без favoriteSeed; круговой обмен для старого входа", () => {
+  const text = core.serializeLinks(OLD());
+  assert.ok(text.includes('"favorites": ["h-prom-a"]'));
+  assert.ok(text.includes('"settings": {"favAuto":true}'));
+  assert.ok(!text.includes('"favoriteSeed"'));
+  assert.ok(/"id":"h-prom-a"[^\n]*"fav":true/.test(text));
+  const back = loadLinks(text);
+  assert.deepEqual(back, clone(core.normalize(OLD())));
+  assert.equal(core.serializeLinks(back), text);
+  const d = core.normalize(OLD()); d.links[0].favHide = false; d.links[1].meetHide = false; d.settings.favAuto = false;
+  assert.deepEqual(loadLinks(core.serializeLinks(d)), clone(d));
 });
