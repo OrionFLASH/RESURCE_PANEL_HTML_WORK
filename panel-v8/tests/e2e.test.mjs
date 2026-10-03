@@ -282,3 +282,202 @@ test("1440×900, раздел с 30 добавленными ссылками: �
     assert.deepEqual(realErrors(errors), []);
   });
 });
+
+// ---------- Взаимодействие: клик, копирование, подсказка, поиск, фильтры, избранное, встречи ----------
+// Сеть — заглушка 200; window.open записывает адреса в window.__opened; буфер — через разрешения контекста.
+function interact({ noClipboard = false, execOk = true } = {}) {
+  return {
+    context: { permissions: ["clipboard-read", "clipboard-write"] },
+    setup: async ({ page }) => {
+      await page.route((u) => /^https?:/.test(u.href), (route) => route.fulfill({ status: 200, contentType: "text/plain", body: "ok" }).catch(() => {}));
+      await page.addInitScript(({ noClipboard, execOk }) => {
+        window.__opened = [];
+        window.open = function (u) { window.__opened.push(String(u)); return null; };
+        window.__exec = [];
+        const orig = document.execCommand.bind(document);
+        document.execCommand = function (cmd) {
+          const a = document.activeElement;
+          window.__exec.push([cmd, a && "value" in a ? a.value : ""]);
+          return execOk ? orig.apply(document, arguments) || true : false;
+        };
+        if (noClipboard) Object.defineProperty(Navigator.prototype, "clipboard", { configurable: true, get() { return undefined; } });
+      }, { noClipboard, execOk });
+    }
+  };
+}
+const clip = (page) => page.evaluate(() => navigator.clipboard.readText());
+const toasts = (page) => page.$$eval("#toasts .toast", (a) => a.map((t) => t.textContent.trim()));
+const opened = (page) => page.evaluate(() => window.__opened);
+const URL_OF = (id) => (LINKS_SRC.match(new RegExp('"id":"' + id + '"[^\\n]*?"url":"([^"]+)"')) || [])[1];
+
+test("клик по ссылке с кодом: код в буфер, тост, открыт URL, rp_clicks +1", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await page.click("#ln-h-psi-a");
+    await page.waitForFunction(() => document.querySelectorAll("#toasts .toast").length > 0);
+    assert.equal(await clip(page), "92863949");
+    assert.ok((await toasts(page)).includes("Скопировано: 92863949"));
+    assert.deepEqual(await opened(page), [URL_OF("h-psi-a")]);
+    assert.deepEqual(await page.evaluate(() => RP.store.get("rp_clicks")), { "h-psi-a": 1 });
+    await page.click("#ln-varm");
+    await page.waitForFunction(() => document.querySelectorAll("#toasts .toast").length > 1);
+    assert.equal(await clip(page), "omega\\01803187");
+    assert.equal((await opened(page)).length, 2);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("клик без кода: открывает URL без копирования и тоста", () =>
+  withPanel(interact(), async ({ page }) => {
+    await page.click("#ln-qlik");
+    assert.deepEqual(await opened(page), [URL_OF("qlik")]);
+    await page.waitForTimeout(100);
+    assert.deepEqual(await toasts(page), []);
+  }));
+
+test("⌘/Ctrl+клик: URL в буфер, тост «Ссылка скопирована», не открывается и не считается", () =>
+  withPanel(interact(), async ({ page }) => {
+    await page.click("#ln-sprint", { modifiers: ["Meta"] });
+    await page.waitForFunction(() => document.querySelectorAll("#toasts .toast").length > 0);
+    assert.equal(await clip(page), URL_OF("sprint"));
+    assert.ok((await toasts(page)).includes("Ссылка скопирована"));
+    // Ctrl+клик — синтетическое событие (R2)
+    await page.evaluate(() => navigator.clipboard.writeText(""));
+    const r = await page.evaluate(() => {
+      const ev = new MouseEvent("click", { ctrlKey: true, bubbles: true, cancelable: true });
+      document.querySelector("#ln-q2").dispatchEvent(ev);
+      return ev.defaultPrevented;
+    });
+    assert.equal(r, true);
+    await page.waitForFunction(() => document.querySelectorAll("#toasts .toast").length > 1);
+    assert.equal(await clip(page), URL_OF("q2"));
+    // macOS: Ctrl+клик приходит как contextmenu с ctrlKey и левой кнопкой
+    const cm = await page.evaluate(() => {
+      const ev = new MouseEvent("contextmenu", { ctrlKey: true, button: 0, bubbles: true, cancelable: true });
+      document.querySelector("#ln-esr").dispatchEvent(ev);
+      return ev.defaultPrevented;
+    });
+    assert.equal(cm, true);
+    await page.waitForFunction(() => document.querySelectorAll("#toasts .toast").length > 2);
+    assert.equal(await clip(page), URL_OF("esr"));
+    assert.deepEqual(await opened(page), []);
+    assert.equal(await page.evaluate(() => RP.store.get("rp_clicks", null)), null);
+  }));
+
+test("без navigator.clipboard: execCommand('copy') через скрытый textarea", () =>
+  withPanel(interact({ noClipboard: true }), async ({ page }) => {
+    await page.click("#ln-ctl");
+    const ex = await page.evaluate(() => window.__exec);
+    assert.deepEqual(ex, [["copy", "lakomkin-oo"]]);
+    assert.ok((await toasts(page)).includes("Скопировано: lakomkin-oo"));
+    assert.deepEqual(await opened(page), [URL_OF("ctl")]);
+    assert.equal(await page.locator("textarea").count(), 0);
+  }));
+
+test("копирование не удалось: тост «Не удалось скопировать», ссылка всё равно открывается", () =>
+  withPanel(interact({ noClipboard: true, execOk: false }), async ({ page }) => {
+    await page.click("#ln-ctl");
+    assert.ok((await toasts(page)).includes("Не удалось скопировать"));
+    assert.deepEqual(await opened(page), [URL_OF("ctl")]);
+  }));
+
+test("наведение: подсказка с хостом, контуром, статусом и подсказкой по клику", () =>
+  withPanel(interact(), async ({ page }) => {
+    await page.hover("#ln-h-psi-a");
+    await page.waitForSelector("#tip.on", { timeout: 2000 });
+    const t = await page.innerText("#tip");
+    assert.match(t, /iam-enigma-psi\.omega\.sbrf\.ru/);
+    assert.match(t, /ПСИ · Alpha/);
+    assert.match(t, /Клик — открыть/);
+    assert.match(t, /92863949/);
+    assert.match(t, /\/salesheroes/);
+    assert.equal(await page.getAttribute("#tip", "aria-hidden"), "false");
+    await page.mouse.move(2, 2);
+    await page.waitForSelector("#tip:not(.on)");
+  }));
+
+test("поиск «пси alpha»: остаются только совпадения, подсветка, счётчик; Esc очищает", () =>
+  withPanel(interact(), async ({ page }) => {
+    await page.fill("#q", "пси alpha");
+    await page.waitForFunction(() => document.querySelector("#cnt").textContent.includes(" из "));
+    const r = await page.evaluate(() => {
+      const D = RP.ui.data, sec = (l) => RP.ui.secById[l.section].name;
+      const want = D.links.filter((l) => !l.meet && RP.core.match(l, sec(l), "пси alpha").hit).map((l) => l.id).sort();
+      const vis = [...document.querySelectorAll("#idx .ln")].filter((e) => !e.hidden && !e.closest(".sec").hidden).map((e) => e.dataset.linkId).sort();
+      return { want, vis, exp: document.querySelector("#q").getAttribute("aria-expanded"), marks: document.querySelectorAll("#idx .ln:not([hidden]) mark").length };
+    });
+    assert.ok(r.vis.length > 0 && r.vis.length < 84);
+    assert.deepEqual(r.vis, r.want);
+    assert.ok(r.vis.includes("h-psi-a") && !r.vis.includes("h-prom-a"));
+    assert.equal(r.exp, "true");
+    await page.focus("#q");
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => document.querySelectorAll("#idx .ln[hidden]").length === 0);
+    assert.equal(await page.inputValue("#q"), "");
+    assert.equal(await page.getAttribute("#q", "aria-expanded"), "false");
+  }));
+
+test("Ctrl/⌘+K фокусирует поиск; Enter открывает первую найденную", () =>
+  withPanel(interact(), async ({ page }) => {
+    await page.click("#theme");                          // увести фокус из поиска
+    assert.notEqual(await page.evaluate(() => document.activeElement.id), "q");
+    await page.keyboard.press("Control+k");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "q");
+    await page.click("#theme");
+    await page.keyboard.press("Meta+k");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "q");
+    await page.keyboard.type("герои");
+    await page.waitForFunction(() => document.querySelector("#cnt").textContent.includes(" из "));
+    const first = await page.evaluate(() => {
+      const ls = [...document.querySelectorAll("#idx .ln:not([hidden])")];
+      return { n: ls.length, url: ls[0].getAttribute("href") };
+    });
+    assert.ok(first.n > 1);
+    await page.keyboard.press("Enter");
+    assert.deepEqual(await opened(page), [first.url]);
+    // ↓ выбирает следующую строку, Enter открывает её
+    await page.keyboard.press("ArrowDown"); await page.keyboard.press("ArrowDown");
+    const sel = await page.evaluate(() => { const e = document.querySelector("#idx .ln.kb"); return { url: e.getAttribute("href"), ad: document.querySelector("#q").getAttribute("aria-activedescendant"), id: e.id }; });
+    assert.equal(sel.ad, sel.id);
+    await page.keyboard.press("Enter");
+    assert.equal((await opened(page))[1], sel.url);
+  }));
+
+test("фильтр «ИФТ» оставляет только ИФТ и инструменты; фильтры не запоминаются", () =>
+  withPanel(interact(), async ({ page }) => {
+    await page.click('#fEnv .chip[data-val="IFT"]');
+    const r = await page.evaluate(() => [...document.querySelectorAll("#idx .ln:not([hidden])")].map((e) => RP.ui.byId[e.dataset.linkId]));
+    assert.ok(r.length > 0);
+    assert.ok(r.every((l) => l.env === "IFT" || l.tool), JSON.stringify(r.filter((l) => l.env !== "IFT" && !l.tool).map((l) => l.id)));
+    assert.ok(r.some((l) => l.tool));
+    assert.equal(await page.getAttribute('#fEnv .chip[data-val="IFT"]', "aria-pressed"), "true");
+    assert.equal(await page.getAttribute('#fEnv .chip[data-val=""]', "aria-pressed"), "false");
+    await page.reload();
+    await page.waitForFunction(() => document.body.dataset.ready === "1");
+    assert.equal(await page.locator("#idx .ln[hidden]").count(), 0);
+    assert.equal(await page.getAttribute('#fEnv .chip[data-val=""]', "aria-pressed"), "true");
+  }));
+
+test("избранное: пустой rp_clicks → 9 из favoriteSeed; 3 клика по qlik → после перезагрузки первый", () =>
+  withPanel(interact(), async ({ page }) => {
+    const dock = () => page.$$eval("#dock [data-link-id]", (a) => a.map((e) => e.dataset.linkId));
+    const seed = ["h-prom-a", "h-prom-s", "h-psi-a", "kap-prom", "kap-psi", "sand", "chat", "jazz", "mail"];
+    assert.deepEqual(await dock(), seed);
+    for (let i = 0; i < 3; i++) await page.click("#ln-qlik");
+    assert.deepEqual(await dock(), seed);              // без перескоков до следующего открытия
+    await page.reload();
+    await page.waitForFunction(() => document.body.dataset.ready === "1");
+    const d = await dock();
+    assert.equal(d[0], "qlik");
+    assert.equal(d.length, 9);
+  }));
+
+test("встречи: полоса из 4 чипов, в разделе «Коммуникации» их нет; клик открывает встречу", () =>
+  withPanel(interact(), async ({ page }) => {
+    const r = await page.evaluate(() => ({
+      meets: [...document.querySelectorAll("#meets [data-link-id]")].map((e) => e.dataset.linkId),
+      comms: [...document.querySelectorAll('#idx [data-section-id="comms"] [data-link-id]')].map((e) => e.dataset.linkId)
+    }));
+    assert.equal(r.meets.length, 4);
+    assert.ok(r.meets.every((id) => !r.comms.includes(id)));
+    await page.click('#meets [data-link-id="daily"]');
+    assert.deepEqual(await opened(page), [URL_OF("daily")]);
+  }));

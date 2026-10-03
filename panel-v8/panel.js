@@ -488,6 +488,7 @@
     $("#cnt").textContent = D.links.length + " ссылок";
     buildIndex(); buildMeets(); buildDock(); buildGroups(); renderSum();
     layout();
+    if (S.apply) S.apply();
   }
   S.render = render;
 
@@ -615,6 +616,246 @@
   }
   S.check = check;
 
+  // ---------- Тосты ----------
+  RP.toast = function (text, icon) {
+    var box = $("#toasts"), t = document.createElement("div");
+    t.className = "toast"; t.innerHTML = I(icon || "copy") + "<span></span>";
+    $("span", t).textContent = text;
+    box.appendChild(t);
+    while (box.children.length > 3) box.firstChild.remove();
+    setTimeout(function () { t.remove(); }, 2600);
+    return t;
+  };
+
+  // ---------- Буфер обмена ----------
+  // Синхронный запасной путь: скрытый textarea + execCommand('copy') (работает в обработчике клика, в т.ч. с file://)
+  function copyLegacy(text) {
+    var ta = document.createElement("textarea"), back = document.activeElement, ok = false;
+    ta.value = text; ta.setAttribute("readonly", ""); ta.setAttribute("aria-hidden", "true");
+    ta.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { ok = !!document.execCommand("copy"); } catch (e) { ok = false; }
+    ta.remove();
+    if (back && back.focus && back !== document.body) try { back.focus({ preventScroll: true }); } catch (e) {}
+    return ok;
+  }
+  // RP.copy(text, done?) -> boolean: false — копирование точно не удалось (синхронно).
+  // done(ok) вызывается по итогу: сразу для запасного пути, после промиса — для navigator.clipboard.
+  RP.copy = function (text, done) {
+    text = String(text);
+    done = done || function () {};
+    var cb = null;
+    try { cb = navigator.clipboard && typeof navigator.clipboard.writeText === "function" && window.isSecureContext !== false ? navigator.clipboard : null; } catch (e) { cb = null; }
+    if (cb) {
+      try {
+        cb.writeText(text).then(function () { done(true); }, function () { done(copyLegacy(text)); });
+        return true;
+      } catch (e) {}
+    }
+    var ok = copyLegacy(text);
+    done(ok);
+    return ok;
+  };
+
+  // ---------- Клики по ссылкам ----------
+  function bump(id) {
+    var c = RP.store.get("rp_clicks", {});
+    if (!c || typeof c !== "object" || Array.isArray(c)) c = {};
+    c[id] = (+c[id] || 0) + 1;
+    RP.store.set("rp_clicks", c);   // избранное пересчитается при следующем открытии
+  }
+  function copyUrl(l) {
+    RP.copy(l.url, function (ok) { RP.toast(ok ? "Ссылка скопирована" : "Не удалось скопировать", ok ? "link" : "alert"); });
+  }
+  // Действие по ссылке: ev — событие клика/клавиши (Ctrl/⌘ — копировать URL вместо открытия)
+  function activate(l, ev) {
+    hideTip();
+    if (l.tool) { if (RP.tools && RP.tools.open) RP.tools.open(l); return; }
+    if (ev && (ev.ctrlKey || ev.metaKey)) { copyUrl(l); return; }
+    if (l.copy) RP.copy(l.copy, function (ok) { RP.toast(ok ? "Скопировано: " + l.copy : "Не удалось скопировать", ok ? "copy" : "alert"); });
+    window.open(l.url, "_blank", "noopener");
+    bump(l.id);
+  }
+  S.activate = activate;
+  function linkOf(ev) {
+    var el = ev.target && ev.target.closest && ev.target.closest("[data-link-id]");
+    return el && S.byId[el.dataset.linkId] ? el : null;
+  }
+  var ctxAt = 0;
+  function bindLinks() {
+    document.addEventListener("click", function (ev) {
+      var el = linkOf(ev);
+      if (!el || ev.button !== 0) return;
+      ev.preventDefault();
+      // macOS: после contextmenu с Ctrl браузер может прислать и click — не дублируем
+      if (ev.ctrlKey && Date.now() - ctxAt < 600) return;
+      activate(S.byId[el.dataset.linkId], ev);
+    });
+    // macOS: Ctrl+клик левой кнопкой приходит как contextmenu
+    document.addEventListener("contextmenu", function (ev) {
+      var el = linkOf(ev);
+      if (!el || !ev.ctrlKey || ev.button !== 0) return;
+      ev.preventDefault(); ctxAt = Date.now();
+      var l = S.byId[el.dataset.linkId];
+      if (!l.tool) { hideTip(); copyUrl(l); }
+    });
+    // Средняя кнопка — поведение браузера по умолчанию; клик всё равно учитываем
+    document.addEventListener("auxclick", function (ev) {
+      var el = linkOf(ev);
+      if (el && ev.button === 1 && !S.byId[el.dataset.linkId].tool) bump(el.dataset.linkId);
+    });
+  }
+
+  // ---------- Подсказка при наведении ----------
+  var tip = null, tipTimer = 0, tipFor = null, mx = 0, my = 0;
+  function hhmm(d) { d = new Date(d); return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+  function ctxOf(l) { return [l.env ? ENV_LBL[l.env] : "", l.seg ? SEG_LBL[l.seg] : ""].filter(Boolean).join(" · "); }
+  function stText(s) {
+    if (s.st === "up") return "Доступен" + (s.ms != null ? " · " + s.ms + " мс" : "") + (s.at ? " · " + hhmm(s.at) : "");
+    if (s.st === "down") return "Недоступен" + (s.err === "timeout" ? " · таймаут" : s.err === "network" ? " · ошибка сети" : "") + (s.at ? " · " + hhmm(s.at) : "");
+    if (s.st === "skip") return "Не проверяется";
+    return "Проверяется…";
+  }
+  function tipHtml(l) {
+    var ctx = ctxOf(l), sec = S.secById[l.section];
+    var h = "<h3>" + esc(l.title) + "</h3>";
+    if (l.tool) {
+      h += '<div class="u">Встроенный инструмент панели</div><dl><dt>Раздел</dt><dd>' + esc(sec ? sec.name : "") + "</dd>" +
+        (ctx ? "<dt>Контур</dt><dd>" + ctx + "</dd>" : "") + (l.note ? "<dt>Комментарий</dt><dd>" + esc(l.note) + "</dd>" : "") + "</dl>";
+      return h + '<div class="hint">Клик — открыть форму</div>';
+    }
+    var u = RP.core.parseUrl(l.url), hash = l.url.indexOf("#") >= 0 ? l.url.slice(l.url.indexOf("#")) : "";
+    h += '<div class="u">' + esc(l.url) + "</div><dl>";
+    if (l.note) h += "<dt>Комментарий</dt><dd>" + esc(l.note) + "</dd>";
+    if (u.host) {
+      h += "<dt>Хост</dt><dd><code>" + esc(u.host + (u.port ? ":" + u.port : "")) + "</code></dd><dt>Путь</dt><dd><code>" + esc((u.path || "/") + hash) + "</code></dd>";
+      if (u.params.length) h += "<dt>Параметры</dt><dd>" + u.params.map(function (p) { return "<code>" + esc(p[0]) + "=" + esc(p[1]) + "</code>"; }).join("<br>") + "</dd>";
+    }
+    if (ctx) h += "<dt>Контур</dt><dd>" + ctx + "</dd>";
+    var s = RP.status.get(l.id);
+    h += '<dt>Статус</dt><dd><span class="st" data-st="' + esc(s.st) + '"><i class="dot"></i>' + stText(s) + "</span></dd>";
+    if (l.copy) h += "<dt>Код</dt><dd><code>" + esc(l.copy) + "</code> — копируется при открытии</dd>";
+    return h + '</dl><div class="hint">Клик — открыть · ' + (isMac ? "⌘" : "Ctrl") + "+клик — копировать ссылку</div>";
+  }
+  function placeTip(x, y) {
+    var r = tip.getBoundingClientRect(), W = window.innerWidth, H = window.innerHeight;
+    var left = x + 16, top = y + 18;
+    if (left + r.width > W - 8) left = Math.max(8, x - r.width - 12);
+    if (top + r.height > H - 8) top = Math.max(8, y - r.height - 12);
+    tip.style.transform = "translate(" + Math.round(left) + "px," + Math.round(top) + "px)";
+  }
+  function showTip(el, x, y) {
+    tipFor = el; tip.innerHTML = tipHtml(S.byId[el.dataset.linkId]);
+    tip.classList.add("on"); tip.setAttribute("aria-hidden", "false"); placeTip(x, y);
+  }
+  function hideTip() {
+    clearTimeout(tipTimer); tipFor = null;
+    if (tip) { tip.classList.remove("on"); tip.setAttribute("aria-hidden", "true"); }
+  }
+  S.hideTip = hideTip;
+  function bindTip() {
+    tip = $("#tip");
+    document.addEventListener("pointerover", function (ev) {
+      var el = linkOf(ev);
+      if (el === tipFor) return;
+      hideTip(); if (!el || ev.pointerType === "touch") return;
+      tipTimer = setTimeout(function () { if (el.isConnected) showTip(el, mx, my); }, 180);
+    });
+    document.addEventListener("pointermove", function (ev) { mx = ev.clientX; my = ev.clientY; if (tipFor) placeTip(mx, my); });
+    document.addEventListener("focusin", function (ev) {
+      var el = linkOf(ev);
+      if (!el) { if (tipFor) hideTip(); return; }
+      var r = el.getBoundingClientRect(); showTip(el, r.left + 24, r.bottom - 10);
+    });
+    window.addEventListener("scroll", hideTip, true);
+  }
+
+  // ---------- Поиск и фильтры (фильтры не запоминаются) ----------
+  var F = S.filter = { env: "", seg: "", q: "" };
+  function passes(l) {
+    // Инструменты остаются при любом стенде/сегменте — их отбирает только поиск
+    if (!l.tool && F.env && l.env !== F.env) return { hit: false, ranges: [] };
+    if (!l.tool && F.seg && l.seg !== F.seg) return { hit: false, ranges: [] };
+    var s = S.secById[l.section];
+    return RP.core.match(l, s ? s.name : "", F.q);
+  }
+  function hl(text, ranges) {
+    var out = "", pos = 0;
+    ranges.forEach(function (r) { out += esc(text.slice(pos, r[0])) + "<mark>" + esc(text.slice(r[0], r[1])) + "</mark>"; pos = r[1]; });
+    return out + esc(text.slice(pos));
+  }
+  function apply() {
+    if (!S.data) return;
+    var n = 0, total = S.data.links.length, on = !!(F.q.trim() || F.env || F.seg);
+    S.data.links.forEach(function (l) {
+      var m = passes(l), el = S.lineEl[l.id] || S.meetEl[l.id];
+      if (m.hit) n++;
+      if (!el) return;
+      if (S.lineEl[l.id]) el.hidden = !m.hit; else el.classList.toggle("mute", !m.hit);
+      $(".tt", el).innerHTML = hl(l.title, m.hit ? m.ranges : []);
+    });
+    S.data.sections.forEach(function (s) {
+      var sec = S.secEl[s.id]; if (!sec) return;
+      var v = $$(".ln:not([hidden])", sec).length;
+      sec.hidden = !v; $("em", sec).textContent = v; S.secN[s.id] = v;
+    });
+    $$(".app", $("#dock")).forEach(function (a) { a.classList.toggle("mute", !passes(S.byId[a.dataset.linkId]).hit); });
+    $("#cnt").textContent = on ? n + " из " + total : total + " ссылок";
+    $("#omni").classList.toggle("has", !!F.q);
+    $("#q").setAttribute("aria-expanded", on ? "true" : "false");
+    if (S.paintGroups) S.paintGroups();
+    setActive(-1);
+    if (S.laidOut) placeColumns(S.cols); else layout();
+  }
+  S.apply = apply;
+
+  // Клавиатура в поиске: ↑↓ — выбор строки, Enter — открыть, Esc — очистить
+  var active = -1;
+  function visLines() { return $$("#idx .ln:not([hidden])"); }
+  function setActive(i) {
+    var ls = visLines(), q = $("#q");
+    $$(".ln.kb").forEach(function (e) { e.classList.remove("kb"); });
+    active = ls.length ? Math.max(-1, Math.min(i, ls.length - 1)) : -1;
+    if (active >= 0) {
+      ls[active].classList.add("kb");
+      ls[active].scrollIntoView({ block: "nearest" }); q.setAttribute("aria-activedescendant", ls[active].id);
+    } else q.removeAttribute("aria-activedescendant");
+  }
+  function bindSearch() {
+    var q = $("#q"), qT = 0;
+    q.setAttribute("aria-expanded", "false");
+    q.addEventListener("input", function () { F.q = q.value; clearTimeout(qT); qT = setTimeout(apply, 60); });
+    q.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setActive(active + 1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); setActive(active - 1); }
+      else if (e.key === "Enter") {
+        if (F.q !== q.value) { F.q = q.value; clearTimeout(qT); apply(); }   // Enter сразу после ввода — без ожидания
+        var ls = visLines(), el = ls[active >= 0 ? active : 0];
+        if (el && (F.q.trim() || active >= 0)) { e.preventDefault(); activate(S.byId[el.dataset.linkId], e); }
+      } else if (e.key === "Escape") {
+        if (q.value) { e.preventDefault(); q.value = ""; F.q = ""; clearTimeout(qT); apply(); } else q.blur();
+      }
+    });
+    $("#clr").addEventListener("click", function () { q.value = ""; F.q = ""; apply(); q.focus(); });
+    $(".filters").addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest(".chip");
+      if (!b) return;
+      var g = b.parentNode, key = g.id === "fEnv" ? "env" : "seg";
+      F[key] = b.dataset.val;
+      $$(".chip", g).forEach(function (c) { c.setAttribute("aria-pressed", c === b ? "true" : "false"); });
+      apply();
+    });
+    // Ctrl/⌘+K, а также «/» вне поля ввода — фокус в поиск
+    document.addEventListener("keydown", function (e) {
+      var tag = document.activeElement && document.activeElement.tagName;
+      var typing = /INPUT|TEXTAREA|SELECT/.test(tag || "");
+      if (((e.ctrlKey || e.metaKey) && !e.altKey && (e.key || "").toLowerCase() === "k") || (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey)) {
+        if (document.querySelector(".modal.on, .drawer.on")) return;
+        e.preventDefault(); q.focus(); q.select();
+      }
+    });
+  }
+
   // ---------- Тема: тёмная по умолчанию, светлая «Туман»; rp_theme ----------
   RP.theme = {
     get: function () { return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"; },
@@ -667,6 +908,7 @@
     RP.theme.paint();
     $("#theme").addEventListener("click", RP.theme.toggle);
     render(D);
+    bindLinks(); bindTip(); bindSearch();
     $("#refresh").addEventListener("click", function () { check(); });
     var rT = 0; window.addEventListener("resize", function () { clearTimeout(rT); rT = setTimeout(layout, 120); });
     if (window.innerWidth >= 767) $("#q").focus(); else $("#q").placeholder = "Поиск ссылок";
