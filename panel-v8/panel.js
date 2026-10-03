@@ -476,6 +476,8 @@
   var ENV_LBL = { PROM: "PROM", PSI: "ПСИ", IFT: "ИФТ" }, SEG_LBL = { ALPHA: "Alpha", SIGMA: "Sigma" };
   var isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 
+  // Для показа: дефис внутри слова — неразрывный (U+2011), чтобы «data-load» не переносился по дефису; длина строки та же
+  function nbh(t) { return String(t).replace(/([0-9A-Za-zА-Яа-яЁё])-(?=[0-9A-Za-zА-Яа-яЁё])/g, "$1\u2011"); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
   // Состояние страницы; later-задачи читают и дополняют его
@@ -511,8 +513,8 @@
   }
 
   // ---------- Отрисовка ----------
-  // Строки указателя: встречи с meetHide !== false не строятся; показанные закреплённые (favHide !== false) —
-  // строятся, но скрыты (.away), пока нет поискового запроса. Раздел без видимых строк не показывается (.void).
+  // Строки указателя: показанные закреплённые (favHide !== false) и встречи (meetHide !== false) строятся, но скрыты (.away),
+  // пока нет поискового запроса — поиск, ↑↓ и Enter находят и их. Раздел без видимых строк не показывается (.void).
   function buildIndex() {
     S.lineEl = {}; S.secEl = {}; S.secN = {};
     var hide = S.hide || new Set();
@@ -523,10 +525,10 @@
       sec.innerHTML = '<h2 class="sh" id="h-' + s.id + '">' + I(RP.icons.has(s.icon) ? s.icon : "link") + "<span>" + esc(s.name) + "</span><em></em></h2>";
       var n = 0;
       S.data.links.forEach(function (l) {
-        if (l.section !== s.id || (l.meet && hide.has(l.id))) return;
+        if (l.section !== s.id) return;
         var el = linkEl(l, "ln");
         el.id = "ln-" + l.id; el.setAttribute("aria-label", ariaOf(l));
-        el.innerHTML = I(iconOf(l)) + '<span class="tt">' + esc(l.title) + "</span>" + (l.copy ? I("copy", "ui-i cp") : "") +
+        el.innerHTML = I(iconOf(l)) + '<span class="tt">' + esc(nbh(l.title)) + "</span>" + (l.copy ? I("copy", "ui-i cp") : "") +
           '<span class="ld"></span>' + tagsHtml(l) + '<span class="dot"></span>';
         if (hide.has(l.id)) { el.classList.add("away"); el.hidden = true; } else n++;
         S.lineEl[l.id] = el; sec.appendChild(el);
@@ -543,7 +545,7 @@
       if (!l.meet) return;
       var a = linkEl(l, "mt");
       a.setAttribute("aria-label", "Встреча: " + ariaOf(l));
-      a.innerHTML = I("video") + '<span class="tt">' + esc(l.title) + '</span><span class="dot"></span>';
+      a.innerHTML = I("video") + '<span class="tt">' + esc(nbh(l.title)) + '</span><span class="dot"></span>';
       S.meetEl[l.id] = a; box.appendChild(a);
     });
     box.parentNode.hidden = !box.children.length;
@@ -555,7 +557,7 @@
       var l = S.byId[id], a = linkEl(l, "app");
       a.setAttribute("aria-label", ariaOf(l));
       a.innerHTML = '<span class="sq">' + I(iconOf(l)) + '<span class="dot"></span>' + (l.copy ? '<span class="cp">' + I("copy") + "</span>" : "") +
-        '</span><span class="lb">' + esc(l.title) + "</span>" + tagsHtml(l);
+        '</span><span class="lb">' + esc(nbh(l.title)) + "</span>" + tagsHtml(l);
       dock.appendChild(a);
     });
     $(".favs").hidden = !dock.children.length;
@@ -957,8 +959,8 @@
       var m = passes(l), ln = S.lineEl[l.id], mt = S.meetEl[l.id];
       if (m.hit) n++;
       // Закреплённая, скрытая из раздела, возвращается в раздел только на время поиска (Enter/↑↓ находят её)
-      if (ln) { ln.hidden = !m.hit || (ln.classList.contains("away") && !qOn); $(".tt", ln).innerHTML = hl(l.title, m.hit ? m.ranges : []); }
-      if (mt) { mt.classList.toggle("mute", !m.hit); $(".tt", mt).innerHTML = hl(l.title, m.hit ? m.ranges : []); }
+      if (ln) { ln.hidden = !m.hit || (ln.classList.contains("away") && !qOn); $(".tt", ln).innerHTML = hl(nbh(l.title), m.hit ? m.ranges : []); }
+      if (mt) { mt.classList.toggle("mute", !m.hit); $(".tt", mt).innerHTML = hl(nbh(l.title), m.hit ? m.ranges : []); }
     });
     S.data.sections.forEach(function (s) {
       var sec = S.secEl[s.id]; if (!sec) return;
@@ -968,6 +970,8 @@
     $$(".app", $("#dock")).forEach(function (a) { a.classList.toggle("mute", !passes(S.byId[a.dataset.linkId]).hit); });
     $("#cnt").textContent = on ? n + " из " + total : total + " ссылок";
     $("#omni").classList.toggle("has", !!F.q);
+    // Поиск возвращает скрытые строки сверх подобранной плотности: указатель на время запроса прокручивается сам (страница — нет)
+    document.body.classList.toggle("q", qOn);
     $("#q").setAttribute("aria-expanded", on ? "true" : "false");
     if (S.paintGroups) S.paintGroups();
     setActive(-1);
@@ -1091,9 +1095,11 @@
     $$(".gr", gp).forEach(function (li) {
       var id = li.dataset.sec, s = S.secById[id], o = off.indexOf(id) >= 0, n = S.secN[id] || 0, eye = $(".gr-eye", li);
       if (!s) return;
-      li.classList.toggle("off", o); li.classList.toggle("zero", !o && !n);
+      var vd = !!(S.secEl[id] && S.secEl[id].classList.contains("void"));
+      li.classList.toggle("off", o); li.classList.toggle("zero", !o && !n); li.classList.toggle("void", vd);
+      if (vd) li.title = "Все ссылки группы — в избранном и встречах"; else li.removeAttribute("title");
       $(".ic b", li).textContent = n; $(".c", li).textContent = n;
-      $(".gr-go", li).setAttribute("aria-label", s.name + ", ссылок: " + n + (o ? ", скрыта в списке" : ""));
+      $(".gr-go", li).setAttribute("aria-label", s.name + ", ссылок: " + n + (o ? ", скрыта в списке" : "") + (vd ? ", все ссылки в избранном и встречах" : ""));
       eye.innerHTML = I(o ? "eyeoff" : "eye"); eye.setAttribute("aria-pressed", o ? "false" : "true");
       eye.setAttribute("aria-label", (o ? "Показать" : "Скрыть") + " группу «" + s.name + "» в списке");
       eye.title = o ? "Показать в списке" : "Скрыть из списка";
@@ -1181,7 +1187,7 @@
       var go = e.target.closest(".gr-go");
       if (!go) return hideGtip();
       var r = go.getBoundingClientRect(), id = go.parentNode.dataset.sec, sm = document.createElement("small");
-      gtip.textContent = go.dataset.name; sm.textContent = S.off.indexOf(id) >= 0 ? "скрыта" : (S.secN[id] || 0); gtip.appendChild(sm);
+      gtip.textContent = go.dataset.name; sm.textContent = S.off.indexOf(id) >= 0 ? "скрыта" : go.parentNode.classList.contains("void") ? "в избранном" : (S.secN[id] || 0); gtip.appendChild(sm);
       gtip.style.transform = "translate(" + Math.round(gp.getBoundingClientRect().right + 8) + "px," + Math.round(r.top + r.height / 2 - 15) + "px)";
       gtip.classList.add("on");
     });

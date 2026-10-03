@@ -252,7 +252,7 @@ kbd { font: 600 10.5px/1 var(--mono); color: var(--ink2); background: var(--sf3)
 /* Подпись плитки — до 2 строк; метки прижаты книзу, чтобы стоять на одной линии у соседних плиток */
 .app .lb {
   max-width: 100%; font-size: var(--fs-xs); font-weight: var(--fw-sb); line-height: 1.25; color: var(--ink); text-align: center;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; max-height: 2.5em; overflow: hidden; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; max-height: 2.5em; overflow: hidden; overflow-wrap: break-word;
 }
 .app .tags { min-height: 19px; margin-top: auto; }
 .app[data-st="down"] .lb { color: var(--mut); }
@@ -269,6 +269,8 @@ body.fit.compact .idx { padding-top: 8px; padding-bottom: 6px; }
   display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); column-gap: clamp(22px, 2vw, 44px); align-content: start;
 }
 body.fit .idx { overflow: hidden; padding-bottom: 10px; }
+/* Идёт поиск: в разделы вернулись скрытые строки — указатель прокручивается внутри, страница остаётся без прокрутки */
+body.fit.q .idx { overflow: hidden auto; overscroll-behavior: contain; }
 /* Плотная ступень: омнибокс поднимается в строку шапки, сводка — только цифры */
 body.compact .hero { margin-top: calc(-1 * var(--top-h) + 2px); pointer-events: none; }
 body.compact .hero > * { pointer-events: auto; }
@@ -294,12 +296,12 @@ body.compact .sum .lbl { display: none; }
 .ln > .ui-i { width: 17px; height: 17px; color: var(--mut); }
 /* Название — до 2 строк, многоточие только после второй; полное — в подсказке */
 .ln .tt {
-  flex: 0 1 auto; min-width: 0; line-height: 1.2; overflow-wrap: anywhere;
+  flex: 0 1 auto; min-width: 0; line-height: 1.2; overflow-wrap: break-word;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; max-height: 2.4em; overflow: hidden;
 }
 .ln .cp { width: 14px; height: 14px; color: var(--mut); }
 /* Отточие, как в оглавлении книги: ведёт взгляд от названия к меткам */
-.ln .ld { flex: 1 1 10px; min-width: 0; height: 0; border-bottom: 1px dotted var(--line2); transform: translateY(3px); }
+.ln .ld { flex: 1 1 0; min-width: 0; height: 0; border-bottom: 1px dotted var(--line2); transform: translateY(3px); }
 /* Недоступная ссылка: гаснет только название; иконка, метки и красная точка остаются в цвете */
 .ln[data-st="down"] .tt { color: var(--mut); }
 .sec { border-radius: 10px; transition: background .6s var(--ease), box-shadow .6s var(--ease); }
@@ -319,7 +321,7 @@ mark { background: var(--g-t); color: var(--g-ink); border-radius: 3px; padding:
 .mt:hover { background: var(--sf2); }
 .mt > .ui-i { width: 16px; height: 16px; color: var(--g-ink); }
 .mt .tt {
-  max-width: 220px; white-space: normal; line-height: 1.2; overflow-wrap: anywhere;
+  max-width: 220px; white-space: normal; line-height: 1.2; overflow-wrap: break-word;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; max-height: 2.4em; overflow: hidden;
 }
 .mt[data-st="down"] .tt { color: var(--mut); }

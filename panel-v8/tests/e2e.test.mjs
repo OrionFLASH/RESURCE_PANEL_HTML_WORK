@@ -507,7 +507,7 @@ test("встречи: полоса из 4 чипов, в разделе «Ком
   withPanel(interact(), async ({ page }) => {
     const r = await page.evaluate(() => ({
       meets: [...document.querySelectorAll("#meets [data-link-id]")].map((e) => e.dataset.linkId),
-      comms: [...document.querySelectorAll('#idx [data-section-id="comms"] [data-link-id]')].map((e) => e.dataset.linkId)
+      comms: [...document.querySelectorAll('#idx [data-section-id="comms"] [data-link-id]')].filter((e) => e.offsetParent).map((e) => e.dataset.linkId)
     }));
     assert.equal(r.meets.length, 4);
     assert.ok(r.meets.every((id) => !r.comms.includes(id)));
@@ -1323,3 +1323,60 @@ for (const [w, h] of [[1440, 900], [1920, 1080]]) for (const rail of ["open", "c
     });
   });
 }
+
+// ---------- Доработка 1, правки по ревью ----------
+test("§12 поиск «а» на 1440×900: возвращённые строки доступны — указатель прокручивается, страница нет", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await page.fill("#q", "а");
+    await page.waitForFunction(() => document.querySelector("#cnt").textContent.includes(" из "));
+    const m = await metrics(page);
+    assert.ok(m.sh <= m.ih, `scrollHeight ${m.sh} > ${m.ih}`);
+    assert.ok(m.sw <= m.iw, `scrollWidth ${m.sw} > ${m.iw}`);
+    const r = await page.evaluate(() => {
+      const idx = document.querySelector("#idx"), rows = [...idx.querySelectorAll(".ln")].filter((e) => e.offsetParent);
+      const box = () => idx.getBoundingClientRect();
+      const res = { n: rows.length, over: idx.scrollHeight > idx.clientHeight + 1, oy: getComputedStyle(idx).overflowY, cut: 0 };
+      // каждую строку можно прокрутить в видимую область указателя
+      rows.forEach((e) => { e.scrollIntoView({ block: "nearest" }); const b = box(), q = e.getBoundingClientRect(); if (q.top < b.top - 1 || q.bottom > b.bottom + 1) res.cut++; });
+      return res;
+    });
+    assert.ok(r.n > 75, `строк ${r.n}`);
+    assert.equal(r.oy, "auto");
+    assert.equal(r.cut, 0);
+    // запрос очищен — указатель снова без прокрутки
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#cnt").textContent.includes(" из "));
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector("#idx")).overflowY), "hidden");
+    assert.equal(await page.evaluate(() => window.scrollY), 0);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("§12 встреча, скрытая из раздела, находится поиском: «дейли» + Enter открывает daily", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    assert.ok(!(await secIds(page, "comms")).includes("daily"));
+    await page.fill("#q", "дейли");
+    await page.waitForFunction(() => document.querySelector("#cnt").textContent.includes(" из "));
+    assert.deepEqual(await secIds(page, "comms"), ["daily"]);
+    await page.press("#q", "Enter");
+    assert.deepEqual(await opened(page), [URL_OF("daily")]);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("§12 короткие названия не переносятся раньше времени: «Герои продаж СБ», «КАП · data-load», «Песочница /21» — в одну строку", () =>
+  withPanel({ width: 1440, height: 900 }, async ({ page, errors }) => {
+    for (const id of ["h-ift-sb", "kap-ift", "sand21"]) {
+      const b = await titleBox(page, `#ln-${id} .tt`);
+      assert.ok(Math.abs(b.lines - 1) < 0.15, `${id}: строк ${b.lines}`);
+    }
+    assert.deepEqual(errors, []);
+  }));
+
+test("§12 панель групп: раздел, целиком ушедший в избранное и встречи, приглушён с пояснением", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    const li = page.locator('#gpList .gr[data-sec="comms"]');
+    assert.equal(await li.evaluate((e) => e.classList.contains("void")), true);
+    assert.match(await li.getAttribute("title"), /в избранном и встречах/);
+    assert.match(await li.locator(".gr-go").getAttribute("aria-label"), /в избранном и встречах/);
+    assert.equal(await page.locator('#gpList .gr[data-sec="heroes"]').getAttribute("title"), null);
+    assert.deepEqual(realErrors(errors), []);
+  }));
