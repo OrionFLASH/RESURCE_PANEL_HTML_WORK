@@ -386,7 +386,7 @@ body:not(.fit) .gp { position: sticky; top: 0; height: 100vh; height: 100dvh; al
 .gp.m-compact .gr .ic b { display: block; }
 .gp.m-compact .gr .c { display: none; }
 .gp.m-compact:not(.peek) .gs { width: 44px; padding: 0 13px; cursor: text; }
-.gp.m-compact:not(.peek) .gp-hint, .gp.m-compact:not(.peek) .gp-all em { visibility: hidden; }
+.gp.m-compact:not(.peek) .gp-hint, .gp.m-compact:not(.peek) .gp-all em, .gp.m-compact:not(.peek) .gp-all > span { visibility: hidden; }
 .gp.m-compact:not(.peek) .gr-eye, .gp.m-compact:not(.peek) .nm { visibility: hidden; }
 .gp.m-compact:not(.peek) .gr.off { opacity: .8; }
 .gtip {
@@ -441,7 +441,8 @@ label.f { display: block; font-size: var(--fs-s); color: var(--ink2); margin-bot
 label.f input, label.f textarea, label.f select { display: block; width: 100%; margin-top: 6px; padding: 9px 11px; border-radius: var(--r-m); border: 1px solid var(--line2); background: var(--inp); font-size: var(--fs-m); }
 label.f textarea { min-height: 84px; resize: vertical; font-family: var(--mono); font-size: 12px; }
 .out { font: 12px/1.5 var(--mono); background: var(--sf3); border-radius: var(--r-m); padding: 10px 12px; margin: 0 0 12px; color: var(--ink2); white-space: pre-wrap; }
-.row { display: flex; gap: 8px; justify-content: flex-end; }
+.out.err { color: var(--red-ink); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .drawer {
   position: fixed; z-index: calc(var(--z-modal) + 1); top: 10px; right: 10px; bottom: 10px; width: min(420px, calc(100vw - 20px));
   border-radius: var(--r-xl); padding: 22px; display: none; overflow-y: auto;

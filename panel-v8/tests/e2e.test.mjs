@@ -514,3 +514,207 @@ test("ничего не найдено: «zz<b>zz» (экранирование)
     assert.equal(await page.textContent("#cnt"), "88 ссылок");
     assert.deepEqual(realErrors(errors), []);
   }));
+
+// ---------- Панель групп: состояния, поиск групп, «глаз», Alt+клик, шторка ----------
+const SEC_IDS = ["comms", "heroes", "kap", "sup", "access", "itsm", "data", "docs", "jira", "repo", "tools"];
+const idxSecs = (page) => page.$$eval("#idx [data-section-id]", (a) => a.map((e) => e.dataset.sectionId));
+
+test("панель групп: кнопка циклит open → compact → hidden, rp_rail переживает перезагрузку", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    const mode = () => page.evaluate(() => {
+      const gp = document.querySelector("#gp");
+      return { m: ["open", "compact", "hidden"].find((m) => gp.classList.contains("m-" + m)), w: Math.round(gp.getBoundingClientRect().width), rail: RP.store.get("rp_rail", null) };
+    });
+    assert.deepEqual(await mode(), { m: "open", w: 248, rail: null });
+    await page.click("#gpBtn");
+    assert.deepEqual(await mode(), { m: "compact", w: 60, rail: "compact" });
+    assert.match(await page.getAttribute("#gpBtn", "aria-label"), /узкая.*скрытой/);
+    // узкая: раскрытие поверх по задержке наведения
+    await page.hover('#gpList .gr[data-sec="data"] .gr-go');
+    await page.waitForFunction(() => document.querySelector("#gp").classList.contains("peek"), null, { timeout: 2000 });
+    await page.mouse.move(900, 500);
+    await page.click("#gpBtn");
+    assert.deepEqual(await mode(), { m: "hidden", w: 0, rail: "hidden" });
+    await page.reload();
+    await page.waitForFunction(() => document.body.dataset.ready === "1");
+    assert.deepEqual(await mode(), { m: "hidden", w: 0, rail: "hidden" });
+    await page.click("#gpBtn");
+    assert.deepEqual(await mode(), { m: "open", w: 248, rail: "open" });
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("панель групп: поиск «дан» оставляет «Данные и аналитика» (и другие названия с «дан»); клик — подсветка раздела", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await page.fill("#gq", "дан");
+    const vis = await page.$$eval("#gpList .gr:not([hidden])", (a) => a.map((e) => e.dataset.sec));
+    assert.ok(vis.includes("data"));
+    assert.deepEqual(vis, ["kap", "data"]);   // «КАП и загрузка данных» тоже содержит «дан»
+    assert.equal(await page.innerText('#gpList .gr[data-sec="data"] .nm mark'), "Дан");
+    assert.equal(await page.isHidden("#gpNone"), true);
+    await page.fill("#gq", "яяя");
+    assert.equal(await page.isVisible("#gpNone"), true);
+    await page.fill("#gq", "");
+    assert.equal(await page.locator("#gpList .gr:not([hidden])").count(), 11);
+    await page.click('#gpList .gr[data-sec="data"] .gr-go');
+    await page.waitForFunction(() => document.querySelector("#sec-data").classList.contains("flash"));
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("панель групп: «глаз» скрывает раздел (rp_groups), колонки перестроены; «Показать все · скрыто 1» возвращает", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    assert.equal(await page.isHidden("#gpAll"), true);
+    await page.hover('#gpList .gr[data-sec="data"]');
+    await page.click('#gpList .gr[data-sec="data"] .gr-eye');
+    assert.equal((await idxSecs(page)).includes("data"), false);
+    assert.equal((await idxSecs(page)).length, 10);
+    assert.deepEqual(await page.evaluate(() => RP.store.get("rp_groups")), ["data"]);
+    assert.equal(await page.getAttribute('#gpList .gr[data-sec="data"] .gr-eye', "aria-pressed"), "false");
+    assert.equal(await page.evaluate(() => document.querySelector('#gpList .gr[data-sec="data"]').classList.contains("off")), true);
+    assert.equal(await page.isVisible("#gpAll"), true);
+    assert.match(await page.innerText("#gpAll"), /Показать все\s*скрыто 1/);
+    // перезагрузка сохраняет скрытие
+    await page.reload();
+    await page.waitForFunction(() => document.body.dataset.ready === "1");
+    assert.equal((await idxSecs(page)).includes("data"), false);
+    await page.click("#gpAll");
+    assert.equal((await idxSecs(page)).length, 11);
+    assert.deepEqual(await page.evaluate(() => RP.store.get("rp_groups")), []);
+    assert.equal(await page.isHidden("#gpAll"), true);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("панель групп: Alt+клик оставляет одну группу, повторный Alt+клик возвращает все", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await page.click('#gpList .gr[data-sec="heroes"] .gr-go', { modifiers: ["Alt"] });
+    assert.deepEqual(await idxSecs(page), ["heroes"]);
+    assert.equal((await page.evaluate(() => RP.store.get("rp_groups"))).length, 10);
+    assert.match(await page.innerText("#gpAll"), /скрыто 10/);
+    await page.click('#gpList .gr[data-sec="heroes"] .gr-go', { modifiers: ["Alt"] });
+    assert.equal((await idxSecs(page)).length, 11);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("все группы скрыты: короткое сообщение и «Показать все группы»", () =>
+  withPanel({ ...interact(), seed: { rp_groups: JSON.stringify(SEC_IDS) } }, async ({ page, errors }) => {
+    const t = await page.innerText("#idx .empty");
+    assert.match(t, /Все группы скрыты/);
+    assert.match(await page.innerText("#gpAll"), /скрыто 11/);
+    await page.click("#idx .empty #reset");
+    assert.equal((await idxSecs(page)).length, 11);
+    assert.deepEqual(await page.evaluate(() => RP.store.get("rp_groups")), []);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("390×844: шторка групп открывается кнопкой, Esc и клик мимо закрывают", () =>
+  withPanel({ ...interact(), width: 390, height: 844 }, async ({ page, errors }) => {
+    const on = () => page.evaluate(() => ({
+      gp: document.querySelector("#gp").classList.contains("on"),
+      scrim: document.querySelector("#scrim").classList.contains("on"),
+      exp: document.querySelector("#gpBtn").getAttribute("aria-expanded"),
+      left: Math.round(document.querySelector("#gp").getBoundingClientRect().left)
+    }));
+    assert.equal((await on()).gp, false);
+    await page.click("#gpBtn");
+    await page.waitForTimeout(300);
+    assert.deepEqual(await on(), { gp: true, scrim: true, exp: "true", left: 0 });
+    assert.equal(await page.evaluate(() => !!document.activeElement.closest("#gp")), true);
+    await page.keyboard.press("Escape");
+    const c = await on();
+    assert.equal(c.gp, false); assert.equal(c.scrim, false); assert.equal(c.exp, "false");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "gpBtn");
+    await page.click("#gpBtn");
+    await page.waitForTimeout(300);
+    await page.mouse.click(380, 400);   // по подложке справа от шторки
+    assert.equal((await on()).gp, false);
+    // клик по группе в шторке — закрывает её
+    await page.click("#gpBtn");
+    await page.waitForTimeout(300);
+    await page.click('#gpList .gr[data-sec="docs"] .gr-go');
+    assert.equal((await on()).gp, false);
+    const m = await metrics(page);
+    assert.equal(m.sw, 390);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+// ---------- Инструменты: модальные окна ----------
+const modalOn = (page) => page.evaluate(() => document.querySelector("#modal").classList.contains("on"));
+
+test("Декодер permission: 5 → биты 0, 2; zz → ошибка; Очистить; Esc закрывает и возвращает фокус", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await page.click('#idx [data-link-id="decoder"]');
+    assert.equal(await modalOn(page), true);
+    assert.equal(await page.innerText("#mTitle"), "Декодер permission");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "tIn");
+    await page.fill("#tIn", "5");
+    await page.click("text=Расшифровать");
+    assert.equal(await page.textContent("#tOut"), "Бинарное представление:\n10100000 00000000 00000000 00000000\n\nВключённые биты:\n0, 2");
+    assert.match(await page.innerText("#tOut"), /Включённые биты:\s*0, 2/);
+    await page.fill("#tIn", "zz");
+    await page.click("text=Расшифровать");
+    assert.equal(await page.textContent("#tOut"), "Ошибка! Некорректный ввод.");
+    await page.click("text=Очистить");
+    assert.equal(await page.inputValue("#tIn"), "");
+    assert.equal(await page.isHidden("#tOut"), true);
+    // фокус удерживается внутри окна
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press("Tab");
+      assert.equal(await page.evaluate(() => !!document.activeElement.closest("#modal")), true);
+    }
+    await page.keyboard.press("Shift+Tab");
+    assert.equal(await page.evaluate(() => !!document.activeElement.closest("#modal")), true);
+    await page.keyboard.press("Escape");
+    assert.equal(await modalOn(page), false);
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.linkId), "decoder");
+    // «Закрыть» и клик мимо окна
+    await page.click('#idx [data-link-id="decoder"]');
+    await page.click("#modal >> text=Закрыть");
+    assert.equal(await modalOn(page), false);
+    await page.click('#idx [data-link-id="decoder"]');
+    await page.mouse.click(20, 880);
+    assert.equal(await modalOn(page), false);
+    assert.deepEqual(await opened(page), []);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("Проверка роли (ПСИ): «Открыть» неактивна при пустом поле; открывает URL из §7; «По умолчанию»", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await page.click('#idx [data-link-id="role"]');
+    assert.equal(await modalOn(page), true);
+    assert.equal(await page.inputValue("#tEmp"), "673892");
+    assert.equal(await page.inputValue("#tRole"), "EFS_NB_SUP_BUSINESS_ADMIN_GAMIFICATION");
+    assert.equal(await page.isEnabled("#tOpen"), true);
+    await page.fill("#tEmp", "");
+    assert.equal(await page.isDisabled("#tOpen"), true);
+    await page.fill("#tEmp", "673892");
+    assert.equal(await page.isEnabled("#tOpen"), true);
+    await page.fill("#tRole", "  ");
+    assert.equal(await page.isDisabled("#tOpen"), true);
+    await page.click("text=По умолчанию");
+    assert.equal(await page.inputValue("#tRole"), "EFS_NB_SUP_BUSINESS_ADMIN_GAMIFICATION");
+    assert.equal(await page.isEnabled("#tOpen"), true);
+    await page.evaluate(() => { const o = window.open; window.__openArgs = []; window.open = function (u, t, f) { window.__openArgs.push([t, f]); return o.apply(this, arguments); }; });
+    await page.click("#tOpen");
+    assert.deepEqual(await opened(page), ["https://iam-enigma-psi.omega.sbrf.ru/rmkib.support/api/v1/service/auth/explain/html?employee-number=673892&role=EFS_NB_SUP_BUSINESS_ADMIN_GAMIFICATION"]);
+    assert.deepEqual(await page.evaluate(() => window.__openArgs), [["_blank", "noopener"]]);
+    // кодирование значений
+    await page.fill("#tRole", "A&B ?");
+    await page.click("#tOpen");
+    assert.match((await opened(page))[1], /role=A%26B%20%3F$/);
+    assert.deepEqual(realErrors(errors), []);
+  }));
+
+test("RP.modal.open/close: произвольное содержимое, Esc закрывает", () =>
+  withPanel(interact(), async ({ page, errors }) => {
+    await page.evaluate(() => {
+      const d = document.createElement("div");
+      d.innerHTML = '<h2 id="mTitle">Тест</h2><input id="mx1"><button type="button" id="mx2">ok</button>';
+      RP.modal.open(d);
+    });
+    assert.equal(await modalOn(page), true);
+    assert.equal(await page.evaluate(() => document.activeElement.id), "mx1");
+    assert.equal(await page.evaluate(() => RP.modal.isOpen()), true);
+    await page.evaluate(() => RP.modal.close());
+    assert.equal(await modalOn(page), false);
+    assert.equal(await page.evaluate(() => document.querySelector("#scrim").classList.contains("on")), false);
+    assert.deepEqual(realErrors(errors), []);
+  }));

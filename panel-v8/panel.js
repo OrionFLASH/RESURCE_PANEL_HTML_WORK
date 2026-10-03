@@ -381,6 +381,7 @@
     data: null, byId: {}, secById: {},
     st: {},                // id → wait | up | down | local | skip
     lineEl: {}, secEl: {}, meetEl: {}, secN: {},
+    off: null,             // id разделов, скрытых в указателе (rp_groups)
     cols: 4, laidOut: false,
     ENV: ENV_LBL, SEG: SEG_LBL, esc: esc, $: $, $$: $$
   };
@@ -412,6 +413,7 @@
     S.data.sections.forEach(function (s) {
       var sec = document.createElement("section");
       sec.className = "sec"; sec.id = "sec-" + s.id; sec.dataset.sectionId = s.id; sec.setAttribute("aria-labelledby", "h-" + s.id);
+      if (S.off.indexOf(s.id) >= 0) sec.classList.add("off");
       sec.innerHTML = '<h2 class="sh" id="h-' + s.id + '">' + I(RP.icons.has(s.icon) ? s.icon : "link") + "<span>" + esc(s.name) + "</span><em></em></h2>";
       var n = 0;
       S.data.links.forEach(function (l) {
@@ -483,10 +485,12 @@
     var D = S.data = data || S.data;
     S.byId = {}; S.secById = {};
     D.sections.forEach(function (s) { S.secById[s.id] = s; });
+    if (!S.off) { S.off = RP.store.get("rp_groups", []); if (!Array.isArray(S.off)) S.off = []; }
+    S.off = S.off.filter(function (id, i, a) { return S.secById[id] && a.indexOf(id) === i; });
     D.links.forEach(function (l) { S.byId[l.id] = l; if (!S.st[l.id] || S.st[l.id] === "local" || S.st[l.id] === "skip") S.st[l.id] = initialSt(l); });
     $("#subt").textContent = D.links.length + " рабочих ссылок · " + D.sections.length + " разделов";
     $("#cnt").textContent = D.links.length + " ссылок";
-    buildIndex(); buildMeets(); buildDock(); buildGroups(); renderSum();
+    buildIndex(); buildMeets(); buildDock(); buildGroups(); paintGroups(); renderSum();
     layout();
     if (S.apply) S.apply();
   }
@@ -496,19 +500,21 @@
   var RAILS = ["open", "compact", "hidden"];
   var RAIL_NAME = { open: "развёрнута", compact: "узкая", hidden: "скрыта" }, RAIL_NEXT = { open: "compact", compact: "hidden", hidden: "open" };
   var RAIL_TO = { open: "развёрнутой", compact: "узкой", hidden: "скрытой" };
+  var railMem = null;   // запасное значение, если localStorage недоступен
   function railMode() {
-    var r = RP.store.get("rp_rail", null);
+    var r = railMem || RP.store.get("rp_rail", null);
     if (window.innerWidth < 767) return "drawer";
     return RAILS.indexOf(r) >= 0 ? r : window.innerWidth >= 1280 ? "open" : "compact";
   }
   function applyRail() {
     var m = railMode(), gp = $("#gp"), btn = $("#gpBtn");
+    if (m !== "drawer" && layer === gp) closeLayer();
     gp.classList.remove("m-open", "m-compact", "m-hidden", "m-drawer", "peek"); gp.classList.add("m-" + m);
     document.body.style.setProperty("--pw", m === "open" ? "248px" : m === "compact" ? "60px" : "0px");
     btn.dataset.m = m;
     if (m === "drawer") {
       btn.setAttribute("aria-label", "Группы ссылок"); btn.title = "Группы ссылок";
-      btn.setAttribute("aria-expanded", gp.classList.contains("on") ? "true" : "false");
+      btn.setAttribute("aria-expanded", layer === gp ? "true" : "false");
       gp.setAttribute("role", "dialog"); gp.setAttribute("aria-modal", "true"); gp.setAttribute("aria-labelledby", "gpTtl");
     } else {
       var lbl = "Панель групп: " + RAIL_NAME[m] + ". Нажмите — сделать " + RAIL_TO[RAIL_NEXT[m]];
@@ -538,6 +544,13 @@
       .filter(function (e) { return e && !e.hidden && !e.classList.contains("off"); });
     idx.innerHTML = ""; idx.style.setProperty("--cols", cols);
     var F = S.filter;
+    if (!secs.length && S.off.length && S.data.sections.every(function (s) { return S.off.indexOf(s.id) >= 0 || S.secEl[s.id].hidden; })) {
+      var z = document.createElement("div");
+      z.className = "empty"; z.setAttribute("role", "status");
+      z.innerHTML = "<b>Все группы скрыты</b>Включите нужные группы в панели слева или верните все сразу." +
+        '<br><button class="btn" type="button" id="reset">Показать все группы</button>';
+      idx.appendChild(z); $("#reset").addEventListener("click", function () { setOff([]); }); return;
+    }
     if (!secs.length && F && (F.q.trim() || F.env || F.seg)) {
       // Поиск/фильтры ничего не оставили
       var e = document.createElement("div"), q = F.q.trim(), fl = F.env || F.seg;
@@ -867,11 +880,237 @@
       var tag = document.activeElement && document.activeElement.tagName;
       var typing = /INPUT|TEXTAREA|SELECT/.test(tag || "");
       if (((e.ctrlKey || e.metaKey) && !e.altKey && (e.key || "").toLowerCase() === "k") || (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey)) {
-        if (document.querySelector(".modal.on, .drawer.on")) return;
+        if (layer || document.querySelector(".modal.on, .drawer.on")) return;
         e.preventDefault(); q.focus(); q.select();
       }
     });
   }
+
+  // ---------- Слои: модальное окно, шторка групп (Esc / клик мимо закрывают, фокус удерживается внутри) ----------
+  var layer = null, layerBack = null, layerOnClose = null;
+  function focusables(el) {
+    return $$("button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]", el)
+      .filter(function (x) { return x.offsetParent !== null; });
+  }
+  // opts: { focus?: элемент, onClose?(), noFocus?: true }
+  function openLayer(el, opts) {
+    opts = opts || {};
+    if (layer && layer !== el) closeLayer(true);
+    layerBack = layer === el ? layerBack : document.activeElement; layer = el; layerOnClose = opts.onClose || null; hideTip();
+    $("#scrim").classList.add("on"); el.classList.add("on");
+    if (opts.noFocus) return;
+    var f = opts.focus || $("input, textarea, select", el) || focusables(el).filter(function (b) { return !b.classList.contains("x"); })[0] || focusables(el)[0];
+    if (f) f.focus();
+  }
+  // keepFocus — не возвращать фокус (сразу открывается другой слой)
+  function closeLayer(keepFocus) {
+    if (!layer) return;
+    var el = layer, cb = layerOnClose, back = layerBack;
+    layer = null; layerOnClose = null; layerBack = null;
+    el.classList.remove("on"); $("#scrim").classList.remove("on");
+    if (cb) cb();
+    if (keepFocus !== true && back && back.isConnected && back.focus) try { back.focus({ preventScroll: true }); } catch (e) {}
+  }
+  function trap(e) {
+    var f = focusables(layer); if (!f.length) return;
+    var a = document.activeElement, i = f.indexOf(a);
+    if (e.shiftKey && (i <= 0)) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && (i < 0 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+  }
+  function bindLayers() {
+    $("#scrim").addEventListener("click", function () { closeLayer(); });
+    document.addEventListener("keydown", function (e) {
+      if (!layer) return;
+      if (e.key === "Escape") { e.preventDefault(); closeLayer(); }
+      else if (e.key === "Tab") trap(e);
+    });
+  }
+  S.openLayer = openLayer; S.closeLayer = closeLayer;
+  S.layer = function () { return layer; };
+
+  // RP.modal.open(node | html, opts?) — стеклянное окно #modal с кнопкой «Закрыть» (крестик); RP.modal.close()
+  RP.modal = {
+    open: function (node, opts) {
+      var m = $("#modal");
+      m.innerHTML = '<button class="btn ic x" type="button" aria-label="Закрыть" title="Закрыть">' + I("close") + "</button>";
+      if (typeof node === "string") m.insertAdjacentHTML("beforeend", node); else if (node) m.appendChild(node);
+      $(".x", m).addEventListener("click", function () { RP.modal.close(); });
+      openLayer(m, opts);
+      return m;
+    },
+    close: function () { if (layer === $("#modal")) closeLayer(); },
+    isOpen: function () { return layer === $("#modal"); }
+  };
+
+  // ---------- Панель групп: поведение ----------
+  function paintGroups() {
+    var gp = $("#gp"), off = S.off || [];
+    $$(".gr", gp).forEach(function (li) {
+      var id = li.dataset.sec, s = S.secById[id], o = off.indexOf(id) >= 0, n = S.secN[id] || 0, eye = $(".gr-eye", li);
+      if (!s) return;
+      li.classList.toggle("off", o); li.classList.toggle("zero", !o && !n);
+      $(".ic b", li).textContent = n; $(".c", li).textContent = n;
+      $(".gr-go", li).setAttribute("aria-label", s.name + ", ссылок: " + n + (o ? ", скрыта в списке" : ""));
+      eye.innerHTML = I(o ? "eyeoff" : "eye"); eye.setAttribute("aria-pressed", o ? "false" : "true");
+      eye.setAttribute("aria-label", (o ? "Показать" : "Скрыть") + " группу «" + s.name + "» в списке");
+      eye.title = o ? "Показать в списке" : "Скрыть из списка";
+    });
+    var all = $("#gpAll"); all.hidden = !off.length;
+    $("#gaN").textContent = "скрыто " + off.length;
+    all.setAttribute("aria-label", "Показать все группы, скрыто " + off.length);
+  }
+  S.paintGroups = paintGroups;
+  // Новый список скрытых разделов: запомнить, перестроить колонки
+  function setOff(list) {
+    S.off = list; RP.store.set("rp_groups", list);
+    S.data.sections.forEach(function (s) { if (S.secEl[s.id]) S.secEl[s.id].classList.toggle("off", list.indexOf(s.id) >= 0); });
+    paintGroups(); layout(); setActive(-1);
+  }
+  S.setOff = setOff;
+  function toggleGroup(id) {
+    var next = S.off.slice(), i = next.indexOf(id);
+    if (i >= 0) next.splice(i, 1); else next.push(id);
+    setOff(next);
+  }
+  // Alt+клик: оставить только эту группу; повторно — вернуть все
+  function isolate(id) {
+    var others = S.data.sections.map(function (s) { return s.id; }).filter(function (x) { return x !== id; });
+    var only = S.off.length === others.length && S.off.indexOf(id) < 0;
+    setOff(only ? [] : others);
+    RP.toast(only ? "Показаны все группы" : "Только группа «" + S.secById[id].name + "»", "check");
+  }
+  function flash(el) {
+    var rm = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: document.body.classList.contains("fit") ? "nearest" : "start", behavior: rm ? "auto" : "smooth" });
+    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+    clearTimeout(el._ft); el._ft = setTimeout(function () { el.classList.remove("flash"); }, 1100);
+  }
+  function gotoGroup(id) {
+    if (layer === $("#gp")) closeLayer();
+    if (S.off.indexOf(id) >= 0) setOff(S.off.filter(function (x) { return x !== id; }));
+    var sec = S.secEl[id];
+    if (!sec || sec.hidden) { RP.toast("В группе «" + S.secById[id].name + "» нет ссылок по текущему поиску", "info"); return; }
+    requestAnimationFrame(function () { flash(sec); });
+  }
+  function bindGroups() {
+    var gp = $("#gp"), gq = $("#gq"), gtip = $("#gtip"), peekT = 0;
+    function hideGtip() { gtip.classList.remove("on"); }
+    gp.addEventListener("click", function (e) {
+      if (e.target.closest("#gpAll")) { setOff([]); return; }
+      if (e.target.closest("#gpX")) { closeLayer(); return; }
+      var li = e.target.closest(".gr");
+      if (!li) return;
+      hideGtip();
+      if (e.target.closest(".gr-eye")) { toggleGroup(li.dataset.sec); return; }
+      if (e.altKey) { e.preventDefault(); isolate(li.dataset.sec); return; }
+      gotoGroup(li.dataset.sec);
+    });
+    // Поиск группы по названию (подстрока, без учёта регистра)
+    gq.addEventListener("input", function () {
+      var q = gq.value.trim().toLowerCase(), any = false;
+      $$(".gr", gp).forEach(function (li) {
+        var s = S.secById[li.dataset.sec], i = q ? s.name.toLowerCase().indexOf(q) : 0, on = i >= 0;
+        li.hidden = !on; any = any || on;
+        $(".nm", li).innerHTML = q && on ? esc(s.name.slice(0, i)) + "<mark>" + esc(s.name.slice(i, i + q.length)) + "</mark>" + esc(s.name.slice(i + q.length)) : esc(s.name);
+      });
+      $("#gpNone").hidden = any;
+    });
+    gq.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && gq.value) { e.preventDefault(); e.stopPropagation(); gq.value = ""; gq.dispatchEvent(new Event("input")); }
+      else if (e.key === "Enter") { var f = $$(".gr", gp).filter(function (li) { return !li.hidden; })[0]; if (f) { e.preventDefault(); gotoGroup(f.dataset.sec); } }
+    });
+    // Кнопка панели: открыть шторку (<767px) или сменить состояние open → compact → hidden
+    $("#gpBtn").addEventListener("click", function () {
+      var m = railMode(), btn = $("#gpBtn");
+      if (m === "drawer") {
+        if (layer === gp) { closeLayer(); return; }
+        openLayer(gp, { noFocus: true, onClose: function () { btn.setAttribute("aria-expanded", "false"); } });
+        btn.setAttribute("aria-expanded", "true");
+        setTimeout(function () { var f = $(".gr:not([hidden]) .gr-go", gp); if (layer === gp && f) f.focus(); }, 30);   // после смены visibility
+        return;
+      }
+      railMem = RAIL_NEXT[m]; RP.store.set("rp_rail", railMem); layout();
+    });
+    // Узкая панель: подсказка с названием сразу, раскрытие поверх указателя — после задержки курсора
+    gp.addEventListener("pointerover", function (e) {
+      if (!gp.classList.contains("m-compact") || gp.classList.contains("peek") || e.pointerType === "touch") return hideGtip();
+      var go = e.target.closest(".gr-go");
+      if (!go) return hideGtip();
+      var r = go.getBoundingClientRect(), id = go.parentNode.dataset.sec, sm = document.createElement("small");
+      gtip.textContent = go.dataset.name; sm.textContent = S.off.indexOf(id) >= 0 ? "скрыта" : (S.secN[id] || 0); gtip.appendChild(sm);
+      gtip.style.transform = "translate(" + Math.round(gp.getBoundingClientRect().right + 8) + "px," + Math.round(r.top + r.height / 2 - 15) + "px)";
+      gtip.classList.add("on");
+    });
+    gp.addEventListener("mouseenter", function () {
+      if (!gp.classList.contains("m-compact")) return;
+      clearTimeout(peekT); peekT = setTimeout(function () { hideGtip(); gp.classList.add("peek"); }, 450);
+    });
+    gp.addEventListener("mouseleave", function () {
+      clearTimeout(peekT); hideGtip();
+      if (!gp.contains(document.activeElement)) gp.classList.remove("peek");
+    });
+    // Узкая панель обрезает строки по ширине: не даём фокусу/прокрутке сдвинуть их вбок
+    [$(".gp-in", gp), $("#gpList"), $(".gp-top", gp)].forEach(function (el) { el.addEventListener("scroll", function () { if (el.scrollLeft) el.scrollLeft = 0; }); });
+    gp.addEventListener("focusin", function () { if (gp.classList.contains("m-compact")) { hideGtip(); gp.classList.add("peek"); } });
+    gp.addEventListener("focusout", function (e) { if (!gp.contains(e.relatedTarget) && !gp.matches(":hover")) gp.classList.remove("peek"); });
+  }
+
+  // ---------- Встроенные инструменты (§7) ----------
+  var ROLE_EMP = "673892", ROLE_NAME = "EFS_NB_SUP_BUSINESS_ADMIN_GAMIFICATION";
+  var ROLE_URL = "https://iam-enigma-psi.omega.sbrf.ru/rmkib.support/api/v1/service/auth/explain/html";
+  function decoderForm(l) {
+    var box = document.createElement("div");
+    box.innerHTML = '<h2 id="mTitle"></h2><p>Ввод HEX через запятую → двоичное представление по 8 бит и список включённых битов.</p>' +
+      '<label class="f">Значение permission (HEX)<textarea id="tIn" spellcheck="false" placeholder="Например: 43720e3f, 5228"></textarea></label>' +
+      '<div class="out" id="tOut" role="status" hidden></div>' +
+      '<div class="row"><button class="btn" type="button" id="tClear">Очистить</button><button class="btn" type="button" id="tClose">Закрыть</button>' +
+      '<button class="btn pri" type="button" id="tGo">Расшифровать</button></div>';
+    $("#mTitle", box).textContent = l.title;
+    var inp = $("#tIn", box), out = $("#tOut", box);
+    function run() {
+      var text;
+      try {
+        var r = RP.core.decodePermission(inp.value);
+        text = "Бинарное представление:\n" + r.binary + "\n\nВключённые биты:\n" + r.bits.join(", ");
+        out.classList.remove("err");
+      } catch (e) { text = "Ошибка! Некорректный ввод."; out.classList.add("err"); }
+      out.textContent = text; out.hidden = false;
+    }
+    $("#tGo", box).addEventListener("click", run);
+    $("#tClear", box).addEventListener("click", function () { inp.value = ""; out.textContent = ""; out.hidden = true; inp.focus(); });
+    $("#tClose", box).addEventListener("click", function () { RP.modal.close(); });
+    // Ctrl/⌘+Enter — расшифровать
+    inp.addEventListener("keydown", function (e) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); } });
+    return box;
+  }
+  function roleForm(l) {
+    var box = document.createElement("div");
+    box.innerHTML = '<h2 id="mTitle"></h2><p>Открывает на стенде ПСИ объяснение, есть ли у сотрудника роль.</p>' +
+      '<label class="f">Табельный номер<input id="tEmp" inputmode="numeric" autocomplete="off" spellcheck="false"></label>' +
+      '<label class="f">Роль<input id="tRole" autocomplete="off" spellcheck="false"></label>' +
+      '<div class="row"><button class="btn" type="button" id="tDef">По умолчанию</button><button class="btn" type="button" id="tClose">Закрыть</button>' +
+      '<button class="btn pri" type="button" id="tOpen">Открыть</button></div>';
+    $("#mTitle", box).textContent = l.title;
+    var emp = $("#tEmp", box), role = $("#tRole", box), go = $("#tOpen", box);
+    function sync() { go.disabled = !(emp.value.trim() && role.value.trim()); }
+    function open() {
+      if (go.disabled) return;
+      window.open(ROLE_URL + "?employee-number=" + encodeURIComponent(emp.value.trim()) + "&role=" + encodeURIComponent(role.value.trim()), "_blank", "noopener");
+    }
+    emp.value = ROLE_EMP; role.value = ROLE_NAME; sync();
+    emp.addEventListener("input", sync); role.addEventListener("input", sync);
+    [emp, role].forEach(function (i) { i.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); open(); } }); });
+    go.addEventListener("click", open);
+    $("#tDef", box).addEventListener("click", function () { emp.value = ROLE_EMP; role.value = ROLE_NAME; sync(); emp.focus(); });
+    $("#tClose", box).addEventListener("click", function () { RP.modal.close(); });
+    return box;
+  }
+  RP.tools = {
+    open: function (l) {
+      var f = l.tool === "decoder" ? decoderForm : l.tool === "role" ? roleForm : null;
+      if (f) RP.modal.open(f(l));
+    }
+  };
 
   // ---------- Тема: тёмная по умолчанию, светлая «Туман»; rp_theme ----------
   RP.theme = {
@@ -925,7 +1164,7 @@
     RP.theme.paint();
     $("#theme").addEventListener("click", RP.theme.toggle);
     render(D);
-    bindLinks(); bindTip(); bindSearch();
+    bindLinks(); bindTip(); bindSearch(); bindLayers(); bindGroups();
     $("#refresh").addEventListener("click", function () { check(); });
     var rT = 0; window.addEventListener("resize", function () { clearTimeout(rT); rT = setTimeout(layout, 120); });
     if (window.innerWidth >= 767) $("#q").focus(); else $("#q").placeholder = "Поиск ссылок";
