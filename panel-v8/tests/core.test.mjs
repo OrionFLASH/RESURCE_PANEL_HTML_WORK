@@ -349,6 +349,11 @@ test("passFilter (#13): множества стендов и сегментов;
   assert.equal(core.passFilter(l("PROM", "SIGMA"), ["PROM"], ["ALPHA"]), false);
   assert.equal(core.passFilter(l(undefined, undefined), ["PROM"], []), false);
   assert.equal(core.passFilter(l(undefined, undefined, "decoder"), ["PROM"], ["ALPHA"]), true);
+  // «Без отметки» (NONE): у ссылки значение не указано
+  assert.equal(core.passFilter(l(undefined, "ALPHA"), ["NONE"], []), true);
+  assert.equal(core.passFilter(l("PROM", "ALPHA"), ["NONE"], []), false);
+  assert.equal(core.passFilter(l("PROM", undefined), ["NONE", "PROM"], ["NONE"]), true);
+  assert.deepEqual(clone(core.toggleFilter(["PROM", "PSI", "IFT"], "NONE", ["PROM", "PSI", "IFT", "NONE"])), []);
 });
 
 test("pickFavorites (#20): недоступные (down) не попадают; место — следующей закреплённой, затем по кликам > 0; wait/local/skip доступны", () => {

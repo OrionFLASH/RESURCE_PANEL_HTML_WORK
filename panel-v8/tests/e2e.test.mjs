@@ -1427,8 +1427,11 @@ test("фильтры (#13): несколько стендов сразу; все
     const r2 = await page.evaluate(() => [...document.querySelectorAll("#idx .ln:not([hidden])")].map((e) => RP.ui.byId[e.dataset.linkId]));
     assert.ok(r2.every((l) => l.tool || ((l.env === "PROM" || l.env === "PSI") && l.seg === "SIGMA")));
     await page.click('#fSeg .chip[data-val="ALPHA"]');
-    assert.deepEqual(await pressed("fSeg"), [""]);          // отмечены все → «Все»
+    assert.deepEqual(await pressed("fSeg"), ["ALPHA", "SIGMA"]);   // без «Без отметки» ещё не «все»
+    await page.click('#fSeg .chip[data-val="NONE"]');
+    assert.deepEqual(await pressed("fSeg"), [""]);          // отмечены все (с «Без отметки») → «Все»
     await page.click('#fEnv .chip[data-val="IFT"]');
+    await page.click('#fEnv .chip[data-val="NONE"]');
     assert.deepEqual(await pressed("fEnv"), [""]);
     await page.click('#fEnv .chip[data-val="IFT"]');
     await page.click('#fEnv .chip[data-val="IFT"]');           // сняли последнюю → «Все»
@@ -1502,4 +1505,15 @@ test("счётчик использований (#21): плитка, строк�
     await page.click("#" + tool);
     await page.keyboard.press("Escape");
     assert.equal(await uc("#" + tool), "1");
+  }));
+
+test("фильтры (#29): «Без отметки» — ссылки без стенда/сегмента; вместе с другими значениями", () =>
+  withPanel(interact(), async ({ page }) => {
+    await page.click('#fEnv .chip[data-val="NONE"]');
+    const r = await page.evaluate(() => [...document.querySelectorAll("#idx .ln:not([hidden])")].map((e) => RP.ui.byId[e.dataset.linkId]));
+    assert.ok(r.every((l) => l.tool || !l.env));
+    await page.click('#fEnv .chip[data-val="PROM"]');
+    const r2 = await page.evaluate(() => [...document.querySelectorAll("#idx .ln:not([hidden])")].map((e) => RP.ui.byId[e.dataset.linkId]));
+    assert.ok(r2.every((l) => l.tool || !l.env || l.env === "PROM"));
+    assert.ok(r2.length >= r.length);
   }));

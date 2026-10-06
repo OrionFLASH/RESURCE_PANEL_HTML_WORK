@@ -225,7 +225,7 @@ kbd { font: 600 10.5px/1 var(--mono); color: var(--ink2); background: var(--sf3)
 .clr:hover { background: var(--sf2); color: var(--ink); }
 .omni.has .clr { display: grid; } .omni.has kbd { display: none; }
 .filters { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; margin-top: 12px; }
-.fg { display: flex; align-items: center; gap: 6px; }
+.fg { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
 .fg > span { font-size: 11.5px; color: var(--mut); margin-right: 2px; }
 .chip {
   height: var(--h-s); border-radius: 14px; padding: 0 12px; border: 1px solid var(--line); background: transparent; cursor: pointer;
@@ -650,6 +650,8 @@ body.rp-failed > :not(.rp-err):not(svg) { display: none !important; }
   content: ""; position: absolute; inset: 2px 1px; pointer-events: none;
   border: 1px dashed var(--st-frame); border-left-style: solid; border-radius: 9px 7px 7px 9px;
 }
+/* В рамке выноска не нужна: линию прячем, место под неё остаётся — раскладка не сдвигается */
+.ln:not([data-tool])[data-st="up"] .ld { border-bottom-color: transparent; }
 /* Число использований: мелкая цифра у края, не перекрывает надписи */
 .uc { flex: none; font: 500 9.5px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: 0; color: var(--mut); opacity: .75; pointer-events: none; }
 .ln .uc { align-self: flex-start; margin-top: 3px; margin-left: -3px; }
