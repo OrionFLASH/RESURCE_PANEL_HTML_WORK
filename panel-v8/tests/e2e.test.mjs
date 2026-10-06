@@ -10,6 +10,8 @@ async function withPanel(opts, fn) {
   const p = await openPanel(opts);
   try { await fn(p); } finally { await p.close(); }
 }
+// Режим панели групп: при загрузке всегда «узкая» (#16), остальные — как ручное переключение до перезагрузки
+const setRail = (page, m) => page.evaluate((m) => RP.ui.setRail(m), m);
 
 test("открытие без ошибок консоли; 86 ссылок + 2 инструмента отрисованы", () =>
   withPanel({ width: 1440, height: 900 }, async ({ page, errors }) => {
@@ -56,7 +58,8 @@ for (const [w, h] of [[1440, 900], [1920, 1080]]) {
 // §10: вписывание при любом режиме панели групп и в обеих темах
 for (const rail of ["open", "compact", "hidden"]) for (const theme of ["dark", "light"]) {
   test(`1440×900, панель групп ${rail}, тема ${theme}: без прокрутки`, () =>
-    withPanel({ width: 1440, height: 900, theme, seed: { rp_rail: JSON.stringify(rail) } }, async ({ page, errors }) => {
+    withPanel({ width: 1440, height: 900, theme }, async ({ page, errors }) => {
+      await setRail(page, rail);
       // режим и тема действительно применены
       assert.equal(await page.evaluate(() => document.querySelector("#gp").classList.contains("m-" + document.querySelector("#gpBtn").dataset.m) && document.querySelector("#gpBtn").dataset.m), rail);
       assert.equal(await page.evaluate(() => document.documentElement.getAttribute("data-theme") || "dark"), theme);
@@ -541,27 +544,31 @@ const SEC_IDS = ["comms", "heroes", "kap", "sup", "access", "itsm", "data", "doc
 const SHOWN = SEC_IDS.length - 1;
 const idxSecs = (page) => page.$$eval("#idx [data-section-id]", (a) => a.map((e) => e.dataset.sectionId));
 
-test("панель групп: кнопка циклит open → compact → hidden, rp_rail переживает перезагрузку", () =>
+test("панель групп: при загрузке узкая; кнопка циклит open → compact → hidden до перезагрузки (#16)", () =>
   withPanel(interact(), async ({ page, errors }) => {
     const mode = () => page.evaluate(() => {
       const gp = document.querySelector("#gp");
       return { m: ["open", "compact", "hidden"].find((m) => gp.classList.contains("m-" + m)), w: Math.round(gp.getBoundingClientRect().width), rail: RP.store.get("rp_rail", null) };
     });
+    assert.deepEqual(await mode(), { m: "compact", w: 60, rail: null });   // #16: при загрузке — узкая
+    await setRail(page, "open");
     assert.deepEqual(await mode(), { m: "open", w: 248, rail: null });
     await page.click("#gpBtn");
-    assert.deepEqual(await mode(), { m: "compact", w: 60, rail: "compact" });
+    assert.deepEqual(await mode(), { m: "compact", w: 60, rail: null });
     assert.match(await page.getAttribute("#gpBtn", "aria-label"), /узкая.*скрытой/);
     // узкая: раскрытие поверх по задержке наведения
     await page.hover('#gpList .gr[data-sec="data"] .gr-go');
     await page.waitForFunction(() => document.querySelector("#gp").classList.contains("peek"), null, { timeout: 2000 });
     await page.mouse.move(900, 500);
     await page.click("#gpBtn");
-    assert.deepEqual(await mode(), { m: "hidden", w: 0, rail: "hidden" });
+    assert.deepEqual(await mode(), { m: "hidden", w: 0, rail: null });
+    // F5 — снова узкая, даже если до этого была скрыта (и даже со старым rp_rail в хранилище)
+    await page.evaluate(() => localStorage.setItem("rp_rail", JSON.stringify("open")));
     await page.reload();
     await page.waitForFunction(() => document.body.dataset.ready === "1");
-    assert.deepEqual(await mode(), { m: "hidden", w: 0, rail: "hidden" });
+    assert.deepEqual(await mode(), { m: "compact", w: 60, rail: "open" });
     await page.click("#gpBtn");
-    assert.deepEqual(await mode(), { m: "open", w: 248, rail: "open" });
+    assert.deepEqual(await mode(), { m: "hidden", w: 0, rail: "open" });
     assert.deepEqual(realErrors(errors), []);
   }));
 
@@ -584,6 +591,7 @@ test("панель групп: поиск «дан» оставляет «Дан
 
 test("панель групп: «глаз» скрывает раздел (rp_groups), колонки перестроены; «Показать все · скрыто 1» возвращает", () =>
   withPanel(interact(), async ({ page, errors }) => {
+    await setRail(page, "open");
     assert.equal(await page.isHidden("#gpAll"), true);
     await page.hover('#gpList .gr[data-sec="data"]');
     await page.click('#gpList .gr[data-sec="data"] .gr-eye');
@@ -607,6 +615,7 @@ test("панель групп: «глаз» скрывает раздел (rp_gr
 
 test("панель групп: Alt+клик оставляет одну группу, повторный Alt+клик возвращает все", () =>
   withPanel(interact(), async ({ page, errors }) => {
+    await setRail(page, "open");
     await page.click('#gpList .gr[data-sec="heroes"] .gr-go', { modifiers: ["Alt"] });
     assert.deepEqual(await idxSecs(page), ["heroes"]);
     assert.equal((await page.evaluate(() => RP.store.get("rp_groups"))).length, 10);
@@ -618,6 +627,7 @@ test("панель групп: Alt+клик оставляет одну груп
 
 test("все группы скрыты: короткое сообщение и «Показать все группы»", () =>
   withPanel({ ...interact(), seed: { rp_groups: JSON.stringify(SEC_IDS) } }, async ({ page, errors }) => {
+    await setRail(page, "open");
     const t = await page.innerText("#idx .empty");
     assert.match(t, /Все группы скрыты/);
     assert.match(await page.innerText("#gpAll"), /скрыто 11/);
@@ -886,6 +896,7 @@ test("админка: смена URL перепроверяет доступно
 
 test("админка: разделы — переименовать, сменить иконку, добавить, порядок; стартовое избранное", () =>
   withPanel(interact(), async ({ page, errors }) => {
+    await setRail(page, "open");
     await openAdmin(page);
     await page.click("#aSecs > summary");
     const name = page.locator('#aSecs [data-sid="repo"] .s-name');
@@ -1303,7 +1314,8 @@ for (const [w, h] of [[1440, 900], [1920, 1080]]) for (const rail of ["open", "c
   test(`§12 ${w}×${h}, панель ${rail}: 10 длинных названий — без прокрутки, строки не обрезаны`, () => {
     const ids = ["qlik", "qs", "giga", "nav", "dtk", "varm", "sprint", "esr", "r-sowa", "kap-ift"];
     const src = longSrc(ids);
-    return withPanel({ width: w, height: h, links: src, seed: { rp_rail: JSON.stringify(rail) } }, async ({ page, errors }) => {
+    return withPanel({ width: w, height: h, links: src }, async ({ page, errors }) => {
+      await setRail(page, rail);
       const found = await page.evaluate((ids) => ids.filter((id) => RP.ui.byId[id] && RP.ui.byId[id].title.startsWith("Очень")).length, ids);
       assert.equal(found, ids.length, "все 10 названий подменены");
       const m = await metrics(page);

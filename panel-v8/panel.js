@@ -638,11 +638,11 @@
   var RAILS = ["open", "compact", "hidden"];
   var RAIL_NAME = { open: "развёрнута", compact: "узкая", hidden: "скрыта" }, RAIL_NEXT = { open: "compact", compact: "hidden", hidden: "open" };
   var RAIL_TO = { open: "развёрнутой", compact: "узкой", hidden: "скрытой" };
-  var railMem = null;   // запасное значение, если localStorage недоступен
+  // Ручной выбор живёт до перезагрузки: при каждой загрузке панель узкая (#16), сохранённый rp_rail не читается
+  var railMem = null;
   function railMode() {
-    var r = railMem || RP.store.get("rp_rail", null);
     if (window.innerWidth < 767) return "drawer";
-    return RAILS.indexOf(r) >= 0 ? r : window.innerWidth >= 1280 ? "open" : "compact";
+    return RAILS.indexOf(railMem) >= 0 ? railMem : "compact";
   }
   function applyRail() {
     var m = railMode(), gp = $("#gp"), btn = $("#gpBtn");
@@ -661,6 +661,7 @@
     }
   }
   S.railMode = railMode; S.applyRail = applyRail;
+  S.setRail = function (m) { railMem = m; layout(); };   // как ручное переключение кнопкой (до перезагрузки)
 
   // ---------- Раскладка «в один экран»: колонки по числу строк, плотность ступенями ----------
   // Разбиение разделов по колонкам: подряд (RP.core.balanceColumns) или «жадно» по весу — где самая длинная колонка короче
@@ -1179,7 +1180,7 @@
         setTimeout(function () { var f = $(".gr:not([hidden]) .gr-go", gp); if (layer === gp && f) f.focus(); }, 30);   // после смены visibility
         return;
       }
-      railMem = RAIL_NEXT[m]; RP.store.set("rp_rail", railMem); layout();
+      railMem = RAIL_NEXT[m]; layout();
     });
     // Узкая панель: подсказка с названием сразу, раскрытие поверх указателя — после задержки курсора
     gp.addEventListener("pointerover", function (e) {
