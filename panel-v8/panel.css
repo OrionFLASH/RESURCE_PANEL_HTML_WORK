@@ -650,6 +650,8 @@ body.rp-failed > :not(.rp-err):not(svg) { display: none !important; }
   content: ""; position: absolute; inset: 2px 1px; pointer-events: none;
   border: 1px dashed var(--st-frame); border-left-style: solid; border-radius: 9px 7px 7px 9px;
 }
+/* В рамке выноска не нужна: линию прячем, место под неё остаётся — раскладка не сдвигается */
+.ln:not([data-tool])[data-st="up"] .ld { border-bottom-color: transparent; }
 /* Число использований: мелкая цифра у края, не перекрывает надписи */
 .uc { flex: none; font: 500 9.5px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: 0; color: var(--mut); opacity: .75; pointer-events: none; }
 .ln .uc { align-self: flex-start; margin-top: 3px; margin-left: -3px; }
