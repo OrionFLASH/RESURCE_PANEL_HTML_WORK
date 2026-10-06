@@ -516,11 +516,23 @@ label.f textarea { min-height: 84px; resize: vertical; font-family: var(--mono);
 .s-n { min-width: 26px; text-align: center; font-size: var(--fs-xs); color: var(--mut); font-variant-numeric: tabular-nums; }
 .sadd { display: flex; gap: 8px; margin: 10px 0 4px; }
 .sadd input, .sadd select { flex: 1; }
-.ipick { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 4px; width: 100%; margin-top: 6px; padding: 6px; border-radius: var(--r-m); background: var(--sf3); }
+.ipick { display: flex; flex-direction: column; gap: 2px; width: 100%; margin-top: 6px; padding: 6px; border-radius: var(--r-m); background: var(--sf3); }
 .ipick button { height: 34px; border: 0; border-radius: 8px; background: transparent; color: var(--ink2); display: grid; place-items: center; cursor: pointer; }
 .ipick button:hover { background: var(--sf2); }
 .ipick button[aria-pressed="true"] { background: var(--g-t); color: var(--g-ink); box-shadow: inset 0 0 0 1.5px var(--g); }
-.ipick .ip-def { grid-column: span 3; font-size: var(--fs-xs); }
+.ipick .ip-def { align-self: flex-start; padding: 0 12px; font-size: var(--fs-xs); }
+/* Тематические блоки выбора иконки: заголовок-переключатель, внутри — сетка */
+.ipg summary {
+  display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px; border-radius: 8px; cursor: pointer; list-style: none;
+  font: var(--fw-sb) var(--fs-s)/1 var(--font); color: var(--ink2); user-select: none;
+}
+.ipg summary::-webkit-details-marker { display: none; }
+.ipg summary:hover { background: var(--sf2); }
+.ipg summary em { margin-left: auto; font: 500 var(--fs-xs) var(--mono); font-style: normal; color: var(--mut); }
+.ipg .ipc { width: 14px; height: 14px; color: var(--mut); transform: rotate(-90deg); transition: transform .15s var(--ease); }
+.ipg[open] .ipc { transform: none; }
+.ipg-top summary { color: var(--g-ink); }
+.ipg-b { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 4px; padding: 2px 0 6px; }
 .afh { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .afh h3 { margin: 0; font: var(--fw-b) var(--fs-l) var(--font-d); }
 .aid { margin-left: auto; color: var(--mut); font-size: var(--fs-xs); }

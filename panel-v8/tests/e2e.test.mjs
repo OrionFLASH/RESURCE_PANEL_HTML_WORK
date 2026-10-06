@@ -832,7 +832,11 @@ test("админка: добавить ссылку с кодом omega\\x, не
     assert.equal(await page.isDisabled("#eSave"), false);
     await page.fill("#eCopy", "omega\\x");
     await page.selectOption("#eSeg", "SIGMA");
-    await page.click('#eIcon [data-icon="star"]');
+    // #25: тематические блоки свёрнуты, раскрыт только «Часто используемые»
+    assert.deepEqual(await page.$$eval("#eIcon details", (a) => a.map((d) => d.open)).then((o) => [o[0], o.slice(1).some(Boolean)]), [true, false]);
+    assert.equal(await page.isVisible('#eIcon [data-icon="search"]'), false);
+    await page.click('#eIcon details:has([data-icon="star"]) > summary');
+    await page.click('#eIcon details[open] [data-icon="star"]');
     await page.click("#eSave");
     const nid = await page.evaluate(() => RP.ui.data.links.find((l) => l.title === "Новый репозиторий").id);
     assert.match(nid, /^[a-z0-9_-]+$/);
@@ -907,7 +911,11 @@ test("админка: разделы — переименовать, смени�
     assert.equal((await page.innerText('#gpList .gr[data-sec="repo"] .nm')).trim(), "Код <b>и</b> репо");
     // иконка раздела
     await page.click('#aSecs [data-sid="repo"] .s-ic');
-    await page.click('#aSecs [data-sid="repo"] .ipick [data-icon="galaxy"]');
+    // #26: «Часто используемые» сверху и раскрыт; порядок — по числу применений
+    const top = await page.$$eval('#aSecs [data-sid="repo"] .ipg-top[open] [data-icon]', (a) => a.map((b) => b.dataset.icon));
+    assert.deepEqual(top, await page.evaluate(() => RP.icons.usage(RP.ui.data).map((u) => u[0])));
+    await page.click('#aSecs [data-sid="repo"] .ipick details:has([data-icon="galaxy"]):not(.ipg-top) > summary');
+    await page.click('#aSecs [data-sid="repo"] .ipick details[open]:not(.ipg-top) [data-icon="galaxy"]');
     assert.equal(await page.getAttribute("#sec-repo .sh use", "href"), "#rp-i-galaxy");
     // новый раздел
     await page.fill("#sNew", "Новый раздел");
