@@ -5,6 +5,7 @@
 
   var ENVS = ["PROM", "PSI", "IFT"];
   var SEGS = ["ALPHA", "SIGMA"];
+  var NONE = "NONE";   // значение фильтра «Без отметки»: у ссылки стенд/сегмент не указан
   var TOOLS = ["decoder", "role"];
   var KEY_ORDER = ["id", "section", "title", "url", "env", "seg", "copy", "icon", "note", "fav", "favHide", "meet", "meetHide", "tool", "check"];
 
@@ -232,7 +233,7 @@
   // Ссылка проходит фильтр: «Все» — любая; инструменты — при любом стенде/сегменте
   function passFilter(l, env, seg) {
     if (l.tool) return true;
-    return (!env.length || env.indexOf(l.env) >= 0) && (!seg.length || seg.indexOf(l.seg) >= 0);
+    return (!env.length || env.indexOf(l.env || NONE) >= 0) && (!seg.length || seg.indexOf(l.seg || NONE) >= 0);
   }
 
   // ---------- Избранное ----------
@@ -1181,7 +1182,7 @@
       var b = e.target.closest && e.target.closest(".chip");
       if (!b) return;
       var g = b.parentNode, key = g.id === "fEnv" ? "env" : "seg";
-      F[key] = RP.core.toggleFilter(F[key], b.dataset.val, key === "env" ? ENVS : SEGS);
+      F[key] = RP.core.toggleFilter(F[key], b.dataset.val, (key === "env" ? ENVS : SEGS).concat(NONE));
       paintChips(); apply();
     });
     // Ctrl/⌘+K, а также «/» вне поля ввода — фокус в поиск
@@ -2025,8 +2026,8 @@
     $("#refIc").innerHTML = I("refresh"); $("#sIc").outerHTML = I("search"); $("#clr").innerHTML = I("close"); $("#lock").innerHTML = I("lock");
     $("#gpBtn").innerHTML = I("panel"); $("#gpX").innerHTML = I("close"); $("#gsIc").outerHTML = I("search"); $("#gaIc").outerHTML = I("eye");
     $("#kbdK").textContent = isMac ? "⌘ K" : "Ctrl K";
-    buildChips($("#fEnv"), [["", "Все"], ["PROM", "PROM", "--env-prom"], ["PSI", "ПСИ", "--env-psi"], ["IFT", "ИФТ", "--env-ift"]]);
-    buildChips($("#fSeg"), [["", "Все"], ["ALPHA", "Alpha", "--seg-alpha"], ["SIGMA", "Sigma", "--seg-sigma"]]);
+    buildChips($("#fEnv"), [["", "Все"], ["PROM", "PROM", "--env-prom"], ["PSI", "ПСИ", "--env-psi"], ["IFT", "ИФТ", "--env-ift"], [NONE, "Без отметки"]]);
+    buildChips($("#fSeg"), [["", "Все"], ["ALPHA", "Alpha", "--seg-alpha"], ["SIGMA", "Sigma", "--seg-sigma"], [NONE, "Без отметки"]]);
     RP.theme.paint();
     $("#theme").addEventListener("click", RP.theme.toggle);
     render(D);
