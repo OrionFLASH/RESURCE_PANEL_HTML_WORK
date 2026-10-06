@@ -220,32 +220,56 @@
     return { hit: true, ranges: ranges };
   }
 
+  // ---------- Фильтры «Стенд» / «Сегмент»: «Все» ([]) или несколько конкретных значений ----------
+  // val "" — «Все»; иначе значение переключается. Пусто или отмечены все значения — снова «Все» ([]).
+  function toggleFilter(sel, val, all) {
+    if (!val) return [];
+    var out = (sel || []).filter(function (v) { return v !== val; });
+    if (out.length === (sel || []).length) out.push(val);
+    out = all.filter(function (v) { return out.indexOf(v) >= 0; });
+    return out.length === all.length ? [] : out;
+  }
+  // Ссылка проходит фильтр: «Все» — любая; инструменты — при любом стенде/сегменте
+  function passFilter(l, env, seg) {
+    if (l.tool) return true;
+    return (!env.length || env.indexOf(l.env) >= 0) && (!seg.length || seg.indexOf(l.seg) >= 0);
+  }
+
   // ---------- Избранное ----------
   // Закреплённые (fav, кроме встреч): по порядку favorites, затем остальные fav в порядке данных; первые slots — показаны.
   // favAuto — свободные места добираются самыми частыми по кликам (только clicks > 0; без встреч, инструментов, показанных).
-  function pickFavorites(links, favorites, clicks, slots, favAuto) {
-    clicks = clicks || {}; favorites = Array.isArray(favorites) ? favorites : [];
-    var byId = {}, pinned = [], used = {};
+  // st — статусы id → wait|up|down|local|skip по итогам проверки: «down» в избранное не попадает (место отдаётся следующей
+  // закреплённой, затем автодобору); остальные статусы, в том числе wait (проверка не завершена), считаются доступными.
+  //   -> { shown, pinnedShown, overflow, dropped: id недоступных, которые иначе были бы в избранном }
+  function pickFavorites(links, favorites, clicks, slots, favAuto, st) {
+    clicks = clicks || {}; st = st || {}; favorites = Array.isArray(favorites) ? favorites : [];
+    var byId = {}, pinned = [], used = {}, dropped = [];
     links.forEach(function (l) { byId[l.id] = l; });
     function pin(l) { if (l && l.fav === true && !l.meet && !used[l.id]) { used[l.id] = true; pinned.push(l.id); } }
     favorites.forEach(function (id) { pin(byId[id]); });
     links.forEach(pin);
-    var shown = pinned.slice(0, slots), overflow = pinned.slice(slots), pinnedShown = shown.slice();
-    if (favAuto !== false && shown.length < slots) {
-      var on = {};
+    var ok = pinned.filter(function (id) { return st[id] !== "down"; });
+    pinned.slice(0, slots).forEach(function (id) { if (st[id] === "down") dropped.push(id); });
+    var shown = ok.slice(0, slots), overflow = ok.slice(slots), pinnedShown = shown.slice();
+    if (favAuto !== false) {
+      var on = {}, free = slots - shown.length;
       shown.forEach(function (id) { on[id] = true; });
       links.map(function (l, i) { return { l: l, n: +clicks[l.id] || 0, i: i }; })
-        .filter(function (x) { return x.n > 0 && !x.l.meet && !x.l.tool && !on[x.l.id]; })
+        .filter(function (x) { return x.n > 0 && !x.l.meet && !x.l.tool && !on[x.l.id] && overflow.indexOf(x.l.id) < 0; })
         .sort(function (a, b) { return b.n - a.n || a.i - b.i; })
-        .forEach(function (x) { if (shown.length < slots) shown.push(x.l.id); });
+        .forEach(function (x) {
+          if (free-- <= 0) return;
+          if (st[x.l.id] === "down") { dropped.push(x.l.id); free++; } else shown.push(x.l.id);
+        });
     }
-    return { shown: shown, pinnedShown: pinnedShown, overflow: overflow };
+    return { shown: shown, pinnedShown: pinnedShown, overflow: overflow, dropped: dropped };
   }
-  // id ссылок, которых нет в разделах: показанные закреплённые (favHide !== false) и встречи (meetHide !== false)
-  function hiddenInIndex(data, pinnedShown) {
+  // id ссылок, которых нет в разделах: показанные в избранном — закреплённые и добранные по кликам (favHide !== false) —
+  // и встречи (meetHide !== false)
+  function hiddenInIndex(data, shown) {
     var h = new Set(), byId = {};
     data.links.forEach(function (l) { byId[l.id] = l; if (l.meet && l.meetHide !== false) h.add(l.id); });
-    (pinnedShown || []).forEach(function (id) { if (byId[id] && byId[id].favHide !== false) h.add(id); });
+    (shown || []).forEach(function (id) { if (byId[id] && byId[id].favHide !== false) h.add(id); });
     return h;
   }
 
@@ -288,6 +312,7 @@
 
   RP.core = {
     validate: validate, fieldErrors: fieldErrors, slug: slug, ID_RE: ID_RE, serializeLinks: serializeLinks, parseUrl: parseUrl, match: match,
+    toggleFilter: toggleFilter, passFilter: passFilter,
     normalize: normalize, pickFavorites: pickFavorites, hiddenInIndex: hiddenInIndex, decodePermission: decodePermission, balanceColumns: balanceColumns
   };
 
@@ -600,7 +625,12 @@
   }
   // Начальный статус: url-ссылки ждут проверки; инструменты локальные; check:false не проверяются
   function initialSt(l) { return l.tool ? "local" : l.check === false ? "skip" : "wait"; }
-  S.iconOf = iconOf; S.tagsHtml = tagsHtml; S.ariaOf = ariaOf;
+  // Число использований (#21): еле заметная цифра; ни разу не открывали — ничего
+  function ucHtml(id) {
+    var n = +(S.uses && S.uses[id]) || 0;
+    return n ? '<span class="uc" title="Открывали: ' + n + '" aria-hidden="true">' + n + "</span>" : "";
+  }
+  S.iconOf = iconOf; S.tagsHtml = tagsHtml; S.ariaOf = ariaOf; S.ucHtml = ucHtml;
 
   // Элемент-ссылка: настоящий <a> для url, кнопка для инструмента
   function linkEl(l, cls) {
@@ -626,8 +656,9 @@
         if (l.section !== s.id) return;
         var el = linkEl(l, "ln");
         el.id = "ln-" + l.id; el.setAttribute("aria-label", ariaOf(l));
+        // Доступность в разделах — цветом иконки и рамкой (#15); у инструментов кружок остаётся
         el.innerHTML = I(iconOf(l)) + '<span class="tt">' + esc(nbh(l.title)) + "</span>" + (l.copy ? I("copy", "ui-i cp") : "") +
-          '<span class="ld"></span>' + tagsHtml(l) + '<span class="dot"></span>';
+          '<span class="ld"></span>' + tagsHtml(l) + ucHtml(l.id) + (l.tool ? '<span class="dot"></span>' : "");
         if (hide.has(l.id)) { el.classList.add("away"); el.hidden = true; } else n++;
         S.lineEl[l.id] = el; sec.appendChild(el);
       });
@@ -643,21 +674,24 @@
       if (!l.meet) return;
       var a = linkEl(l, "mt");
       a.setAttribute("aria-label", "Встреча: " + ariaOf(l));
-      a.innerHTML = I("video") + '<span class="tt">' + esc(nbh(l.title)) + '</span><span class="dot"></span>';
+      a.innerHTML = I("video") + '<span class="tt">' + esc(nbh(l.title)) + "</span>" + ucHtml(l.id) + '<span class="dot"></span>';
       S.meetEl[l.id] = a; box.appendChild(a);
     });
     box.parentNode.hidden = !box.children.length;
   }
-  // Избранное: закреплённые + автодобор (клики берутся один раз при открытии — иконки не прыгают)
+  // Избранное: закреплённые + автодобор (клики берутся один раз при открытии — иконки не прыгают).
+  // Все кандидаты недоступны — вместо плиток уведомление.
   function buildDock() {
     var dock = $("#dock"); dock.innerHTML = "";
     S.pick.shown.forEach(function (id) {
       var l = S.byId[id], a = linkEl(l, "app");
       a.setAttribute("aria-label", ariaOf(l));
-      a.innerHTML = '<span class="sq">' + I(iconOf(l)) + '<span class="dot"></span>' + (l.copy ? '<span class="cp">' + I("copy") + "</span>" : "") +
+      a.innerHTML = '<span class="sq">' + I(iconOf(l)) + '<span class="dot"></span>' + ucHtml(l.id) + (l.copy ? '<span class="cp">' + I("copy") + "</span>" : "") +
         '</span><span class="lb">' + esc(nbh(l.title)) + "</span>" + tagsHtml(l);
       dock.appendChild(a);
     });
+    if (!dock.children.length && S.pick.dropped.length)
+      dock.innerHTML = '<p class="fav-none" role="status">' + I("alert") + "Ни одна карточка не доступна</p>";
     $(".favs").hidden = !dock.children.length;
   }
   // Мест в избранном: сколько плиток помещается в одну строку (не меньше 4)
@@ -675,13 +709,17 @@
     return Math.max(4, Math.floor((avail + gap) / (tile + gap)));
   }
   // Пересчёт избранного и скрытых строк при смене числа мест (или после правки данных); true — указатель перестроен
+  // S.avail — статусы на момент последней завершённой проверки (до неё пусто: в избранном все кандидаты)
+  function pickFav(n) {
+    var D = S.data, auto = !(D.settings && D.settings.favAuto === false);
+    return RP.core.pickFavorites(D.links, D.favorites, S.clicks, n, auto, S.avail);
+  }
   function syncFav() {
     var n = favSlots();
     if (n === S.slots && S.pick) return false;
-    var D = S.data, auto = !(D.settings && D.settings.favAuto === false);
     S.slots = n;
-    S.pick = RP.core.pickFavorites(D.links, D.favorites, S.clicks, n, auto);
-    S.hide = RP.core.hiddenInIndex(D, S.pick.pinnedShown);
+    S.pick = pickFav(n);
+    S.hide = RP.core.hiddenInIndex(S.data, S.pick.shown);
     buildDock(); buildIndex(); buildGroups(); paintGroups();
     var gq = $("#gq"); if (gq && gq.value) gq.dispatchEvent(new Event("input"));
     if (S.onFav) S.onFav();
@@ -726,6 +764,7 @@
     $("#subt").textContent = D.links.length + " рабочих ссылок · " + D.sections.length + " разделов";
     $("#cnt").textContent = D.links.length + " ссылок";
     if (!S.clicks) { S.clicks = RP.store.get("rp_clicks", {}); if (!S.clicks || typeof S.clicks !== "object" || Array.isArray(S.clicks)) S.clicks = {}; }
+    if (!S.uses) S.uses = Object.assign({}, S.clicks);   // счётчики на экране растут сразу, порядок избранного — нет
     S.pick = null;
     buildMeets(); renderSum();
     layout();
@@ -789,9 +828,9 @@
         '<br><button class="btn" type="button" id="reset">Показать все группы</button>';
       idx.appendChild(z); $("#reset").addEventListener("click", function () { setOff([]); }); return;
     }
-    if (!secs.length && F && (F.q.trim() || F.env || F.seg)) {
+    if (!secs.length && F && (F.q.trim() || F.env.length || F.seg.length)) {
       // Поиск/фильтры ничего не оставили
-      var e = document.createElement("div"), q = F.q.trim(), fl = F.env || F.seg;
+      var e = document.createElement("div"), q = F.q.trim(), fl = F.env.length || F.seg.length;
       e.className = "empty"; e.setAttribute("role", "status");
       e.innerHTML = "<b>Ничего не нашлось</b>Нет ссылок" + (q ? " по запросу «" + esc(q) + "»" : "") + (fl ? " с выбранными фильтрами" : "") +
         '.<br><button class="btn" type="button" id="reset">Сбросить поиск и фильтры</button>';
@@ -870,10 +909,21 @@
     }).then(fin, fin);
     function fin() {
       checking = false; btn.classList.remove("busy"); btn.removeAttribute("aria-busy"); btn.style.removeProperty("--p");
-      try { renderSum(); } catch (e) { try { console.error(e); } catch (x) {} }
+      try { renderSum(); refav(); } catch (e) { try { console.error(e); } catch (x) {} }
     }
   }
   S.check = check;
+  // Избранное по итогам проверки (#20): недоступные уходят в разделы, снова доступные возвращаются.
+  // Перестраиваем, только если состав изменился — фоновая проверка раз в 2 мин не трогает страницу зря.
+  function refav() {
+    S.avail = {};
+    S.data.links.forEach(function (l) { if (S.st[l.id] === "down") S.avail[l.id] = "down"; });
+    if (!S.pick) return;
+    var p = pickFav(S.slots), key = function (k) { return k.shown.join() + (k.shown.length || !k.dropped.length ? "" : "|none"); };
+    if (key(p) === key(S.pick)) return;
+    S.pick = null; layout();
+  }
+  S.refav = refav;
 
   // ---------- Тосты ----------
   RP.toast = function (text, icon) {
@@ -927,6 +977,14 @@
     if (!c || typeof c !== "object" || Array.isArray(c)) c = {};
     c[id] = (+c[id] || 0) + 1;
     RP.store.set("rp_clicks", c);   // избранное пересчитается при следующем открытии
+    // Счётчик на экране — сразу (вставляется перед кружком/кнопкой или в конец)
+    S.uses[id] = Math.max(+S.uses[id] || 0, c[id]);
+    $$('[data-link-id="' + id + '"]').forEach(function (e) {
+      var u = $(".uc", e);
+      if (u) { u.textContent = S.uses[id]; u.title = "Открывали: " + S.uses[id]; return; }
+      var sq = $(".sq", e), dot = sq ? null : $(":scope > .dot", e);
+      if (dot) dot.insertAdjacentHTML("beforebegin", ucHtml(id)); else (sq || e).insertAdjacentHTML("beforeend", ucHtml(id));
+    });
   }
   function copyUrl(l) {
     RP.copy(l.url, function (ok) { RP.toast(ok ? "Ссылка скопирована" : "Не удалось скопировать", ok ? "link" : "alert"); });
@@ -934,7 +992,7 @@
   // Действие по ссылке: ev — событие клика/клавиши (Ctrl/⌘ — копировать URL вместо открытия)
   function activate(l, ev) {
     hideTip();
-    if (l.tool) { if (RP.tools && RP.tools.open) RP.tools.open(l); return; }
+    if (l.tool) { bump(l.id); if (RP.tools && RP.tools.open) RP.tools.open(l); return; }
     if (ev && (ev.ctrlKey || ev.metaKey)) { copyUrl(l); return; }
     if (l.copy) RP.copy(l.copy, function (ok) { RP.toast(ok ? "Скопировано: " + l.copy : "Не удалось скопировать", ok ? "copy" : "alert"); });
     window.open(l.url, "_blank", "noopener");
@@ -1038,11 +1096,11 @@
   }
 
   // ---------- Поиск и фильтры (фильтры не запоминаются) ----------
-  var F = S.filter = { env: "", seg: "", q: "" };
+  // env / seg — выбранные значения; [] — «Все»
+  var F = S.filter = { env: [], seg: [], q: "" };
   function passes(l) {
     // Инструменты остаются при любом стенде/сегменте — их отбирает только поиск
-    if (!l.tool && F.env && l.env !== F.env) return { hit: false, ranges: [] };
-    if (!l.tool && F.seg && l.seg !== F.seg) return { hit: false, ranges: [] };
+    if (!RP.core.passFilter(l, F.env, F.seg)) return { hit: false, ranges: [] };
     var s = S.secById[l.section];
     return RP.core.match(l, s ? s.name : "", F.q);
   }
@@ -1053,7 +1111,7 @@
   }
   function apply() {
     if (!S.data) return;
-    var n = 0, total = S.data.links.length, on = !!(F.q.trim() || F.env || F.seg), qOn = !!F.q.trim();
+    var n = 0, total = S.data.links.length, on = !!(F.q.trim() || F.env.length || F.seg.length), qOn = !!F.q.trim();
     S.data.links.forEach(function (l) {
       var m = passes(l), ln = S.lineEl[l.id], mt = S.meetEl[l.id];
       if (m.hit) n++;
@@ -1080,10 +1138,16 @@
   // Сброс поиска и фильтров: чипы «Все», пустое поле, фокус в поиск
   S.resetAll = function () {
     var q = $("#q");
-    q.value = ""; F.q = ""; F.env = ""; F.seg = "";
-    $$(".filters .fg").forEach(function (g) { $$(".chip", g).forEach(function (c, i) { c.setAttribute("aria-pressed", i === 0 ? "true" : "false"); }); });
-    apply(); q.focus();
+    q.value = ""; F.q = ""; F.env = []; F.seg = [];
+    paintChips(); apply(); q.focus();
   };
+  // Отметки чипов по F: «Все» — при пустом выборе
+  function paintChips() {
+    $$(".filters .fg").forEach(function (g) {
+      var sel = F[g.id === "fEnv" ? "env" : "seg"];
+      $$(".chip", g).forEach(function (c) { c.setAttribute("aria-pressed", (c.dataset.val ? sel.indexOf(c.dataset.val) >= 0 : !sel.length) ? "true" : "false"); });
+    });
+  }
 
   // Клавиатура в поиске: ↑↓ — выбор строки, Enter — открыть, Esc — очистить
   var active = -1;
@@ -1117,9 +1181,8 @@
       var b = e.target.closest && e.target.closest(".chip");
       if (!b) return;
       var g = b.parentNode, key = g.id === "fEnv" ? "env" : "seg";
-      F[key] = b.dataset.val;
-      $$(".chip", g).forEach(function (c) { c.setAttribute("aria-pressed", c === b ? "true" : "false"); });
-      apply();
+      F[key] = RP.core.toggleFilter(F[key], b.dataset.val, key === "env" ? ENVS : SEGS);
+      paintChips(); apply();
     });
     // Ctrl/⌘+K, а также «/» вне поля ввода — фокус в поиск
     document.addEventListener("keydown", function (e) {

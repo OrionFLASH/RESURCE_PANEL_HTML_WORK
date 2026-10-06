@@ -628,3 +628,37 @@ body.rp-failed > :not(.rp-err):not(svg) { display: none !important; }
 .fpair + .fpair .sw .fi { color: var(--g-ink); }
 .sw.swh { color: var(--mut); }
 .sw:has(input:disabled) { opacity: .5; cursor: default; }
+
+/* ——— Доработка 2 (#15, #17, #21, #20) ——— */
+/* Цвета доступности строк разделов: иконка и рамка. Светлая тема — по замеру WCAG AA (иконки и рамки ≥ 3:1 к фону) */
+:root, [data-theme="dark"] {
+  --st-up: #35B955; --st-down: #F06B5A; --st-wait: #BDAE73;
+  --st-frame: rgba(53, 185, 85, .3);
+}
+[data-theme="light"] {
+  --st-up: #1A7A30; --st-down: #A8301F; --st-wait: #8A6D00;
+  --st-frame: #3E8C53;
+}
+/* Общий список: кружка нет (кроме инструментов), статус — цветом иконки; «проверяется» — еле заметная пульсация */
+.ln { position: relative; }
+.ln:not([data-tool])[data-st="up"] > .ui-i:first-child { color: var(--st-up); }
+.ln:not([data-tool])[data-st="down"] > .ui-i:first-child { color: var(--st-down); }
+.ln:not([data-tool])[data-st="wait"] > .ui-i:first-child { color: var(--st-wait); animation: ipulse 1.8s ease-in-out infinite; }
+@keyframes ipulse { 50% { opacity: .5; } }
+/* Доступная строка: тонкая пунктирная рамка в цвет иконки, слева — сплошной край, как у корешка билета */
+.ln:not([data-tool])[data-st="up"]::after {
+  content: ""; position: absolute; inset: 2px 1px; pointer-events: none;
+  border: 1px dashed var(--st-frame); border-left-style: solid; border-radius: 9px 7px 7px 9px;
+}
+/* Число использований: мелкая цифра у края, не перекрывает надписи */
+.uc { flex: none; font: 500 9.5px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: 0; color: var(--mut); opacity: .75; pointer-events: none; }
+.ln .uc { align-self: flex-start; margin-top: 3px; margin-left: -3px; }
+.mt .uc { align-self: flex-start; margin: 3px -3px 0 -4px; }
+.app .sq .uc { position: absolute; left: 6px; bottom: 5px; }
+body.compact .app .sq .uc { left: 4px; bottom: 3px; }
+/* Избранное: ни одной доступной карточки */
+.fav-none {
+  margin: 0; min-height: 56px; display: flex; align-items: center; gap: 8px; padding: 0 18px; border-radius: 14px;
+  border: 1px dashed var(--line2); color: var(--mut); font-size: var(--fs-s);
+}
+.fav-none .ui-i { width: 16px; height: 16px; color: var(--red-ink); }
