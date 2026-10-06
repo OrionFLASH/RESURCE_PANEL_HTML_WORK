@@ -10,6 +10,8 @@ async function withPanel(opts, fn) {
   const p = await openPanel(opts);
   try { await fn(p); } finally { await p.close(); }
 }
+// Режим панели групп: при загрузке всегда «узкая» (#16), остальные — как ручное переключение до перезагрузки
+const setRail = (page, m) => page.evaluate((m) => RP.ui.setRail(m), m);
 
 test("открытие без ошибок консоли; 86 ссылок + 2 инструмента отрисованы", () =>
   withPanel({ width: 1440, height: 900 }, async ({ page, errors }) => {
@@ -56,7 +58,8 @@ for (const [w, h] of [[1440, 900], [1920, 1080]]) {
 // §10: вписывание при любом режиме панели групп и в обеих темах
 for (const rail of ["open", "compact", "hidden"]) for (const theme of ["dark", "light"]) {
   test(`1440×900, панель групп ${rail}, тема ${theme}: без прокрутки`, () =>
-    withPanel({ width: 1440, height: 900, theme, seed: { rp_rail: JSON.stringify(rail) } }, async ({ page, errors }) => {
+    withPanel({ width: 1440, height: 900, theme }, async ({ page, errors }) => {
+      await setRail(page, rail);
       // режим и тема действительно применены
       assert.equal(await page.evaluate(() => document.querySelector("#gp").classList.contains("m-" + document.querySelector("#gpBtn").dataset.m) && document.querySelector("#gpBtn").dataset.m), rail);
       assert.equal(await page.evaluate(() => document.documentElement.getAttribute("data-theme") || "dark"), theme);
@@ -152,7 +155,7 @@ const SET = [
 
 // Подмена сети: хосты down* — обрыв, hang* — без ответа, остальные — 200. gate — удерживает ответы до release().
 function netStub({ gate = false, delay = 0 } = {}) {
-  const st = { hits: [], active: 0, max: 0, release: null, gate: null };
+  const st = { hits: [], active: 0, max: 0, release: null, gate: null, revive: new Set() };   // revive — down-хосты, ставшие доступными
   st.gate = gate ? new Promise((r) => { st.release = r; }) : Promise.resolve();
   st.setup = async ({ page }) => {
     await page.route((u) => /^https?:/.test(u.href), async (route) => {
@@ -162,7 +165,7 @@ function netStub({ gate = false, delay = 0 } = {}) {
         if (st.hangAll || host.startsWith("hang")) return;       // никогда не отвечает
         await st.gate;
         if (delay) await new Promise((r) => setTimeout(r, delay));
-        if (host.startsWith("down")) await route.abort("connectionrefused");
+        if (host.startsWith("down") && !st.revive.has(host)) await route.abort("connectionrefused");
         else await route.fulfill({ status: 200, contentType: "text/plain", body: "ok" });
       } catch (e) {} finally { st.active--; }
     });
@@ -176,6 +179,8 @@ test("проверка: сначала wait, затем up/down по сети; t
   const net = netStub({ gate: true });
   return withPanel({ links: mkLinks(SET), setup: net.setup }, async ({ page, errors }) => {
     assert.deepEqual(await stOf(page), { u1: "wait", u2: "wait", u3: "wait", d1: "wait", d2: "wait", h1: "wait", tl: "local", sk: "skip" });
+    // #22: «проверяется» — еле заметная пульсация иконки строки
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#idx [data-link-id="u1"] svg')).animationName), "ipulse");
     net.release();
     await page.waitForFunction(() => document.querySelectorAll('#idx [data-st="wait"]').length === 1); // остался только hang1
     assert.deepEqual(await stOf(page), { u1: "up", u2: "up", u3: "up", d1: "down", d2: "down", h1: "wait", tl: "local", sk: "skip" });
@@ -203,8 +208,10 @@ test("проверка: сводка в шапке совпадает с чис�
         upN: document.querySelectorAll('#idx [data-st="up"]').length, downN: document.querySelectorAll('#idx [data-st="down"]').length,
         ttUp: q("u1", ".tt").color, ttDown: q("d1", ".tt").color,
         tagUp: q("u1", ".tag").color, tagDown: q("d1", ".tag").color,
-        icUp: q("u1", "svg").color, icDown: q("d1", "svg").color,
-        dotDown: q("d1", ".dot").backgroundColor, dotUp: q("u1", ".dot").backgroundColor
+        icUp: q("u1", "svg").color, icDown: q("d1", "svg").color, icWait: q("h1", "svg").color,
+        dots: document.querySelectorAll("#idx .ln:not([data-tool]) .dot").length, toolDot: document.querySelectorAll("#idx .ln[data-tool] .dot").length,
+        frameUp: getComputedStyle(document.querySelector('#idx [data-link-id="u1"]'), "::after").borderTopStyle,
+        frameDown: getComputedStyle(document.querySelector('#idx [data-link-id="d1"]'), "::after").content
       };
     });
     assert.equal(r.nums.find((x) => x.t === "Доступны").n, r.upN);
@@ -213,8 +220,10 @@ test("проверка: сводка в шапке совпадает с чис�
     assert.ok(!r.nums.some((x) => x.t === "Проверяются"));
     assert.notEqual(r.ttDown, r.ttUp);          // название погашено
     assert.equal(r.tagDown, r.tagUp);           // тег стенда в цвете
-    assert.equal(r.icDown, r.icUp);             // иконка в цвете
-    assert.notEqual(r.dotDown, r.dotUp);        // красная точка
+    // #15: в разделах кружка нет (у инструмента остаётся), статус — цветом иконки, у доступной — пунктирная рамка
+    assert.equal(r.dots, 0); assert.equal(r.toolDot, 1);
+    assert.notEqual(r.icDown, r.icUp);
+    assert.equal(r.frameUp, "dashed"); assert.equal(r.frameDown, "none");
   });
 });
 
@@ -272,8 +281,11 @@ test("проверка: статус отражается на избранно�
   const net = netStub();
   return withPanel({ links: "window.RP_LINKS = " + data + ";\n", setup: net.setup }, async ({ page }) => {
     await page.waitForFunction(() => document.querySelectorAll('[data-link-id][data-st="wait"]').length === 0);
+    await page.waitForFunction(() => !document.querySelector('#dock [data-link-id="f2"]'));
     const r = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll("#dock [data-link-id], #meets [data-link-id]")].map((e) => [e.dataset.linkId, e.dataset.st])));
-    assert.deepEqual(r, { f1: "up", f2: "down", m1: "up", m2: "down" });
+    // #20: недоступная f2 ушла из избранного в свой раздел
+    assert.deepEqual(r, { f1: "up", m1: "up", m2: "down" });
+    assert.equal(await page.isVisible('#idx [data-link-id="f2"]'), true);
   });
 });
 
@@ -541,27 +553,31 @@ const SEC_IDS = ["comms", "heroes", "kap", "sup", "access", "itsm", "data", "doc
 const SHOWN = SEC_IDS.length - 1;
 const idxSecs = (page) => page.$$eval("#idx [data-section-id]", (a) => a.map((e) => e.dataset.sectionId));
 
-test("панель групп: кнопка циклит open → compact → hidden, rp_rail переживает перезагрузку", () =>
+test("панель групп: при загрузке узкая; кнопка циклит open → compact → hidden до перезагрузки (#16)", () =>
   withPanel(interact(), async ({ page, errors }) => {
     const mode = () => page.evaluate(() => {
       const gp = document.querySelector("#gp");
       return { m: ["open", "compact", "hidden"].find((m) => gp.classList.contains("m-" + m)), w: Math.round(gp.getBoundingClientRect().width), rail: RP.store.get("rp_rail", null) };
     });
+    assert.deepEqual(await mode(), { m: "compact", w: 60, rail: null });   // #16: при загрузке — узкая
+    await setRail(page, "open");
     assert.deepEqual(await mode(), { m: "open", w: 248, rail: null });
     await page.click("#gpBtn");
-    assert.deepEqual(await mode(), { m: "compact", w: 60, rail: "compact" });
+    assert.deepEqual(await mode(), { m: "compact", w: 60, rail: null });
     assert.match(await page.getAttribute("#gpBtn", "aria-label"), /узкая.*скрытой/);
     // узкая: раскрытие поверх по задержке наведения
     await page.hover('#gpList .gr[data-sec="data"] .gr-go');
     await page.waitForFunction(() => document.querySelector("#gp").classList.contains("peek"), null, { timeout: 2000 });
     await page.mouse.move(900, 500);
     await page.click("#gpBtn");
-    assert.deepEqual(await mode(), { m: "hidden", w: 0, rail: "hidden" });
+    assert.deepEqual(await mode(), { m: "hidden", w: 0, rail: null });
+    // F5 — снова узкая, даже если до этого была скрыта (и даже со старым rp_rail в хранилище)
+    await page.evaluate(() => localStorage.setItem("rp_rail", JSON.stringify("open")));
     await page.reload();
     await page.waitForFunction(() => document.body.dataset.ready === "1");
-    assert.deepEqual(await mode(), { m: "hidden", w: 0, rail: "hidden" });
+    assert.deepEqual(await mode(), { m: "compact", w: 60, rail: "open" });
     await page.click("#gpBtn");
-    assert.deepEqual(await mode(), { m: "open", w: 248, rail: "open" });
+    assert.deepEqual(await mode(), { m: "hidden", w: 0, rail: "open" });
     assert.deepEqual(realErrors(errors), []);
   }));
 
@@ -584,6 +600,7 @@ test("панель групп: поиск «дан» оставляет «Дан
 
 test("панель групп: «глаз» скрывает раздел (rp_groups), колонки перестроены; «Показать все · скрыто 1» возвращает", () =>
   withPanel(interact(), async ({ page, errors }) => {
+    await setRail(page, "open");
     assert.equal(await page.isHidden("#gpAll"), true);
     await page.hover('#gpList .gr[data-sec="data"]');
     await page.click('#gpList .gr[data-sec="data"] .gr-eye');
@@ -607,6 +624,7 @@ test("панель групп: «глаз» скрывает раздел (rp_gr
 
 test("панель групп: Alt+клик оставляет одну группу, повторный Alt+клик возвращает все", () =>
   withPanel(interact(), async ({ page, errors }) => {
+    await setRail(page, "open");
     await page.click('#gpList .gr[data-sec="heroes"] .gr-go', { modifiers: ["Alt"] });
     assert.deepEqual(await idxSecs(page), ["heroes"]);
     assert.equal((await page.evaluate(() => RP.store.get("rp_groups"))).length, 10);
@@ -618,6 +636,7 @@ test("панель групп: Alt+клик оставляет одну груп
 
 test("все группы скрыты: короткое сообщение и «Показать все группы»", () =>
   withPanel({ ...interact(), seed: { rp_groups: JSON.stringify(SEC_IDS) } }, async ({ page, errors }) => {
+    await setRail(page, "open");
     const t = await page.innerText("#idx .empty");
     assert.match(t, /Все группы скрыты/);
     assert.match(await page.innerText("#gpAll"), /скрыто 11/);
@@ -822,7 +841,11 @@ test("админка: добавить ссылку с кодом omega\\x, не
     assert.equal(await page.isDisabled("#eSave"), false);
     await page.fill("#eCopy", "omega\\x");
     await page.selectOption("#eSeg", "SIGMA");
-    await page.click('#eIcon [data-icon="star"]');
+    // #25: тематические блоки свёрнуты, раскрыт только «Часто используемые»
+    assert.deepEqual(await page.$$eval("#eIcon details", (a) => a.map((d) => d.open)).then((o) => [o[0], o.slice(1).some(Boolean)]), [true, false]);
+    assert.equal(await page.isVisible('#eIcon [data-icon="search"]'), false);
+    await page.click('#eIcon details:has([data-icon="star"]) > summary');
+    await page.click('#eIcon details[open] [data-icon="star"]');
     await page.click("#eSave");
     const nid = await page.evaluate(() => RP.ui.data.links.find((l) => l.title === "Новый репозиторий").id);
     assert.match(nid, /^[a-z0-9_-]+$/);
@@ -886,6 +909,7 @@ test("админка: смена URL перепроверяет доступно
 
 test("админка: разделы — переименовать, сменить иконку, добавить, порядок; стартовое избранное", () =>
   withPanel(interact(), async ({ page, errors }) => {
+    await setRail(page, "open");
     await openAdmin(page);
     await page.click("#aSecs > summary");
     const name = page.locator('#aSecs [data-sid="repo"] .s-name');
@@ -896,7 +920,11 @@ test("админка: разделы — переименовать, смени�
     assert.equal((await page.innerText('#gpList .gr[data-sec="repo"] .nm')).trim(), "Код <b>и</b> репо");
     // иконка раздела
     await page.click('#aSecs [data-sid="repo"] .s-ic');
-    await page.click('#aSecs [data-sid="repo"] .ipick [data-icon="galaxy"]');
+    // #26: «Часто используемые» сверху и раскрыт; порядок — по числу применений
+    const top = await page.$$eval('#aSecs [data-sid="repo"] .ipg-top[open] [data-icon]', (a) => a.map((b) => b.dataset.icon));
+    assert.deepEqual(top, await page.evaluate(() => RP.icons.usage(RP.ui.data).map((u) => u[0])));
+    await page.click('#aSecs [data-sid="repo"] .ipick details:has([data-icon="galaxy"]):not(.ipg-top) > summary');
+    await page.click('#aSecs [data-sid="repo"] .ipick details[open]:not(.ipg-top) [data-icon="galaxy"]');
     assert.equal(await page.getAttribute("#sec-repo .sh use", "href"), "#rp-i-galaxy");
     // новый раздел
     await page.fill("#sNew", "Новый раздел");
@@ -1303,7 +1331,8 @@ for (const [w, h] of [[1440, 900], [1920, 1080]]) for (const rail of ["open", "c
   test(`§12 ${w}×${h}, панель ${rail}: 10 длинных названий — без прокрутки, строки не обрезаны`, () => {
     const ids = ["qlik", "qs", "giga", "nav", "dtk", "varm", "sprint", "esr", "r-sowa", "kap-ift"];
     const src = longSrc(ids);
-    return withPanel({ width: w, height: h, links: src, seed: { rp_rail: JSON.stringify(rail) } }, async ({ page, errors }) => {
+    return withPanel({ width: w, height: h, links: src }, async ({ page, errors }) => {
+      await setRail(page, rail);
       const found = await page.evaluate((ids) => ids.filter((id) => RP.ui.byId[id] && RP.ui.byId[id].title.startsWith("Очень")).length, ids);
       assert.equal(found, ids.length, "все 10 названий подменены");
       const m = await metrics(page);
@@ -1379,4 +1408,98 @@ test("§12 панель групп: раздел, целиком ушедший 
     assert.match(await li.locator(".gr-go").getAttribute("aria-label"), /в избранном и встречах/);
     assert.equal(await page.locator('#gpList .gr[data-sec="heroes"]').getAttribute("title"), null);
     assert.deepEqual(realErrors(errors), []);
+  }));
+
+// ---------- Доработка 2: фильтры, избранное по доступности, счётчики ----------
+test("фильтры (#13): несколько стендов сразу; все значения → «Все»; снятие последнего → «Все»", () =>
+  withPanel(interact(), async ({ page }) => {
+    const pressed = (g) => page.$$eval(`#${g} .chip`, (a) => a.filter((c) => c.getAttribute("aria-pressed") === "true").map((c) => c.dataset.val));
+    await page.click('#fEnv .chip[data-val="PROM"]');
+    await page.click('#fEnv .chip[data-val="PSI"]');
+    assert.deepEqual(await pressed("fEnv"), ["PROM", "PSI"]);
+    const r = await page.evaluate(() => [...document.querySelectorAll("#idx .ln:not([hidden])")].map((e) => RP.ui.byId[e.dataset.linkId]));
+    assert.ok(r.every((l) => l.env === "PROM" || l.env === "PSI" || l.tool));
+    assert.ok(r.some((l) => l.env === "PROM") && r.some((l) => l.env === "PSI"));
+    const want = await page.evaluate(() => RP.ui.data.links.filter((l) => l.tool || l.env === "PROM" || l.env === "PSI").length);
+    assert.equal(await page.textContent("#cnt"), want + " из 88");
+    // сегмент вместе со стендами
+    await page.click('#fSeg .chip[data-val="SIGMA"]');
+    const r2 = await page.evaluate(() => [...document.querySelectorAll("#idx .ln:not([hidden])")].map((e) => RP.ui.byId[e.dataset.linkId]));
+    assert.ok(r2.every((l) => l.tool || ((l.env === "PROM" || l.env === "PSI") && l.seg === "SIGMA")));
+    await page.click('#fSeg .chip[data-val="ALPHA"]');
+    assert.deepEqual(await pressed("fSeg"), [""]);          // отмечены все → «Все»
+    await page.click('#fEnv .chip[data-val="IFT"]');
+    assert.deepEqual(await pressed("fEnv"), [""]);
+    await page.click('#fEnv .chip[data-val="IFT"]');
+    await page.click('#fEnv .chip[data-val="IFT"]');           // сняли последнюю → «Все»
+    assert.deepEqual(await pressed("fEnv"), [""]);
+    await page.click('#fEnv .chip[data-val="PSI"]');
+    await page.click('#fEnv .chip[data-val=""]');               // «Все» — только «Все»
+    assert.deepEqual(await pressed("fEnv"), [""]);
+    assert.equal(await page.textContent("#cnt"), "88 ссылок");
+  }));
+
+const FAVSET = () => "window.RP_LINKS = " + JSON.stringify({
+  version: 1, sections: [{ id: "s", name: "Раздел", icon: "link" }], favorites: ["f1", "f2"], settings: { favAuto: true },
+  links: [L("f1", "up1", { fav: true }), L("f2", "down1", { fav: true }), L("a1", "up2"), L("a2", "down2"), L("z", "up3"), L("m", "up4", { meet: true })]
+}) + ";\n";
+const dockOf = (page) => page.$$eval("#dock [data-link-id]", (a) => a.map((e) => e.dataset.linkId));
+const inIdx = (page) => page.$$eval("#idx .ln:not([hidden])", (a) => a.map((e) => e.dataset.linkId));
+
+test("избранное (#19, #20): до проверки — все; затем недоступные уходят в раздел, место — доступной по кликам; «Проверить» возвращает", () => {
+  const net = netStub({ gate: true });
+  return withPanel({ links: FAVSET(), setup: net.setup, seed: { rp_clicks: JSON.stringify({ a2: 5, a1: 3 }) } }, async ({ page, errors }) => {
+    assert.deepEqual(await dockOf(page), ["f1", "f2", "a2", "a1"]);       // проверка идёт — ничего не скрыто
+    assert.deepEqual(await inIdx(page), ["z"]);                          // #19: автодобранные тоже не в разделе
+    net.release();
+    await page.waitForFunction(() => !document.querySelector('#dock [data-link-id="f2"]'));
+    assert.deepEqual(await dockOf(page), ["f1", "a1"]);                  // z без кликов не добирается
+    assert.deepEqual((await inIdx(page)).sort(), ["a2", "f2", "z"]);
+    // хосты снова доступны → после «Проверить» возвращаются
+    net.revive.add("down1.test"); net.revive.add("down2.test");
+    await page.click("#refresh");
+    await page.waitForFunction(() => document.querySelectorAll("#dock [data-link-id]").length === 4);
+    assert.deepEqual(await dockOf(page), ["f1", "f2", "a2", "a1"]);
+    assert.deepEqual(await inIdx(page), ["z"]);
+    assert.deepEqual(realErrors(errors), []);
+  });
+});
+
+test("избранное (#20): все кандидаты недоступны — уведомление вместо карточек", () => {
+  const net = netStub();
+  const src = "window.RP_LINKS = " + JSON.stringify({
+    version: 1, sections: [{ id: "s", name: "Раздел", icon: "link" }], favorites: ["f1"],
+    links: [L("f1", "down1", { fav: true }), L("a1", "down2"), L("z", "up1")]
+  }) + ";\n";
+  return withPanel({ links: src, setup: net.setup, seed: { rp_clicks: JSON.stringify({ a1: 2 }) } }, async ({ page }) => {
+    await page.waitForSelector("#dock .fav-none");
+    assert.match(await page.innerText("#dock"), /Ни одна карточка не доступна/);
+    assert.equal(await page.isVisible(".favs"), true);
+    assert.deepEqual((await inIdx(page)).sort(), ["a1", "f1", "z"]);
+  });
+});
+
+test("счётчик использований (#21): плитка, строка, встреча, инструмент; без кликов — нет; растёт сразу", () =>
+  withPanel({ ...interact(), seed: { rp_clicks: JSON.stringify({ qlik: 3, daily: 4 }) } }, async ({ page }) => {
+    const uc = (sel) => page.$eval(sel, (e) => { const u = e.querySelector(".uc"); return u ? u.textContent : null; });
+    assert.equal(await uc('#dock [data-link-id="qlik"]'), "3");          // автодобрана в избранное
+    assert.equal(await uc('#meets [data-link-id="daily"]'), "4");
+    assert.equal(await uc('#dock [data-link-id="h-prom-a"]'), null);
+    assert.equal(await page.locator("#idx .ln:not([hidden]) .uc").count(), 0);
+    await page.click("#ln-varm");
+    assert.equal(await uc("#ln-varm"), "1");
+    await page.click("#ln-varm");
+    assert.equal(await uc("#ln-varm"), "2");
+    await page.click('#dock [data-link-id="qlik"]');
+    assert.equal(await uc('#dock [data-link-id="qlik"]'), "4");
+    // счётчик не перекрывает название
+    const ov = await page.$eval("#ln-varm", (e) => {
+      const a = e.querySelector(".tt").getBoundingClientRect(), b = e.querySelector(".uc").getBoundingClientRect();
+      return a.right > b.left && b.right > a.left && a.bottom > b.top && b.bottom > a.top;
+    });
+    assert.equal(ov, false);
+    const tool = await page.$eval("#idx .ln[data-tool]", (e) => e.id);
+    await page.click("#" + tool);
+    await page.keyboard.press("Escape");
+    assert.equal(await uc("#" + tool), "1");
   }));

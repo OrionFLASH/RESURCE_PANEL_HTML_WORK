@@ -327,3 +327,79 @@ test("serializeLinks: новый формат — favorites и settings, без 
   const d = core.normalize(OLD()); d.links[0].favHide = false; d.links[1].meetHide = false; d.settings.favAuto = false;
   assert.deepEqual(loadLinks(core.serializeLinks(d)), clone(d));
 });
+
+// ---------- Доработка 2 ----------
+test("toggleFilter (#13): «Все» или несколько значений; все значения → «Все»; снятие последнего → «Все»", () => {
+  const ALL = ["PROM", "PSI", "IFT"], t = (sel, v) => clone(core.toggleFilter(sel, v, ALL));
+  assert.deepEqual(t([], "PSI"), ["PSI"]);                  // «Все» снимается, значение отмечено
+  assert.deepEqual(t(["PSI"], "PROM"), ["PROM", "PSI"]);    // несколько, порядок — как у чипов
+  assert.deepEqual(t(["PROM", "PSI"], "IFT"), []);          // отмечены все → «Все»
+  assert.deepEqual(t(["PSI"], "PSI"), []);                   // снята последняя → «Все»
+  assert.deepEqual(t(["PROM", "PSI"], "PSI"), ["PROM"]);
+  assert.deepEqual(t(["PROM", "PSI"], ""), []);              // «Все» — только «Все»
+  assert.deepEqual(clone(core.toggleFilter([], "SIGMA", ["ALPHA", "SIGMA"])), ["SIGMA"]);
+  assert.deepEqual(clone(core.toggleFilter(["SIGMA"], "ALPHA", ["ALPHA", "SIGMA"])), []);
+});
+
+test("passFilter (#13): множества стендов и сегментов; инструменты проходят всегда", () => {
+  const l = (env, seg, tool) => ({ env, seg, tool });
+  assert.equal(core.passFilter(l("PROM", "ALPHA"), [], []), true);
+  assert.equal(core.passFilter(l("PROM", "ALPHA"), ["PSI", "PROM"], []), true);
+  assert.equal(core.passFilter(l("IFT", "ALPHA"), ["PSI", "PROM"], []), false);
+  assert.equal(core.passFilter(l("PROM", "SIGMA"), ["PROM"], ["ALPHA"]), false);
+  assert.equal(core.passFilter(l(undefined, undefined), ["PROM"], []), false);
+  assert.equal(core.passFilter(l(undefined, undefined, "decoder"), ["PROM"], ["ALPHA"]), true);
+});
+
+test("pickFavorites (#20): недоступные (down) не попадают; место — следующей закреплённой, затем по кликам > 0; wait/local/skip доступны", () => {
+  const clicks = { b: 5, d: 9, f: 1 };
+  // c недоступна → e, затем автодобор d, b (f с 1 кликом — последним)
+  const r = pick(PL(), ["a"], clicks, 4, true, { c: "down", e: "wait", a: "local" });
+  assert.deepEqual(r.shown, ["a", "e", "d", "b"]);
+  assert.deepEqual(r.pinnedShown, ["a", "e"]);
+  assert.deepEqual(r.dropped, ["c"]);
+  // переполнение: недоступная закреплённая уступает место следующей из переполнения
+  const o = pick(PL(), ["a", "c", "e"], {}, 2, true, { a: "down" });
+  assert.deepEqual(o.shown, ["c", "e"]);
+  assert.deepEqual(o.overflow, []);
+  // автодобранная недоступна → следующая по кликам; ссылки без кликов не добираются
+  const q = pick(PL(), [], clicks, 5, true, { a: "down", c: "down", e: "down", d: "down" });
+  assert.deepEqual(q.shown, ["b", "f"]);
+  assert.deepEqual(q.dropped.sort(), ["a", "c", "d", "e"]);
+  // всё недоступно — пусто, dropped не пуст (уведомление «ни одна карточка не доступна»)
+  const z = pick(PL(), [], {}, 4, true, { a: "down", c: "down", e: "down" });
+  assert.deepEqual(z.shown, []);
+  assert.equal(z.dropped.length, 3);
+  // без статусов (проверка не завершена) — как раньше
+  assert.deepEqual(pick(PL(), ["a"], clicks, 4, true).shown, ["a", "c", "e", "d"]);
+});
+
+test("hiddenInIndex (#19): скрыты и автодобранные по кликам", () => {
+  const links = [{ id: "a", fav: true }, { id: "b" }, { id: "c", favHide: false }, { id: "x" }];
+  const p = core.pickFavorites(links, [], { b: 3, c: 2 }, 4, true);
+  assert.deepEqual(clone(p.shown), ["a", "b", "c"]);
+  assert.deepEqual([...core.hiddenInIndex({ links }, p.shown)].sort(), ["a", "b"]);
+});
+
+test("иконки (#24, #25): служебные вне блоков; каждая смысловая — ровно в одном блоке; смысловых ≥ 30 × 1.5", () => {
+  const ctx = loadCore();   // RP.core с реестром иконок
+  const groups = clone(ctx.ICON_GROUPS), ui = clone(ctx.ICON_UI);
+  const all = groups.flatMap((g) => g[1]);
+  assert.equal(new Set(all).size, all.length, "иконка в двух блоках");
+  assert.ok(all.every((n) => !ui.includes(n)), "служебная иконка в выборе");
+  assert.ok(all.length >= 45, "смысловых " + all.length);
+  ["IT", "Разработка", "Тестирование", "Гонка героев", "Призы", "Победа", "Настройка"].forEach((t) =>
+    assert.ok(groups.some((g) => g[0].startsWith(t)), "нет блока " + t));
+  // реестр: все имена блоков и служебные есть в наборе, а каждая иконка набора — либо служебная, либо в блоке
+  const names = clone(ctx.iconUsage({ sections: [], links: all.concat(ui).map((icon) => ({ icon })) })).map((u) => u[0]);
+  assert.equal(names.length, all.length + ui.length);
+});
+
+test("iconUsage (#26): иконки ссылок и разделов по убыванию применений, неизвестные — мимо, без лимита", () => {
+  const d = { sections: [{ icon: "code" }, { icon: "star" }], links: [{ icon: "star" }, { icon: "star" }, { icon: "code" }, { icon: "nope" }, {}, { icon: "search" }] };
+  assert.deepEqual(clone(core.iconUsage(d)), [["star", 3], ["code", 2], ["search", 1]]);
+  const real = loadLinks(), u = clone(core.iconUsage(real));
+  const want = new Set(real.sections.map((s) => s.icon).concat(real.links.map((l) => l.icon)).filter(Boolean));
+  assert.equal(u.length, want.size);
+  for (let i = 1; i < u.length; i++) assert.ok(u[i - 1][1] >= u[i][1]);
+});

@@ -220,32 +220,56 @@
     return { hit: true, ranges: ranges };
   }
 
+  // ---------- Фильтры «Стенд» / «Сегмент»: «Все» ([]) или несколько конкретных значений ----------
+  // val "" — «Все»; иначе значение переключается. Пусто или отмечены все значения — снова «Все» ([]).
+  function toggleFilter(sel, val, all) {
+    if (!val) return [];
+    var out = (sel || []).filter(function (v) { return v !== val; });
+    if (out.length === (sel || []).length) out.push(val);
+    out = all.filter(function (v) { return out.indexOf(v) >= 0; });
+    return out.length === all.length ? [] : out;
+  }
+  // Ссылка проходит фильтр: «Все» — любая; инструменты — при любом стенде/сегменте
+  function passFilter(l, env, seg) {
+    if (l.tool) return true;
+    return (!env.length || env.indexOf(l.env) >= 0) && (!seg.length || seg.indexOf(l.seg) >= 0);
+  }
+
   // ---------- Избранное ----------
   // Закреплённые (fav, кроме встреч): по порядку favorites, затем остальные fav в порядке данных; первые slots — показаны.
   // favAuto — свободные места добираются самыми частыми по кликам (только clicks > 0; без встреч, инструментов, показанных).
-  function pickFavorites(links, favorites, clicks, slots, favAuto) {
-    clicks = clicks || {}; favorites = Array.isArray(favorites) ? favorites : [];
-    var byId = {}, pinned = [], used = {};
+  // st — статусы id → wait|up|down|local|skip по итогам проверки: «down» в избранное не попадает (место отдаётся следующей
+  // закреплённой, затем автодобору); остальные статусы, в том числе wait (проверка не завершена), считаются доступными.
+  //   -> { shown, pinnedShown, overflow, dropped: id недоступных, которые иначе были бы в избранном }
+  function pickFavorites(links, favorites, clicks, slots, favAuto, st) {
+    clicks = clicks || {}; st = st || {}; favorites = Array.isArray(favorites) ? favorites : [];
+    var byId = {}, pinned = [], used = {}, dropped = [];
     links.forEach(function (l) { byId[l.id] = l; });
     function pin(l) { if (l && l.fav === true && !l.meet && !used[l.id]) { used[l.id] = true; pinned.push(l.id); } }
     favorites.forEach(function (id) { pin(byId[id]); });
     links.forEach(pin);
-    var shown = pinned.slice(0, slots), overflow = pinned.slice(slots), pinnedShown = shown.slice();
-    if (favAuto !== false && shown.length < slots) {
-      var on = {};
+    var ok = pinned.filter(function (id) { return st[id] !== "down"; });
+    pinned.slice(0, slots).forEach(function (id) { if (st[id] === "down") dropped.push(id); });
+    var shown = ok.slice(0, slots), overflow = ok.slice(slots), pinnedShown = shown.slice();
+    if (favAuto !== false) {
+      var on = {}, free = slots - shown.length;
       shown.forEach(function (id) { on[id] = true; });
       links.map(function (l, i) { return { l: l, n: +clicks[l.id] || 0, i: i }; })
-        .filter(function (x) { return x.n > 0 && !x.l.meet && !x.l.tool && !on[x.l.id]; })
+        .filter(function (x) { return x.n > 0 && !x.l.meet && !x.l.tool && !on[x.l.id] && overflow.indexOf(x.l.id) < 0; })
         .sort(function (a, b) { return b.n - a.n || a.i - b.i; })
-        .forEach(function (x) { if (shown.length < slots) shown.push(x.l.id); });
+        .forEach(function (x) {
+          if (free-- <= 0) return;
+          if (st[x.l.id] === "down") { dropped.push(x.l.id); free++; } else shown.push(x.l.id);
+        });
     }
-    return { shown: shown, pinnedShown: pinnedShown, overflow: overflow };
+    return { shown: shown, pinnedShown: pinnedShown, overflow: overflow, dropped: dropped };
   }
-  // id ссылок, которых нет в разделах: показанные закреплённые (favHide !== false) и встречи (meetHide !== false)
-  function hiddenInIndex(data, pinnedShown) {
+  // id ссылок, которых нет в разделах: показанные в избранном — закреплённые и добранные по кликам (favHide !== false) —
+  // и встречи (meetHide !== false)
+  function hiddenInIndex(data, shown) {
     var h = new Set(), byId = {};
     data.links.forEach(function (l) { byId[l.id] = l; if (l.meet && l.meetHide !== false) h.add(l.id); });
-    (pinnedShown || []).forEach(function (id) { if (byId[id] && byId[id].favHide !== false) h.add(id); });
+    (shown || []).forEach(function (id) { if (byId[id] && byId[id].favHide !== false) h.add(id); });
     return h;
   }
 
@@ -288,6 +312,7 @@
 
   RP.core = {
     validate: validate, fieldErrors: fieldErrors, slug: slug, ID_RE: ID_RE, serializeLinks: serializeLinks, parseUrl: parseUrl, match: match,
+    toggleFilter: toggleFilter, passFilter: passFilter,
     normalize: normalize, pickFavorites: pickFavorites, hiddenInIndex: hiddenInIndex, decodePermission: decodePermission, balanceColumns: balanceColumns
   };
 
@@ -349,9 +374,107 @@
   ICONS.up = '<path d="m5 12 5-5 5 5"/>';
   ICONS.eyeoff = '<path d="M8.2 4.7A8 8 0 0 1 10 4.5c5 0 8 5.5 8 5.5a14 14 0 0 1-2.1 2.8M12.7 13.9A7 7 0 0 1 10 15.5c-5 0-8-5.5-8-5.5a14.5 14.5 0 0 1 3.5-4M3.5 3.5l13 13"/>';
 
+  // Смысловые иконки для ссылок и разделов (#24): тот же стиль — сетка 20×20, контур 1.6, скруглённые концы
+  var MORE = {
+    // IT и инфраструктура
+    server: '<rect x="3" y="3.5" width="14" height="5.5" rx="1.5"/><rect x="3" y="11" width="14" height="5.5" rx="1.5"/><path d="M6 6.25h.01M6 13.75h.01M9 6.25h5M9 13.75h5"/>',
+    database: '<ellipse cx="10" cy="5" rx="6" ry="2.2"/><path d="M4 5v10c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V5M4 10c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/>',
+    cloud: '<path d="M6 15.5h8.5a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.2A2.9 2.9 0 0 0 6 15.5Z"/>',
+    network: '<rect x="7.5" y="2.5" width="5" height="4" rx="1"/><rect x="2.5" y="13.5" width="5" height="4" rx="1"/><rect x="12.5" y="13.5" width="5" height="4" rx="1"/><path d="M10 6.5v3.5M5 13.5V10h10v3.5"/>',
+    cpu: '<rect x="5" y="5" width="10" height="10" rx="1.5"/><rect x="8" y="8" width="4" height="4" rx=".5"/><path d="M8 2.5V5M12 2.5V5M8 15v2.5M12 15v2.5M2.5 8H5M2.5 12H5M15 8h2.5M15 12h2.5"/>',
+    terminal: '<rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="m6 8 2.5 2L6 12M10.5 12.5H14"/>',
+    monitor: '<rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 17h6M10 13.5V17"/>',
+    wifi: '<path d="M3 8a10 10 0 0 1 14 0M5.5 11a6.5 6.5 0 0 1 9 0M8 14a3 3 0 0 1 4 0M10 16.6v.1"/>',
+    // Разработка
+    braces: '<path d="M7 3.5c-1.7 0-2 .8-2 2v2.3c0 1-.6 1.7-1.5 2.2.9.5 1.5 1.2 1.5 2.2v2.3c0 1.2.3 2 2 2M13 3.5c1.7 0 2 .8 2 2v2.3c0 1 .6 1.7 1.5 2.2-.9.5-1.5 1.2-1.5 2.2v2.3c0 1.2-.3 2-2 2"/>',
+    branch: '<circle cx="6" cy="4.5" r="1.8"/><circle cx="6" cy="15.5" r="1.8"/><circle cx="14" cy="7" r="1.8"/><path d="M6 6.3v7.4M14 8.8c0 3-3 3.2-6.6 5.4"/>',
+    merge: '<circle cx="6" cy="4.5" r="1.8"/><circle cx="6" cy="15.5" r="1.8"/><circle cx="14.5" cy="11" r="1.8"/><path d="M6 6.3v7.4M6.8 6.2c1 2.8 3.4 4.8 5.9 4.8"/>',
+    puzzle: '<path d="M4 6h3a2 2 0 1 1 4 0h3v3a2 2 0 1 1 0 4v3h-3a2 2 0 1 0-4 0H4v-3a2 2 0 1 0 0-4z"/>',
+    layers: '<path d="M10 3 17 7l-7 4-7-4z"/><path d="m3 10.5 7 4 7-4M3 14l7 4 7-4"/>',
+    // Тестирование и качество
+    bug: '<rect x="6" y="6.5" width="8" height="10" rx="4"/><path d="M8 6.5a2 2 0 0 1 4 0M10 9v7.5M6 10H3.5M16.5 10H14M6 14l-2.5 1.5M14 14l2.5 1.5M6.3 7.5 4 6M13.7 7.5 16 6"/>',
+    flask: '<path d="M8 3h4M8.5 3v5L4 15.5A1 1 0 0 0 4.9 17h10.2a1 1 0 0 0 .9-1.5L11.5 8V3M6 12.5h8"/>',
+    checklist: '<path d="m3.5 5 1.5 1.5L7.5 4M3.5 11l1.5 1.5L7.5 10M10 5.5h6.5M10 11.5h6.5M4.5 16.5h.01M10 16.5h6.5"/>',
+    gauge: '<path d="M3.5 14a6.5 6.5 0 1 1 13 0M10 14l3-4.5M5 17h10"/><circle cx="10" cy="14" r="1.2"/>',
+    target: '<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="4"/><circle cx="10" cy="10" r="1" fill="currentColor"/>',
+    // Данные и отчёты
+    folder: '<path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3.5l2 2H16a1.5 1.5 0 0 1 1.5 1.5V15a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 15z"/>',
+    growth: '<path d="M3 16.5h14M4 13l4-4 3 2.5 5-6M12.5 5.5H16V9"/>',
+    // «Гонка героев»
+    rocket: '<path d="M10 2.5c3 2 4 5 3.5 9h-7C6 7.5 7 4.5 10 2.5Z"/><path d="M6.5 11.5 4 14l2.8.5M13.5 11.5 16 14l-2.8.5M8.5 14.5 10 17.5l1.5-3"/><circle cx="10" cy="7.5" r="1.3"/>',
+    finish: '<path d="M4.5 17.5V3M4.5 3.5h11v8h-11"/><path d="M4.5 3.5h3.7v4H4.5zM11.9 3.5h3.6v4h-3.6zM8.2 7.5h3.7v4H8.2z" fill="currentColor" stroke="none"/>',
+    bolt: '<path d="M11 2.5 4.5 11.5H10l-1 6 6.5-9H10z"/>',
+    peak: '<path d="m2.5 16.5 5.5-9 3 4.5 2-3 4.5 7.5z"/><path d="M8 7.5V3l3.5 1.2L8 5.4"/>',
+    stopwatch: '<circle cx="10" cy="11" r="6"/><path d="M8 2.5h4M10 2.5V5M10 11V8M15.2 5.8l1.3-1.3"/>',
+    flame: '<path d="M10 17.5c-3.3 0-5.5-2.3-5.5-5.3 0-3.2 2.5-4.6 3.5-8.7 2 1.4 3 3.2 3 5 1-.6 1.7-1.6 2-2.7 1.6 1.6 2.5 3.8 2.5 6.4 0 3-2.2 5.3-5.5 5.3Z"/><path d="M10 17.5c-1.4 0-2.3-1-2.3-2.3 0-1.5 1.3-2.2 2.3-3.7 1 1.5 2.3 2.2 2.3 3.7 0 1.3-.9 2.3-2.3 2.3Z"/>',
+    // Призы
+    medal: '<path d="M6.5 2.5 9 8M13.5 2.5 11 8"/><circle cx="10" cy="12.5" r="5"/><path d="m10 10 .9 1.7 1.9.3-1.4 1.3.3 1.9-1.7-.9-1.7.9.3-1.9-1.4-1.3 1.9-.3z"/>',
+    gift: '<rect x="3" y="7.5" width="14" height="3.5" rx="1"/><path d="M4.5 11v6h11v-6M10 7.5v9.5M10 7.5C8.5 4 5 4 5.5 6s4.5 1.5 4.5 1.5Zm0 0c1.5-3.5 5-3.5 4.5-1.5S10 7.5 10 7.5Z"/>',
+    crown: '<path d="M3 6.5 6.5 10 10 4l3.5 6L17 6.5 15.5 15h-11zM4.5 17.5h11"/>',
+    gem: '<path d="M6 3.5h8l3 4-7 9-7-9z"/><path d="M3 7.5h14M8 3.5 7 7.5l3 9 3-9-1-4"/>',
+    award: '<circle cx="10" cy="8" r="5"/><circle cx="10" cy="8" r="2.2"/><path d="M7 12 5.5 17.5l2.5-1.3 1.2 1.8.8-4.3M13 12l1.5 5.5-2.5-1.3-1.2 1.8-.8-4.3"/>',
+    coin: '<circle cx="10" cy="10" r="7"/><path d="M12.3 7.3A2.6 2.6 0 0 0 10 6.2c-1.4 0-2.4.8-2.4 1.9 0 2.6 4.9 1.3 4.9 3.9 0 1.1-1 1.9-2.5 1.9a2.8 2.8 0 0 1-2.4-1.2M10 4.8v1.4M10 13.9v1.4"/>',
+    // Победа
+    podium: '<path d="M7 8.5h6V17H7zM2.5 12H7v5H2.5zM13 10.5h4.5V17H13z"/><path d="m10 2.8.8 1.6 1.7.2-1.2 1.2.3 1.7-1.6-.8-1.6.8.3-1.7-1.2-1.2 1.7-.2z"/>',
+    laurel: '<path d="M7.5 17C4.5 15.5 3 12.5 3.5 8.5M12.5 17c3-1.5 4.5-4.5 4-8.5"/><path d="M4.2 13.6c1.6-.1 2.6.6 3 1.9-1.5.2-2.6-.4-3-1.9ZM3.4 10.2c1.5.3 2.3 1.3 2.3 2.6-1.4-.3-2.3-1.1-2.3-2.6ZM15.8 13.6c-1.6-.1-2.6.6-3 1.9 1.5.2 2.6-.4 3-1.9ZM16.6 10.2c-1.5.3-2.3 1.3-2.3 2.6 1.4-.3 2.3-1.1 2.3-2.6Z"/><path d="m10 5 1 2 2.1.3-1.5 1.5.4 2.1L10 9.9l-2 1 .4-2.1-1.5-1.5L9 7z"/>',
+    sparkle: '<path d="M10 2.5c.6 3.6 1.9 4.9 5.5 5.5-3.6.6-4.9 1.9-5.5 5.5-.6-3.6-1.9-4.9-5.5-5.5 3.6-.6 4.9-1.9 5.5-5.5ZM15.5 13v4M13.5 15h4M4.5 14v2.5M3.2 15.25h2.6"/>',
+    thumb: '<path d="M6.5 9v8h-3V9zM6.5 9l3-6c1.5 0 2.3 1 2 2.5L11 8h4.4a1.6 1.6 0 0 1 1.6 1.9l-1.2 5.6a2 2 0 0 1-2 1.5H6.5"/>',
+    // Настройка
+    gear: '<circle cx="10" cy="10" r="2.2"/><circle cx="10" cy="10" r="5.2"/><path d="M10 2.5v2.3M10 15.2v2.3M2.5 10h2.3M15.2 10h2.3M4.7 4.7l1.6 1.6M13.7 13.7l1.6 1.6M4.7 15.3l1.6-1.6M13.7 6.3l1.6-1.6"/>',
+    sliders: '<path d="M4 5h5M13 5h3M4 10h2M10 10h6M4 15h7M15 15h1"/><circle cx="11" cy="5" r="2"/><circle cx="8" cy="10" r="2"/><circle cx="13" cy="15" r="2"/>',
+    wrench: '<path d="M14.5 3.2a4 4 0 0 0-5 5L3.6 14.1a1.6 1.6 0 0 0 2.3 2.3l5.9-5.9a4 4 0 0 0 5-5l-2.5 2.5-2-.3-.3-2z"/>',
+    key: '<circle cx="7" cy="12.5" r="3.5"/><path d="m9.5 10 7-7M14 5.5l2 2M12 7.5l1.5 1.5"/>',
+    toggle: '<rect x="2.5" y="6" width="15" height="8" rx="4"/><circle cx="13.5" cy="10" r="2" fill="currentColor"/>',
+    // Коммуникации и люди
+    phone: '<path d="M5 3h2.5l1.3 3.4-1.7 1.1a8 8 0 0 0 5.4 5.4l1.1-1.7L17 12.5V15a2 2 0 0 1-2.2 2A12.5 12.5 0 0 1 3 5.2 2 2 0 0 1 5 3Z"/>',
+    bell: '<path d="M5 14V9a5 5 0 0 1 10 0v5l1.5 1.5h-13zM8.3 17.5a1.8 1.8 0 0 0 3.4 0"/>',
+    users: '<circle cx="7.5" cy="7" r="2.8"/><path d="M2.5 16.5a5 5 0 0 1 10 0M12.5 4.4a2.8 2.8 0 0 1 0 5.2M14.5 12a5 5 0 0 1 3 4.5"/>',
+    user: '<circle cx="10" cy="7" r="3.2"/><path d="M4 17a6 6 0 0 1 12 0"/>',
+    megaphone: '<path d="M3 8v4h2.5l7.5 4V4L5.5 8zM6 12.2 7 17h2l-.8-4M15.5 8a2.5 2.5 0 0 1 0 4"/>',
+    // Прочее
+    book: '<path d="M10 5.5C8.5 4 6 3.5 3 3.8v11.5c3-.3 5.5.2 7 1.7 1.5-1.5 4-2 7-1.7V3.8c-3-.3-5.5.2-7 1.7Zm0 0V17"/>',
+    globe: '<circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c2 2 2.8 4.4 2.8 7S12 15 10 17c-2-2-2.8-4.4-2.8-7S8 5 10 3Z"/>',
+    pin: '<path d="M10 17.5s-5.5-5-5.5-9a5.5 5.5 0 0 1 11 0c0 4-5.5 9-5.5 9Z"/><circle cx="10" cy="8.5" r="2"/>',
+    clock: '<circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.8 1.8"/>',
+    bulb: '<path d="M7.5 14.5h5M8 17h4M7.3 12.3a5 5 0 1 1 5.4 0c-.5.5-.7 1.2-.7 2.2H8c0-1-.2-1.7-.7-2.2Z"/>',
+    heart: '<path d="M10 16.5S3 12.4 3 7.8a3.6 3.6 0 0 1 7-1.6 3.6 3.6 0 0 1 7 1.6c0 4.6-7 8.7-7 8.7Z"/>',
+    building: '<path d="M4 17.5V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v13.5M12 8h3a1 1 0 0 1 1 1v8.5M2.5 17.5h15M6.5 6h.01M9.5 6h.01M6.5 9h.01M9.5 9h.01M6.5 12h.01M9.5 12h.01M14 11h.01M14 14h.01"/>'
+  };
+  Object.keys(MORE).forEach(function (k) { ICONS[k] = MORE[k]; });
+
+  // Служебные иконки интерфейса: в спрайте остаются (кнопки панели, уже выбранные у ссылок), в выбор иконки не попадают
+  var ICON_UI = ["search", "moon", "sun", "lock", "unlock", "logout", "close", "left", "right", "down", "up", "plus", "minus", "check",
+    "fit", "dot", "copy", "refresh", "trash", "panel", "eye", "eyeoff"];
+  // Тематические блоки выбора иконки (#25): каждая смысловая иконка — ровно в одном блоке
+  var ICON_GROUPS = [
+    ["IT и инфраструктура", ["server", "database", "cloud", "network", "cpu", "terminal", "monitor", "wifi", "cmd", "galaxy"]],
+    ["Разработка", ["code", "braces", "branch", "merge", "puzzle", "layers", "bundle", "edit", "field"]],
+    ["Тестирование и качество", ["checks", "bug", "flask", "checklist", "gauge", "target", "alert", "info", "log"]],
+    ["Данные и отчёты", ["report", "grid", "timeline", "growth", "params", "dicts", "file", "folder", "export", "upload", "save"]],
+    ["Гонка героев", ["rocket", "finish", "flag", "bolt", "peak", "stopwatch", "flame", "contests"]],
+    ["Призы", ["trophy", "medal", "gift", "crown", "gem", "award", "coin", "star", "ticket"]],
+    ["Победа", ["podium", "laurel", "sparkle", "thumb"]],
+    ["Настройка", ["gear", "sliders", "wrench", "key", "toggle"]],
+    ["Коммуникации и люди", ["chat", "video", "mail", "phone", "bell", "users", "user", "megaphone"]],
+    ["Прочее", ["home", "link", "tour", "book", "globe", "pin", "clock", "bulb", "heart", "building"]]
+  ];
+  // «Часто используемые» (#26): иконки, назначенные ссылкам и разделам, по убыванию числа применений (без лимита).
+  // Служебные тоже попадают, если уже выбраны. -> [[name, count]]
+  function iconUsage(data) {
+    var n = {}, order = Object.keys(ICONS);
+    (data.sections || []).concat(data.links || []).forEach(function (x) {
+      if (x && x.icon && Object.prototype.hasOwnProperty.call(ICONS, x.icon)) n[x.icon] = (n[x.icon] || 0) + 1;
+    });
+    return Object.keys(n).map(function (k) { return [k, n[k]]; })
+      .sort(function (a, b) { return b[1] - a[1] || order.indexOf(a[0]) - order.indexOf(b[0]); });
+  }
+  RP.core.iconUsage = iconUsage; RP.core.ICON_GROUPS = ICON_GROUPS; RP.core.ICON_UI = ICON_UI;
+
   // ---------- Иконки: SVG-спрайт (сетка 20×20, контур 1.6, currentColor) ----------
   RP.icons = {
     names: function () { return Object.keys(ICONS); },
+    groups: function () { return ICON_GROUPS; },
+    usage: iconUsage,
     has: function (n) { return Object.prototype.hasOwnProperty.call(ICONS, n); },
     svg: function (name, cls) {
       return '<svg class="' + (cls || "ui-i") + '" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><use href="#rp-i-' + name + '"/></svg>';
@@ -502,7 +625,12 @@
   }
   // Начальный статус: url-ссылки ждут проверки; инструменты локальные; check:false не проверяются
   function initialSt(l) { return l.tool ? "local" : l.check === false ? "skip" : "wait"; }
-  S.iconOf = iconOf; S.tagsHtml = tagsHtml; S.ariaOf = ariaOf;
+  // Число использований (#21): еле заметная цифра; ни разу не открывали — ничего
+  function ucHtml(id) {
+    var n = +(S.uses && S.uses[id]) || 0;
+    return n ? '<span class="uc" title="Открывали: ' + n + '" aria-hidden="true">' + n + "</span>" : "";
+  }
+  S.iconOf = iconOf; S.tagsHtml = tagsHtml; S.ariaOf = ariaOf; S.ucHtml = ucHtml;
 
   // Элемент-ссылка: настоящий <a> для url, кнопка для инструмента
   function linkEl(l, cls) {
@@ -528,8 +656,9 @@
         if (l.section !== s.id) return;
         var el = linkEl(l, "ln");
         el.id = "ln-" + l.id; el.setAttribute("aria-label", ariaOf(l));
+        // Доступность в разделах — цветом иконки и рамкой (#15); у инструментов кружок остаётся
         el.innerHTML = I(iconOf(l)) + '<span class="tt">' + esc(nbh(l.title)) + "</span>" + (l.copy ? I("copy", "ui-i cp") : "") +
-          '<span class="ld"></span>' + tagsHtml(l) + '<span class="dot"></span>';
+          '<span class="ld"></span>' + tagsHtml(l) + ucHtml(l.id) + (l.tool ? '<span class="dot"></span>' : "");
         if (hide.has(l.id)) { el.classList.add("away"); el.hidden = true; } else n++;
         S.lineEl[l.id] = el; sec.appendChild(el);
       });
@@ -545,21 +674,24 @@
       if (!l.meet) return;
       var a = linkEl(l, "mt");
       a.setAttribute("aria-label", "Встреча: " + ariaOf(l));
-      a.innerHTML = I("video") + '<span class="tt">' + esc(nbh(l.title)) + '</span><span class="dot"></span>';
+      a.innerHTML = I("video") + '<span class="tt">' + esc(nbh(l.title)) + "</span>" + ucHtml(l.id) + '<span class="dot"></span>';
       S.meetEl[l.id] = a; box.appendChild(a);
     });
     box.parentNode.hidden = !box.children.length;
   }
-  // Избранное: закреплённые + автодобор (клики берутся один раз при открытии — иконки не прыгают)
+  // Избранное: закреплённые + автодобор (клики берутся один раз при открытии — иконки не прыгают).
+  // Все кандидаты недоступны — вместо плиток уведомление.
   function buildDock() {
     var dock = $("#dock"); dock.innerHTML = "";
     S.pick.shown.forEach(function (id) {
       var l = S.byId[id], a = linkEl(l, "app");
       a.setAttribute("aria-label", ariaOf(l));
-      a.innerHTML = '<span class="sq">' + I(iconOf(l)) + '<span class="dot"></span>' + (l.copy ? '<span class="cp">' + I("copy") + "</span>" : "") +
+      a.innerHTML = '<span class="sq">' + I(iconOf(l)) + '<span class="dot"></span>' + ucHtml(l.id) + (l.copy ? '<span class="cp">' + I("copy") + "</span>" : "") +
         '</span><span class="lb">' + esc(nbh(l.title)) + "</span>" + tagsHtml(l);
       dock.appendChild(a);
     });
+    if (!dock.children.length && S.pick.dropped.length)
+      dock.innerHTML = '<p class="fav-none" role="status">' + I("alert") + "Ни одна карточка не доступна</p>";
     $(".favs").hidden = !dock.children.length;
   }
   // Мест в избранном: сколько плиток помещается в одну строку (не меньше 4)
@@ -577,13 +709,17 @@
     return Math.max(4, Math.floor((avail + gap) / (tile + gap)));
   }
   // Пересчёт избранного и скрытых строк при смене числа мест (или после правки данных); true — указатель перестроен
+  // S.avail — статусы на момент последней завершённой проверки (до неё пусто: в избранном все кандидаты)
+  function pickFav(n) {
+    var D = S.data, auto = !(D.settings && D.settings.favAuto === false);
+    return RP.core.pickFavorites(D.links, D.favorites, S.clicks, n, auto, S.avail);
+  }
   function syncFav() {
     var n = favSlots();
     if (n === S.slots && S.pick) return false;
-    var D = S.data, auto = !(D.settings && D.settings.favAuto === false);
     S.slots = n;
-    S.pick = RP.core.pickFavorites(D.links, D.favorites, S.clicks, n, auto);
-    S.hide = RP.core.hiddenInIndex(D, S.pick.pinnedShown);
+    S.pick = pickFav(n);
+    S.hide = RP.core.hiddenInIndex(S.data, S.pick.shown);
     buildDock(); buildIndex(); buildGroups(); paintGroups();
     var gq = $("#gq"); if (gq && gq.value) gq.dispatchEvent(new Event("input"));
     if (S.onFav) S.onFav();
@@ -628,6 +764,7 @@
     $("#subt").textContent = D.links.length + " рабочих ссылок · " + D.sections.length + " разделов";
     $("#cnt").textContent = D.links.length + " ссылок";
     if (!S.clicks) { S.clicks = RP.store.get("rp_clicks", {}); if (!S.clicks || typeof S.clicks !== "object" || Array.isArray(S.clicks)) S.clicks = {}; }
+    if (!S.uses) S.uses = Object.assign({}, S.clicks);   // счётчики на экране растут сразу, порядок избранного — нет
     S.pick = null;
     buildMeets(); renderSum();
     layout();
@@ -638,11 +775,11 @@
   var RAILS = ["open", "compact", "hidden"];
   var RAIL_NAME = { open: "развёрнута", compact: "узкая", hidden: "скрыта" }, RAIL_NEXT = { open: "compact", compact: "hidden", hidden: "open" };
   var RAIL_TO = { open: "развёрнутой", compact: "узкой", hidden: "скрытой" };
-  var railMem = null;   // запасное значение, если localStorage недоступен
+  // Ручной выбор живёт до перезагрузки: при каждой загрузке панель узкая (#16), сохранённый rp_rail не читается
+  var railMem = null;
   function railMode() {
-    var r = railMem || RP.store.get("rp_rail", null);
     if (window.innerWidth < 767) return "drawer";
-    return RAILS.indexOf(r) >= 0 ? r : window.innerWidth >= 1280 ? "open" : "compact";
+    return RAILS.indexOf(railMem) >= 0 ? railMem : "compact";
   }
   function applyRail() {
     var m = railMode(), gp = $("#gp"), btn = $("#gpBtn");
@@ -661,6 +798,7 @@
     }
   }
   S.railMode = railMode; S.applyRail = applyRail;
+  S.setRail = function (m) { railMem = m; layout(); };   // как ручное переключение кнопкой (до перезагрузки)
 
   // ---------- Раскладка «в один экран»: колонки по числу строк, плотность ступенями ----------
   // Разбиение разделов по колонкам: подряд (RP.core.balanceColumns) или «жадно» по весу — где самая длинная колонка короче
@@ -690,9 +828,9 @@
         '<br><button class="btn" type="button" id="reset">Показать все группы</button>';
       idx.appendChild(z); $("#reset").addEventListener("click", function () { setOff([]); }); return;
     }
-    if (!secs.length && F && (F.q.trim() || F.env || F.seg)) {
+    if (!secs.length && F && (F.q.trim() || F.env.length || F.seg.length)) {
       // Поиск/фильтры ничего не оставили
-      var e = document.createElement("div"), q = F.q.trim(), fl = F.env || F.seg;
+      var e = document.createElement("div"), q = F.q.trim(), fl = F.env.length || F.seg.length;
       e.className = "empty"; e.setAttribute("role", "status");
       e.innerHTML = "<b>Ничего не нашлось</b>Нет ссылок" + (q ? " по запросу «" + esc(q) + "»" : "") + (fl ? " с выбранными фильтрами" : "") +
         '.<br><button class="btn" type="button" id="reset">Сбросить поиск и фильтры</button>';
@@ -771,10 +909,21 @@
     }).then(fin, fin);
     function fin() {
       checking = false; btn.classList.remove("busy"); btn.removeAttribute("aria-busy"); btn.style.removeProperty("--p");
-      try { renderSum(); } catch (e) { try { console.error(e); } catch (x) {} }
+      try { renderSum(); refav(); } catch (e) { try { console.error(e); } catch (x) {} }
     }
   }
   S.check = check;
+  // Избранное по итогам проверки (#20): недоступные уходят в разделы, снова доступные возвращаются.
+  // Перестраиваем, только если состав изменился — фоновая проверка раз в 2 мин не трогает страницу зря.
+  function refav() {
+    S.avail = {};
+    S.data.links.forEach(function (l) { if (S.st[l.id] === "down") S.avail[l.id] = "down"; });
+    if (!S.pick) return;
+    var p = pickFav(S.slots), key = function (k) { return k.shown.join() + (k.shown.length || !k.dropped.length ? "" : "|none"); };
+    if (key(p) === key(S.pick)) return;
+    S.pick = null; layout();
+  }
+  S.refav = refav;
 
   // ---------- Тосты ----------
   RP.toast = function (text, icon) {
@@ -828,6 +977,14 @@
     if (!c || typeof c !== "object" || Array.isArray(c)) c = {};
     c[id] = (+c[id] || 0) + 1;
     RP.store.set("rp_clicks", c);   // избранное пересчитается при следующем открытии
+    // Счётчик на экране — сразу (вставляется перед кружком/кнопкой или в конец)
+    S.uses[id] = Math.max(+S.uses[id] || 0, c[id]);
+    $$('[data-link-id="' + id + '"]').forEach(function (e) {
+      var u = $(".uc", e);
+      if (u) { u.textContent = S.uses[id]; u.title = "Открывали: " + S.uses[id]; return; }
+      var sq = $(".sq", e), dot = sq ? null : $(":scope > .dot", e);
+      if (dot) dot.insertAdjacentHTML("beforebegin", ucHtml(id)); else (sq || e).insertAdjacentHTML("beforeend", ucHtml(id));
+    });
   }
   function copyUrl(l) {
     RP.copy(l.url, function (ok) { RP.toast(ok ? "Ссылка скопирована" : "Не удалось скопировать", ok ? "link" : "alert"); });
@@ -835,7 +992,7 @@
   // Действие по ссылке: ev — событие клика/клавиши (Ctrl/⌘ — копировать URL вместо открытия)
   function activate(l, ev) {
     hideTip();
-    if (l.tool) { if (RP.tools && RP.tools.open) RP.tools.open(l); return; }
+    if (l.tool) { bump(l.id); if (RP.tools && RP.tools.open) RP.tools.open(l); return; }
     if (ev && (ev.ctrlKey || ev.metaKey)) { copyUrl(l); return; }
     if (l.copy) RP.copy(l.copy, function (ok) { RP.toast(ok ? "Скопировано: " + l.copy : "Не удалось скопировать", ok ? "copy" : "alert"); });
     window.open(l.url, "_blank", "noopener");
@@ -939,11 +1096,11 @@
   }
 
   // ---------- Поиск и фильтры (фильтры не запоминаются) ----------
-  var F = S.filter = { env: "", seg: "", q: "" };
+  // env / seg — выбранные значения; [] — «Все»
+  var F = S.filter = { env: [], seg: [], q: "" };
   function passes(l) {
     // Инструменты остаются при любом стенде/сегменте — их отбирает только поиск
-    if (!l.tool && F.env && l.env !== F.env) return { hit: false, ranges: [] };
-    if (!l.tool && F.seg && l.seg !== F.seg) return { hit: false, ranges: [] };
+    if (!RP.core.passFilter(l, F.env, F.seg)) return { hit: false, ranges: [] };
     var s = S.secById[l.section];
     return RP.core.match(l, s ? s.name : "", F.q);
   }
@@ -954,7 +1111,7 @@
   }
   function apply() {
     if (!S.data) return;
-    var n = 0, total = S.data.links.length, on = !!(F.q.trim() || F.env || F.seg), qOn = !!F.q.trim();
+    var n = 0, total = S.data.links.length, on = !!(F.q.trim() || F.env.length || F.seg.length), qOn = !!F.q.trim();
     S.data.links.forEach(function (l) {
       var m = passes(l), ln = S.lineEl[l.id], mt = S.meetEl[l.id];
       if (m.hit) n++;
@@ -981,10 +1138,16 @@
   // Сброс поиска и фильтров: чипы «Все», пустое поле, фокус в поиск
   S.resetAll = function () {
     var q = $("#q");
-    q.value = ""; F.q = ""; F.env = ""; F.seg = "";
-    $$(".filters .fg").forEach(function (g) { $$(".chip", g).forEach(function (c, i) { c.setAttribute("aria-pressed", i === 0 ? "true" : "false"); }); });
-    apply(); q.focus();
+    q.value = ""; F.q = ""; F.env = []; F.seg = [];
+    paintChips(); apply(); q.focus();
   };
+  // Отметки чипов по F: «Все» — при пустом выборе
+  function paintChips() {
+    $$(".filters .fg").forEach(function (g) {
+      var sel = F[g.id === "fEnv" ? "env" : "seg"];
+      $$(".chip", g).forEach(function (c) { c.setAttribute("aria-pressed", (c.dataset.val ? sel.indexOf(c.dataset.val) >= 0 : !sel.length) ? "true" : "false"); });
+    });
+  }
 
   // Клавиатура в поиске: ↑↓ — выбор строки, Enter — открыть, Esc — очистить
   var active = -1;
@@ -1018,9 +1181,8 @@
       var b = e.target.closest && e.target.closest(".chip");
       if (!b) return;
       var g = b.parentNode, key = g.id === "fEnv" ? "env" : "seg";
-      F[key] = b.dataset.val;
-      $$(".chip", g).forEach(function (c) { c.setAttribute("aria-pressed", c === b ? "true" : "false"); });
-      apply();
+      F[key] = RP.core.toggleFilter(F[key], b.dataset.val, key === "env" ? ENVS : SEGS);
+      paintChips(); apply();
     });
     // Ctrl/⌘+K, а также «/» вне поля ввода — фокус в поиск
     document.addEventListener("keydown", function (e) {
@@ -1179,7 +1341,7 @@
         setTimeout(function () { var f = $(".gr:not([hidden]) .gr-go", gp); if (layer === gp && f) f.focus(); }, 30);   // после смены visibility
         return;
       }
-      railMem = RAIL_NEXT[m]; RP.store.set("rp_rail", railMem); layout();
+      railMem = RAIL_NEXT[m]; layout();
     });
     // Узкая панель: подсказка с названием сразу, раскрытие поверх указателя — после задержки курсора
     gp.addEventListener("pointerover", function (e) {
@@ -1516,12 +1678,18 @@
             ib("m-del", "close", "Убрать из встреч: «" + l.title + "»", "mx:" + l.id) + "</li>";
         }).join("") + "</ol>" : '<p class="ahint">Встреч нет — отметьте ссылку значком камеры в списке.</p>');
     }
+    // Выбор иконки: сверху «Часто используемые» (раскрыт), ниже тематические блоки (свёрнуты); <details> — с клавиатуры Enter/Space
     function pickHtml(cur, withDefault, label) {
+      function btn(n) { return '<button type="button" data-icon="' + n + '" aria-pressed="' + (cur === n) + '" aria-label="' + n + '" title="' + n + '">' + I(n) + "</button>"; }
+      function block(title, names, open, cls) {
+        return '<details class="ipg' + (cls ? " " + cls : "") + '"' + (open ? " open" : "") + "><summary>" + I("down", "ui-i ipc") + esc(title) + "<em>" + names.length + "</em></summary>" +
+          '<div class="ipg-b">' + names.map(btn).join("") + "</div></details>";
+      }
+      var used = RP.icons.usage(W()).map(function (u) { return u[0]; });
       return '<div class="ipick" role="group" aria-label="' + esc(label) + '">' +
         (withDefault ? '<button type="button" class="ip-def" data-icon="" aria-pressed="' + !cur + '" title="Как у раздела">как у раздела</button>' : "") +
-        RP.icons.names().map(function (n) {
-          return '<button type="button" data-icon="' + n + '" aria-pressed="' + (cur === n) + '" aria-label="' + n + '" title="' + n + '">' + I(n) + "</button>";
-        }).join("") + "</div>";
+        (used.length ? block("Часто используемые", used, true, "ipg-top") : "") +
+        RP.icons.groups().map(function (g) { return block(g[0], g[1], false); }).join("") + "</div>";
     }
     function swap(arr, i, j) { if (j < 0 || j >= arr.length) return false; var t = arr[i]; arr[i] = arr[j]; arr[j] = t; return true; }
     // Сдвиг ссылки внутри её раздела (порядок в массиве = порядок вывода)
@@ -1710,7 +1878,7 @@
       $("#eIcon").addEventListener("click", function (e) {
         var b = e.target.closest("[data-icon]"); if (!b) return;
         icon = b.dataset.icon;
-        $$("[data-icon]", this).forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        $$("[data-icon]", this).forEach(function (x) { x.setAttribute("aria-pressed", x.dataset.icon === icon ? "true" : "false"); });
         check(); keep();
       });
       form.addEventListener("submit", function (e) {
