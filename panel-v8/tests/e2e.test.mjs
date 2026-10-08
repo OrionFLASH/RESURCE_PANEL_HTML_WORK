@@ -510,8 +510,8 @@ test("избранное: пустой rp_clicks → 9 закреплённых;
     await page.reload();
     await page.waitForFunction(() => document.body.dataset.ready === "1");
     const d = await dock();
-    assert.deepEqual(d.slice(0, 9), seed);             // сначала закреплённые
-    assert.equal(d[9], "qlik");                        // затем автодобор по кликам
+    assert.equal(d[0], "qlik");                        // чаще открываемая — первой (по числу открытий)
+    assert.deepEqual(d.slice(1), seed);                // остальные — закреплённые в своём порядке
     assert.equal(d.length, 10);
   }));
 
@@ -1209,13 +1209,14 @@ test("§12 админка: видео у jazz — во встречах, не в
 test("§12 админка: блок «Избранное» — порядок ↑↓, «Добирать по частоте кликов», предупреждение «не поместилось»", () =>
   withPanel({ ...interact(), seed: { rp_clicks: JSON.stringify({ qlik: 3, sprint: 1 }) } }, async ({ page, errors }) => {
     const fav = ["h-prom-a", "h-prom-s", "h-psi-a", "kap-prom", "kap-psi", "sand", "chat", "jazz", "mail"];
-    assert.deepEqual(await dockIds(page), fav.concat(["qlik", "sprint"]));
+    assert.deepEqual(await dockIds(page), ["qlik", "sprint"].concat(fav));   // по числу открытий, затем порядок закреплённых
+    const pinned = async () => (await dockIds(page)).filter((id) => id !== "qlik" && id !== "sprint");
     await openAdmin(page);
     await page.click("#aFav > summary");
     await page.click('#aFav [data-fid="h-prom-s"] .f-up');
-    assert.deepEqual((await dockIds(page)).slice(0, 3), ["h-prom-s", "h-prom-a", "h-psi-a"]);
+    assert.deepEqual((await pinned()).slice(0, 3), ["h-prom-s", "h-prom-a", "h-psi-a"]);
     await page.click('#aFav [data-fid="h-prom-s"] .f-dn');
-    assert.deepEqual((await dockIds(page)).slice(0, 3), fav.slice(0, 3));
+    assert.deepEqual((await pinned()).slice(0, 3), fav.slice(0, 3));
     // без автодобора — только закреплённые
     assert.equal(await page.isChecked("#aFavAuto"), true);
     await page.uncheck("#aFavAuto");
@@ -1452,17 +1453,17 @@ const inIdx = (page) => page.$$eval("#idx .ln:not([hidden])", (a) => a.map((e) =
 test("избранное (#19, #20): до проверки — все; затем недоступные уходят в раздел, место — доступной по кликам; «Проверить» возвращает", () => {
   const net = netStub({ gate: true });
   return withPanel({ links: FAVSET(), setup: net.setup, seed: { rp_clicks: JSON.stringify({ a2: 5, a1: 3 }) } }, async ({ page, errors }) => {
-    assert.deepEqual(await dockOf(page), ["f1", "f2", "a2", "a1"]);       // проверка идёт — ничего не скрыто
+    assert.deepEqual(await dockOf(page), ["a2", "a1", "f1", "f2"]);       // проверка идёт — ничего не скрыто
     assert.deepEqual(await inIdx(page), ["z"]);                          // #19: автодобранные тоже не в разделе
     net.release();
     await page.waitForFunction(() => !document.querySelector('#dock [data-link-id="f2"]'));
-    assert.deepEqual(await dockOf(page), ["f1", "a1"]);                  // z без кликов не добирается
+    assert.deepEqual(await dockOf(page), ["a1", "f1"]);                  // z без кликов не добирается
     assert.deepEqual((await inIdx(page)).sort(), ["a2", "f2", "z"]);
     // хосты снова доступны → после «Проверить» возвращаются
     net.revive.add("down1.test"); net.revive.add("down2.test");
     await page.click("#refresh");
     await page.waitForFunction(() => document.querySelectorAll("#dock [data-link-id]").length === 4);
-    assert.deepEqual(await dockOf(page), ["f1", "f2", "a2", "a1"]);
+    assert.deepEqual(await dockOf(page), ["a2", "a1", "f1", "f2"]);
     assert.deepEqual(await inIdx(page), ["z"]);
     assert.deepEqual(realErrors(errors), []);
   });
@@ -1516,4 +1517,28 @@ test("фильтры (#29): «Без отметки» — ссылки без с
     const r2 = await page.evaluate(() => [...document.querySelectorAll("#idx .ln:not([hidden])")].map((e) => RP.ui.byId[e.dataset.linkId]));
     assert.ok(r2.every((l) => l.tool || !l.env || l.env === "PROM"));
     assert.ok(r2.length >= r.length);
+  }));
+
+test("избранное и встречи: без кружка, иконка окрашена по статусу; сброс счётчиков; версия справа внизу", () =>
+  withPanel({ ...interact(), seed: { rp_clicks: JSON.stringify({ qlik: 3, daily: 4 }) } }, async ({ page, errors }) => {
+    const r = await page.evaluate(() => ({
+      dots: document.querySelectorAll("#dock .dot, #meets .dot").length,
+      tile: getComputedStyle(document.querySelector("#dock .app:not([data-tool]) .sq > .ui-i")).color,
+      plain: getComputedStyle(document.querySelector("#dock .app:not([data-tool]) .lb")).color,
+      ver: document.querySelector("#ver").textContent
+    }));
+    assert.equal(r.dots, 0);
+    assert.notEqual(r.tile, r.plain);
+    assert.match(r.ver, /^v\d+\.\d+\.\d+ · \d{4}-\d{2}-\d{2}$/);
+    const pos = await page.$eval("#ver", (e) => { const b = e.getBoundingClientRect(); return [innerWidth - b.right, innerHeight - b.bottom]; });
+    assert.ok(pos[0] < 20 && pos[1] < 20, "версия не справа внизу");
+    // сброс: первый клик взводит, второй обнуляет
+    await page.click("#resetUses");
+    assert.ok(await page.$eval("#resetUses", (e) => e.classList.contains("armed")));
+    assert.equal(await page.locator(".uc").count() > 0, true);
+    await page.click("#resetUses");
+    assert.equal(await page.locator(".uc").count(), 0);
+    assert.equal(await page.evaluate(() => localStorage.getItem("rp_clicks")), "{}");
+    assert.equal((await dockIds(page)).includes("qlik"), false);
+    assert.deepEqual(realErrors(errors), []);
   }));
