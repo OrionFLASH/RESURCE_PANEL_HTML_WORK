@@ -289,13 +289,19 @@ test("pickFavorites: закреплённые по порядку favorites, з�
   assert.deepEqual(o.overflow, ["e"]);
 });
 
+test("pickFavorites: показанные идут по убыванию числа открытий, закреплённые и добранные вместе", () => {
+  const r = pick(PL(), ["c", "a"], { a: 2, e: 7, d: 4 }, 6, true);
+  assert.deepEqual(r.shown.slice(0, 3), ["e", "d", "a"]);
+  assert.deepEqual(r.pinnedShown, ["c", "a", "e"]);   // состав закреплённых не меняется
+});
+
 test("pickFavorites: автодобор по кликам (без встреч, инструментов, уже показанных); favAuto=false — без добора", () => {
   const clicks = { m: 50, t: 40, a: 30, f: 5, b: 5, d: 9 };
   const r = pick(PL(), ["a"], clicks, 6, true);
-  assert.deepEqual(r.shown, ["a", "c", "e", "d", "b", "f"]);   // равные клики — порядок данных
+  assert.deepEqual(r.shown, ["a", "d", "b", "f", "c", "e"]);   // по числу открытий; равные — прежний порядок
   assert.deepEqual(r.pinnedShown, ["a", "c", "e"]);
   const s = pick(PL(), ["a"], clicks, 4, true);
-  assert.deepEqual(s.shown, ["a", "c", "e", "d"]);
+  assert.deepEqual(s.shown, ["a", "d", "c", "e"]);
   const n = pick(PL(), ["a"], clicks, 6, false);
   assert.deepEqual(n.shown, ["a", "c", "e"]);
   // нет кликов и нет закреплённых — пусто
@@ -360,7 +366,7 @@ test("pickFavorites (#20): недоступные (down) не попадают; 
   const clicks = { b: 5, d: 9, f: 1 };
   // c недоступна → e, затем автодобор d, b (f с 1 кликом — последним)
   const r = pick(PL(), ["a"], clicks, 4, true, { c: "down", e: "wait", a: "local" });
-  assert.deepEqual(r.shown, ["a", "e", "d", "b"]);
+  assert.deepEqual(r.shown, ["d", "b", "a", "e"]);   // по числу открытий
   assert.deepEqual(r.pinnedShown, ["a", "e"]);
   assert.deepEqual(r.dropped, ["c"]);
   // переполнение: недоступная закреплённая уступает место следующей из переполнения
@@ -376,13 +382,13 @@ test("pickFavorites (#20): недоступные (down) не попадают; 
   assert.deepEqual(z.shown, []);
   assert.equal(z.dropped.length, 3);
   // без статусов (проверка не завершена) — как раньше
-  assert.deepEqual(pick(PL(), ["a"], clicks, 4, true).shown, ["a", "c", "e", "d"]);
+  assert.deepEqual(pick(PL(), ["a"], clicks, 4, true).shown, ["d", "a", "c", "e"]);
 });
 
 test("hiddenInIndex (#19): скрыты и автодобранные по кликам", () => {
   const links = [{ id: "a", fav: true }, { id: "b" }, { id: "c", favHide: false }, { id: "x" }];
   const p = core.pickFavorites(links, [], { b: 3, c: 2 }, 4, true);
-  assert.deepEqual(clone(p.shown), ["a", "b", "c"]);
+  assert.deepEqual(clone(p.shown), ["b", "c", "a"]);
   assert.deepEqual([...core.hiddenInIndex({ links }, p.shown)].sort(), ["a", "b"]);
 });
 

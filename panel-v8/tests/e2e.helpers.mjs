@@ -10,7 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repo = path.resolve(root, "..");
 const { chromium } = require(path.join(repo, "node_modules/playwright"));
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const FILES = ["index.html", "panel.css", "panel.js", "links.js"];
+const FILES = ["index.html", "panel.css", "panel.js", "links.js", "version.js"];
 
 // Копия панели во временный каталог; links: строка — подменить links.js, false — удалить его.
 export function makeCopy({ links, files } = {}) {
