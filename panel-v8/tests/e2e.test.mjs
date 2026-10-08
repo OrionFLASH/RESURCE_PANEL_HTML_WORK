@@ -1542,3 +1542,15 @@ test("избранное и встречи: без кружка, иконка о
     assert.equal((await dockIds(page)).includes("qlik"), false);
     assert.deepEqual(realErrors(errors), []);
   }));
+
+test("недоступная ссылка: метки стенда и сегмента приглушены", () =>
+  withPanel(interact(), async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const a = document.querySelector("#idx .ln:not([data-tool]) .tag"), host = a.closest(".ln");
+      const before = getComputedStyle(a).opacity;
+      host.dataset.st = "down";
+      return [before, getComputedStyle(a).opacity, getComputedStyle(a).filter];
+    });
+    assert.equal(r[0], "1");
+    assert.ok(+r[1] < 1 && /saturate/.test(r[2]));
+  }));
