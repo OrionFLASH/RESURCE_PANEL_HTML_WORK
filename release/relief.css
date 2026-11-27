@@ -508,5 +508,98 @@ html[data-theme="light"] .prototype[data-concept="relief"] #tip { --tip-tint: 82
 .prototype[data-edition="production"] .preview-only { display: none !important; }
 .prototype .menu-header #menu-title { flex: 1; }
 .prototype #settings-back { flex: 0 0 var(--bar-height); }
-.prototype #settings-panel .appearance-settings { grid-column: 1 / -1; }
-.prototype #settings-panel #ver { color: var(--sub); font-size: 12px; }
+.prototype #admin-settings {
+  --preference-row: 42px;
+  --preference-gap: 6px;
+}
+.prototype .drawer.adm[data-admin-topic="settings"] {
+  height: min(460px, calc(var(--window-height) - 28px));
+}
+.prototype .preference-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 14px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--stroke-soft);
+}
+.prototype #admin-settings .preference-nav .control {
+  flex: 1 0 auto;
+  background: var(--surface);
+  border-color: var(--stroke-soft);
+  color: var(--sub);
+}
+.prototype #admin-settings :is(.preference-nav .control, .preference-grid .menu-option, .preference-theme .control)[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--wash);
+}
+.prototype #admin-settings .preference-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: var(--preference-row);
+  gap: var(--preference-gap);
+}
+.prototype #admin-settings .preference-grid button {
+  min-height: 0;
+  height: 100%;
+  border-radius: 9px;
+}
+.prototype #admin-settings .menu-option { border-color: var(--stroke-soft); }
+.prototype #admin-settings .menu-option .choice-icon { color: var(--accent); }
+.prototype #admin-settings .menu-option .choice-name { text-align: left; }
+.prototype #admin-settings #effects-panel {
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 37%);
+  align-items: start;
+}
+.prototype #admin-settings #effect-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.prototype #admin-settings .effect-stage { align-content: center; min-height: 112px; }
+.prototype #admin-settings :is(.preference-general, .preference-theme, .preference-meta, .sort-control, #pref-legend) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+.prototype #admin-settings .preference-general { align-items: flex-start; flex-direction: column; gap: 10px; }
+.prototype #admin-settings :is(.preference-theme > span, .sort-control, .preference-meta #ver) { color: var(--sub); }
+.prototype #admin-settings .sort-control select {
+  padding: 5px 8px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: 8px;
+  color: var(--type);
+  background: var(--surface);
+}
+.prototype #admin-settings #ver { font-size: 12px; margin-inline-start: 4px; }
+.prototype #admin-settings #pref-legend { margin-top: 12px; }
+.prototype #admin-settings .preference-hint { margin-block: 5px 8px; color: var(--sub); font-size: 12px; }
+@media (max-width: 790px) {
+  .prototype #admin-settings .preference-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .prototype .drawer.adm[data-admin-topic="settings"] { height: calc(var(--window-height) - 12px); }
+  .prototype .drawer:has(#admin-settings) .editor-topics,
+  .prototype #admin-settings .preference-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .prototype .drawer:has(#admin-settings) .editor-topics .btn,
+  .prototype #admin-settings .preference-nav .control {
+    height: auto;
+    min-height: 32px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.12;
+  }
+  .prototype #admin-settings .preference-grid,
+  .prototype #admin-settings #effect-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .prototype #admin-settings #effects-panel { grid-template-columns: minmax(0, 1fr); }
+  .prototype #admin-settings .preference-nav .control { font-size: 12px; padding-inline: 5px; }
+}
+@media (max-height: 460px) {
+  .prototype .drawer.adm[data-admin-topic="settings"] { height: calc(var(--window-height) - 12px); }
+  .prototype #admin-settings { --preference-row: 29px; --preference-gap: 4px; }
+  .prototype .preference-nav { gap: 4px; margin-bottom: 5px; padding-bottom: 4px; }
+  .prototype #admin-settings .effect-stage { min-height: 0; padding: 6px; }
+  .prototype #admin-settings #effect-demo { min-height: 32px; }
+  .prototype #admin-settings .preference-hint { margin-block: 2px 4px; }
+}

@@ -54,7 +54,7 @@
         </div>
         <button type="button" class="control" data-action="reset">Сбросить поиск и фильтры</button>
       </section>
-      <button class="control icon-button" type="button" data-menu="settings" aria-haspopup="dialog"
+      <button class="control icon-button preview-only" type="button" data-menu="settings" aria-haspopup="dialog"
         aria-label="Настройки" title="Настройки"><span data-icon="gear"></span></button>
     </div>
   </header>
@@ -124,11 +124,6 @@
       </div>
     </section>
     <section id="settings-panel" hidden aria-label="Настройки">
-      <div class="settings-buttons production-only appearance-settings">
-        <button class="control" type="button" data-menu="relief" aria-label="Оформление" aria-describedby="current-palette"><span data-icon="layers"></span><span id="current-palette">Оформление</span></button>
-        <button class="control" type="button" data-menu="effects"><span data-icon="sparkle"></span>Эффекты</button>
-        <button class="control" type="button" data-menu="legend"><span data-icon="info"></span>Маркировка</button>
-      </div>
       <div class="settings-buttons">
         <button id="theme" class="control icon-button" type="button"></button>
         <button id="lock" class="control icon-button" type="button" aria-label="Администрирование" aria-haspopup="dialog"></button>
@@ -186,6 +181,36 @@
 <div class="modal glass" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle"></div>
 <aside class="drawer glass" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle"></aside>
 <div class="toasts" id="toasts" aria-live="polite"></div>
+
+<section id="admin-settings" class="production-only" hidden aria-label="Настройки панели">
+  <nav class="preference-nav" aria-label="Подразделы настроек">
+    <button class="control" type="button" data-preference="appearance">Оформление</button>
+    <button class="control" type="button" data-preference="effects">Эффекты</button>
+    <button class="control" type="button" data-preference="markings">Маркировка</button>
+    <button class="control" type="button" data-preference="general">Тема и порядок</button>
+    <button class="control" type="button" data-preference="sections">Видимые разделы</button>
+  </nav>
+  <div data-preference-pane="appearance">
+    <div id="pref-palettes" class="preference-grid" role="group" aria-label="Цветовые палитры"></div>
+  </div>
+  <div data-preference-pane="effects" hidden></div>
+  <div data-preference-pane="markings" hidden>
+    <div id="pref-legend" aria-label="Цвета сегментов и стендов"></div>
+    <p class="preference-hint">Слева на карточке указан сегмент, справа — стенд.</p>
+  </div>
+  <div data-preference-pane="general" class="preference-general" hidden>
+    <div class="preference-theme" role="group" aria-label="Тема панели">
+      <span>Тема</span>
+      <button class="control" type="button" data-action="theme" data-id="light"><span data-icon="sun"></span> Светлая</button>
+      <button class="control" type="button" data-action="theme" data-id="dark"><span data-icon="moon"></span> Тёмная</button>
+    </div>
+    <div class="preference-meta"></div>
+  </div>
+  <div data-preference-pane="sections" hidden>
+    <p class="preference-hint">Отмеченные разделы видны в обзоре и меню разделов.</p>
+    <div id="pref-sections" class="preference-grid" role="group" aria-label="Видимость разделов"></div>
+  </div>
+</section>
 
 <!-- Экран ошибки загрузки данных (links.js не найден или содержит ошибку) -->
 <div class="rp-err" id="rp-error" role="alert" hidden></div>

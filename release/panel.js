@@ -1633,8 +1633,9 @@
       if (A.draft) { A.view = "form"; A.edit = A.draft.edit; } else { A.view = "list"; A.edit = null; }
       build();
       var lock = $("#lock");
-      openLayer($("#drawer"), { onClose: function () { lock.innerHTML = I("lock"); lock.setAttribute("aria-expanded", "false"); } });
-      lock.innerHTML = I("unlock"); lock.setAttribute("aria-expanded", "true");
+      var icon = lock.dataset.adminIcon;
+      openLayer($("#drawer"), { onClose: function () { lock.innerHTML = I(icon || "lock"); lock.setAttribute("aria-expanded", "false"); } });
+      lock.innerHTML = I(icon || "unlock"); lock.setAttribute("aria-expanded", "true");
     }
 
     // Перерисовка содержимого вкладки «Ссылки» с сохранением фокуса (data-k)
