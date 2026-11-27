@@ -7,6 +7,7 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="../../release/panel.css">
 <link rel="stylesheet" href="concepts.css">
+<link rel="stylesheet" href="directions.css">
 </head>
 <body class="prototype">
 <a class="skip-link" href="#catalog">К каталогу ссылок</a>
@@ -15,7 +16,7 @@
     <h1 class="sr">Ресурсная панель</h1>
     <span id="subt" hidden></span>
     <button id="concept" class="control concept-button" type="button" data-menu="concepts" aria-haspopup="dialog">
-      <span id="concept-name"></span><span aria-hidden="true">⌄</span>
+      <span class="concept-emblem" id="concept-emblem" aria-hidden="true"></span><span id="concept-name"></span><span aria-hidden="true">⌄</span>
     </button>
     <div class="omni" id="omni">
       <span id="sIc"></span>
@@ -36,6 +37,9 @@
   </header>
   <div class="catalog-bar">
     <nav id="views" aria-label="Подборки"></nav>
+    <button id="sections-button" class="control" type="button" data-menu="sections" aria-haspopup="dialog" aria-label="Разделы">
+      <span data-icon="layers"></span><span id="section-label" class="wide-label">Разделы</span>
+    </button>
     <button id="scope" class="control" type="button" data-menu="scope" aria-haspopup="dialog" hidden>
       <span data-icon="panel"></span><span id="scope-label"></span><span aria-hidden="true">⌄</span>
     </button>
@@ -49,9 +53,13 @@
       <button id="next-page" class="control icon-button" type="button" data-action="page" data-id="1" aria-label="Следующая страница">›</button>
     </nav>
   </div>
+  <nav id="section-strip" aria-label="Быстрый переход по разделам"></nav>
   <main id="catalog" tabindex="-1" aria-label="Каталог ссылок">
     <nav id="section-rail" aria-label="Разделы" hidden></nav>
-    <section id="board" aria-label="Ссылки и разделы"><div id="board-grid"></div></section>
+    <section id="board" aria-label="Ссылки и разделы">
+      <div id="board-mast" hidden></div>
+      <div id="board-body"><div id="board-grid"></div></div>
+    </section>
     <aside id="preview" aria-label="Сведения о ссылке" hidden></aside>
   </main>
 </div>
