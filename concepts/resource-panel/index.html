@@ -11,16 +11,13 @@
 <link rel="stylesheet" href="variations.css">
 <link rel="stylesheet" href="relief.css">
 </head>
-<body class="prototype">
+<body class="prototype" data-concept="relief" data-variation data-marks="glaze">
 <a class="skip-link" href="#catalog">К каталогу ссылок</a>
 <div class="workspace">
   <header class="gallery">
-    <h1 class="sr">Ресурсная панель</h1>
+    <h1 class="relief-brand">Маршруты · Рельеф</h1>
     <span id="subt" hidden></span>
-    <button id="concept" class="control concept-button" type="button" data-menu="concepts" aria-haspopup="dialog">
-      <span class="concept-emblem" id="concept-emblem" aria-hidden="true"></span><span id="concept-name"></span><span aria-hidden="true">⌄</span>
-    </button>
-    <button id="relief-switch" class="control" type="button" data-menu="relief" aria-haspopup="dialog" aria-label="Вариации Рельефа" hidden>
+    <button id="relief-switch" class="control" type="button" data-menu="relief" aria-haspopup="dialog" aria-label="Вариации Рельефа">
       <span data-icon="layers"></span><span id="relief-name" class="wide-label">Стиль</span><span class="relief-chevron" aria-hidden="true">⌄</span>
     </button>
     <div class="omni" id="omni">
@@ -32,7 +29,7 @@
       <button class="clr" id="clr" type="button" aria-label="Очистить поиск"></button>
     </div>
     <div class="gallery-tools">
-      <span id="check-slot" hidden></span>
+      <span id="check-slot"><button id="refresh" class="control" type="button" aria-label="Проверить доступность ссылок"><span id="refIc"></span><span class="wide-label">Проверить</span><span class="prog"></span></button></span>
       <button id="filter-button" class="control" type="button" data-menu="filters" aria-haspopup="dialog"
         aria-label="Фильтры"><span data-icon="params"></span><span class="wide-label">Фильтры</span><span id="filter-count"></span></button>
       <button class="control icon-button" type="button" data-menu="legend" aria-haspopup="dialog"
@@ -50,7 +47,7 @@
       <span data-icon="panel"></span><span id="scope-label"></span><span aria-hidden="true">⌄</span>
     </button>
     <button id="health-view" class="control" type="button" data-action="view" data-id="health"
-      aria-label="Доступность ссылок" hidden><span id="health-readout"></span><span id="check-mode"></span></button>
+      aria-label="Доступность ссылок"><span id="health-readout"><span id="sum" class="sum" aria-live="polite"></span></span><span id="check-mode"></span></button>
     <label id="availability-toggle" title="Показывать недоступные ссылки">
       <input id="show-down" type="checkbox" checked aria-label="Показывать недоступные ссылки">
       <span class="down-label">Недоступные</span><span class="down-icon" aria-hidden="true">×</span>
@@ -61,7 +58,6 @@
       <button id="next-page" class="control icon-button" type="button" data-action="page" data-id="1" aria-label="Следующая страница">›</button>
     </nav>
   </div>
-  <nav id="section-strip" aria-label="Быстрый переход по разделам"></nav>
   <div id="quick-shelf" class="quick-shelf" hidden aria-label="Быстрый доступ">
     <nav id="quick-favorite" class="quick-group" aria-label="Избранное"></nav>
     <nav id="quick-meetings" class="quick-group" aria-label="Встречи"></nav>
@@ -72,7 +68,6 @@
       <div id="board-mast" hidden></div>
       <div id="board-body"><div id="board-grid"></div></div>
     </section>
-    <aside id="preview" aria-label="Сведения о ссылке" hidden></aside>
   </main>
 </div>
 <div id="menu" class="menu-sheet" role="dialog" aria-modal="true" aria-labelledby="menu-title">
@@ -91,7 +86,6 @@
     </section>
     <section id="settings-panel" hidden aria-label="Настройки">
       <div class="settings-buttons">
-        <span id="check-home"><button id="refresh" class="control" type="button" aria-label="Проверить доступность ссылок"><span id="refIc"></span><span class="wide-label">Проверить</span><span class="prog"></span></button></span>
         <button id="theme" class="control icon-button" type="button"></button>
         <button id="lock" class="control icon-button" type="button" aria-label="Администрирование" aria-haspopup="dialog"></button>
         <button id="resetUses" class="control icon-button" type="button" aria-label="Сбросить счётчики открытий"></button>
@@ -106,9 +100,8 @@
         <a class="control" href="../../release/index.html">Текущий релиз ↗</a>
       </div>
       <label><input id="live" type="checkbox"> Проверять реальные адреса</label>
-      <span id="status-home"><span id="sum" class="sum" aria-live="polite"></span></span><span id="data-mode"></span>
+      <span id="data-mode"></span>
     </section>
-    <section id="inspect-panel" hidden aria-label="Сведения о ссылке"></section>
   </div>
   <nav class="menu-pages" aria-label="Страницы меню" hidden>
     <button id="menu-previous" class="control icon-button" type="button" data-action="menu-page" data-id="-1" aria-label="Предыдущая страница меню">‹</button>
