@@ -10,7 +10,7 @@
     { key: "graphite", label: "Графит", columns: 4, size: "compact", icon: "grid" },
     { key: "opal", label: "Опаловое стекло", columns: 4, size: "tall", icon: "gem", glass: true, dark: false },
     { key: "dusk", label: "Сумеречное стекло", columns: 4, size: "tall", icon: "moon", glass: true },
-    { key: "mist", label: "Дымка", columns: 3, size: "regular", icon: "info", tip: true },
+    { key: "mist", label: "Дымка", columns: 3, size: "regular", icon: "info" },
     { key: "lift", label: "Подъём", columns: 4, size: "tall", icon: "up", motion: "lift" },
     { key: "beam", label: "Скользящий блик", columns: 4, size: "regular", icon: "sparkle", motion: "beam" },
     { key: "plum", label: "Слива", columns: 3, size: "tall", icon: "book" }
@@ -609,7 +609,6 @@
     document.body.dataset.reliefSize = style.size;
     paintEffect();
     document.body.toggleAttribute("data-relief-glass", !!style.glass);
-    document.body.toggleAttribute("data-relief-tip", !!style.tip);
     ui.hideTip();
     $("#relief-name").textContent = style.label;
     $("#relief-switch").title = style.label;

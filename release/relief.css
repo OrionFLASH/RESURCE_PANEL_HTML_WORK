@@ -185,22 +185,25 @@ html[data-theme="light"] body.prototype[data-relief-glass][data-concept="relief"
   box-shadow: inset 0 2px 6px var(--depth);
 }
 
-/* The real tooltip content comes from the panel's existing link inspection. */
-.prototype[data-concept="relief"][data-relief]:not([data-relief=""]) #tip {
+/* The tooltip uses the active palette and lets nearby links show through the glass. */
+.prototype[data-concept="relief"] #tip {
+  --tip-tint: 76%;
   color: var(--type);
   max-width: min(365px, calc(100vw - 16px));
   background: var(--paper);
   border: 1px solid var(--light-edge);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  box-shadow: 0 6px 20px var(--drop);
-}
-.prototype[data-concept="relief"][data-relief]:not([data-relief=""]) #tip :is(dt, .u, .hint) { color: var(--sub); }
-.prototype[data-relief-tip][data-concept="relief"][data-relief="mist"] #tip {
-  background: color-mix(in srgb, var(--paper) 82%, transparent);
-  -webkit-backdrop-filter: blur(15px) saturate(135%);
-  backdrop-filter: blur(15px) saturate(135%);
   box-shadow: inset 0 1px 0 var(--light-edge), 0 8px 24px var(--drop);
+}
+.prototype[data-concept="relief"] #tip :is(dt, .u, .hint) { color: var(--sub); }
+html[data-theme="light"] .prototype[data-concept="relief"] #tip { --tip-tint: 82%; }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .prototype[data-concept="relief"] #tip {
+    background:
+      linear-gradient(150deg, color-mix(in srgb, var(--light-edge) 25%, transparent), transparent 48%),
+      color-mix(in srgb, var(--paper) var(--tip-tint), transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(130%);
+    backdrop-filter: blur(12px) saturate(130%);
+  }
 }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .prototype[data-relief-motion="tilt"] [data-effect-target]:hover:not(:active):not(:disabled) {
