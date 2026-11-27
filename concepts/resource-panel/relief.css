@@ -500,3 +500,10 @@ html[data-theme="light"] body.prototype[data-relief-glass][data-concept="relief"
   .prototype #contour-guide .legend-label { display: none; }
   .prototype .catalog-options .down-icon { display: inline; }
 }
+
+.prototype:not([data-edition="production"]) .production-only,
+.prototype[data-edition="production"] .preview-only { display: none !important; }
+.prototype .menu-header #menu-title { flex: 1; }
+.prototype #settings-back { flex: 0 0 var(--bar-height); }
+.prototype #settings-panel .appearance-settings { grid-column: 1 / -1; }
+.prototype #settings-panel #ver { color: var(--sub); font-size: 12px; }

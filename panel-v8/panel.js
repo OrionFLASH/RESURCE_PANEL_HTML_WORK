@@ -464,6 +464,100 @@
     ["Коммуникации и люди", ["chat", "video", "mail", "phone", "bell", "users", "user", "megaphone"]],
     ["Прочее", ["home", "link", "tour", "book", "globe", "pin", "clock", "bulb", "heart", "building"]]
   ];
+  var ICON_LABELS = Object.create(null);
+  var PROCESS_ICONS = [
+    ["Доступ и аудит", [
+      ["audit-trail", "Журнал аудита", "M4 3H14V7M4 3V17H10M7 6H11M7 9H10M7 12H9M13 11L15 9L17 11V14Q17 16 15 17Q13 16 13 14Z"],
+      ["role-matrix", "Матрица ролей", "M3 4H17V16H3ZM3 8H17M8 8V16M13 8V16M9.5 11L10.5 12L12 10"],
+      ["access-request", "Запрос доступа", "M3 3H12V17H3ZM6 7H9M6 10H9M12 12H18M15 9L18 12L15 15"],
+      ["id-badge", "Пропуск сотрудника", "M4 5H16V17H4ZM8 3H12V7H8ZM7 14Q10 10 13 14M10 9A1 1 0 1 0 10 11A1 1 0 1 0 10 9"],
+      ["shield-lock", "Защищённый сервис", "M10 2L16 5V10Q16 15 10 18Q4 15 4 10V5ZM8 10H12V14H8ZM9 10V8Q10 6 11 8V10"],
+      ["fingerprint", "Биометрия", "M4 10A6 6 0 0 1 16 10M3 13A9 9 0 0 1 17 5M6 14V10A4 4 0 0 1 14 10V13Q14 16 12 18M8 16Q10 13 10 10M9 18Q12 15 12 11"],
+      ["alarm-review", "Разбор инцидента", "M3 15L9 4L15 15ZM9 8V11M9 13H9.1M14 6L17 3M15 9H18"],
+      ["session-end", "Завершение сеанса", "M9 3H4V17H9M8 10H17M14 7L17 10L14 13M12 3H16V5"],
+      ["data-mask", "Маскирование данных", "M3 5H17V15H3ZM6 10H14M8 8L10 12M10 8L8 12M12 8L14 12M14 8L12 12"],
+      ["certificate", "Сертификат", "M4 3H16V13H4ZM7 6H13M7 9H10M11 13V18L13 16L15 18V13"],
+    ]],
+    ["Поставки и эксплуатация", [
+      ["deploy-step", "Развёртывание", "M3 12H17V17H3ZM10 13V3M6 7L10 3L14 7M6 15H6.1"],
+      ["rollback", "Откат версии", "M7 5L3 9L7 13M3 9H12A4 4 0 0 1 12 17H8"],
+      ["pipeline", "Конвейер поставки", "M2 6H6V10H2ZM8 10H12V14H8ZM14 6H18V10H14ZM6 8H10V10M12 12H16V10"],
+      ["feature-switch", "Флаг функции", "M4 17V3M4 4H9L11 6H17L15 9L17 12H10L8 10H4"],
+      ["build-box", "Сборка пакета", "M3 6L10 3L17 6V14L10 17L3 14ZM3 6L10 9L17 6M10 9V17M7 4L14 7V10"],
+      ["service-health", "Здоровье сервисов", "M3 4H17V16H3ZM4 10H7L9 6L11 13L13 10H16"],
+      ["node-pool", "Кластер узлов", "M8 2H12V6H8ZM2 13H6V17H2ZM8 13H12V17H8ZM14 13H18V17H14ZM10 6V13M4 13V9H16V13"],
+      ["backup-vault", "Резервная копия", "M3 4H17V16H3ZM10 7A3 3 0 1 0 13 10M10 7H13V10M10 9V11H11M5 17V18M15 17V18"],
+      ["traffic-route", "Маршрутизация", "M3 10H8Q11 10 12 6L13 4H17M14 2L17 4L14 6M8 10Q11 10 12 14L13 16H17M14 14L17 16L14 18"],
+      ["scheduled-job", "Запуск по расписанию", "M3 5H14V16H3ZM3 8H14M6 3V6M11 3V6M12 17L16 11V14H18L14 19V17Z"],
+      ["process-queue", "Очередь заданий", "M3 4H11V7H3ZM3 9H11V12H3ZM3 14H11V17H3ZM13 10H18M15 7L18 10L15 13"],
+      ["maintenance-window", "Окно обслуживания", "M3 4H17V16H3ZM3 7H17M8 13L12 9M13 9V11H11M7 12L9 14"],
+    ]],
+    ["Данные и аналитика", [
+      ["data-import", "Импорт данных", "M3 4H17V8M3 4V16H17V13M3 8H17M3 12H8M7 4V16M10 11H17M14 8L17 11L14 14"],
+      ["data-join", "Сопоставление таблиц", "M7 5A5 5 0 1 0 7 15A5 5 0 0 0 7 5ZM13 5A5 5 0 1 0 13 15A5 5 0 0 0 13 5Z"],
+      ["data-flow", "Поток данных", "M3 5Q6 2 9 5V13Q6 16 3 13ZM3 6Q6 9 9 6M11 10H17M15 8L17 10L15 12M12 15H17"],
+      ["data-diff", "Сравнение данных", "M3 4H8V16H3ZM12 4H17V16H12ZM5 8H6M5 12H6M14 8H15M14 10H15M14 12H15"],
+      ["data-clean", "Очистка данных", "M3 4H11V8L7 12V16L5 15V12L3 8ZM12 12H17M14.5 9.5V14.5M11 16H15"],
+      ["data-snapshot", "Снимок данных", "M3 6H6L7 4H13L14 6H17V16H3ZM10 8A3 3 0 1 0 10 14A3 3 0 0 0 10 8"],
+      ["trend-compare", "Сравнение динамики", "M3 3V16H17M5 12L8 9L11 11L16 5M5 14L9 12L12 13L16 10"],
+      ["pie-chart", "Доли и распределение", "M9 3A7 7 0 1 0 16 10H9ZM12 3V7H16Q15 4 12 3Z"],
+      ["heat-map", "Тепловая карта", "M3 3H17V17H3ZM3 8H17M3 12H17M8 3V17M12 3V17M8 8L12 12M12 8L8 12"],
+      ["funnel", "Воронка показателей", "M3 4H17M5 7H15M7 10H13M8 13H12M9 16H11"],
+      ["pivot-table", "Сводная таблица", "M3 4H17V16H3ZM3 8H17M8 8V16M12 8V16M3 12H12M14 14H16"],
+      ["metric-target", "Порог показателя", "M3 16H17M4 14V11M8 14V8M12 14V10M16 14V5M3 6H12"],
+    ]],
+    ["Задачи и согласования", [
+      ["task-inbox", "Входящие задачи", "M3 7L5 4H15L17 7V16H3ZM3 11H7L8 13H12L13 11H17"],
+      ["kanban", "Доска задач", "M3 4H17V16H3ZM8 4V16M12 4V16M5 7H6M10 7H10.1M10 10H10.1M14 7H15"],
+      ["approval-stamp", "Штамп согласования", "M3 13H17V16H3ZM6 13V10H8L7 6Q7 3 10 3Q13 3 13 6L12 10H14V13M5 18H15"],
+      ["review-comment", "Комментарий на проверке", "M3 4H17V14H8L5 17V14H3ZM6 8H14M6 11H11"],
+      ["handoff", "Передача работы", "M3 7H16M13 4L16 7L13 10M17 13H4M7 10L4 13L7 16"],
+      ["sprint", "Спринт команды", "M3 5H17V16H3ZM3 8H17M6 3V6M14 3V6M10 9L7 13H10V15L13 11H10Z"],
+      ["backlog", "Бэклог", "M5 3H16V6H5ZM4 8H15V11H4ZM3 13H14V16H3Z"],
+      ["blocker", "Блокирующая задача", "M7 3H13L17 7V13L13 17H7L3 13V7ZM7 10H13"],
+      ["milestone", "Контрольная точка", "M3 14H17M10 3L14 7L10 11L6 7ZM10 11V17M5 13V15M15 13V15"],
+      ["time-entry", "Учёт времени", "M4 6H16V16H4ZM7 3V6M13 3V6M4 9H16M10 10V13H13"],
+      ["priority-rank", "Приоритет задачи", "M3 5H17M3 9H13M3 13H9M3 17H6M15 11V17M13 13L15 11L17 13"],
+    ]],
+    ["Сервисы и коммуникации", [
+      ["support-headset", "Служба поддержки", "M4 11V9A6 6 0 0 1 16 9V11M3 10H6V15H3ZM14 10H17V15H14ZM16 15Q16 18 12 18"],
+      ["service-desk", "Заявка в сервис-деск", "M3 4H17V16H3ZM3 8H17M6 11H10M6 13H9M13 12H15M14 11V13"],
+      ["knowledge-base", "База знаний", "M3 5Q7 4 10 6Q13 4 17 5V15Q13 14 10 16Q7 14 3 15ZM10 6V16M5 8L8 9M12 9L15 8"],
+      ["meeting-room", "Комната встречи", "M3 5H14V15H3ZM14 9L18 7V13L14 11M7 10L9 8L11 10L9 12Z"],
+      ["team-org", "Структура команды", "M8 3H12V7H8ZM3 13H7V17H3ZM13 13H17V17H13ZM10 7V10M5 13V10H15V13M9 5H11M4 15H6M14 15H16"],
+      ["directory-people", "Справочник сотрудников", "M5 3H17V17H5ZM3 6H6M3 10H6M3 14H6M9 14Q12 10 15 14M12 6A1.5 1.5 0 1 0 12 9A1.5 1.5 0 1 0 12 6"],
+      ["message-thread", "Обсуждение задачи", "M3 4H14V12H8L5 15V12H3ZM9 13V15H13L16 17V15H18V8H15M6 7H11M6 9H9"],
+      ["announce-note", "Рассылка и объявления", "M3 5H17V15H3ZM3 5L10 10L17 5M5 13L7 11M15 13L13 11"],
+      ["office-location", "Офис или площадка", "M4 17H16M5 17V5H12V17M12 9H15V17M7 7H10M7 10H10M7 13H10"],
+      ["training-cap", "Курс и обучение", "M2 8L10 4L18 8L10 12ZM5 10V14Q10 18 15 14V10M17 9V15"],
+      ["customer-contact", "Связь с клиентом", "M3 5H17V15H3ZM11 8H15M11 11H15M5 13Q7 10 9 13M7 7A1 1 0 1 0 7 9A1 1 0 1 0 7 7"],
+      ["feedback-loop", "Цикл обратной связи", "M4 9A6 6 0 0 1 14 5L16 7M16 3V7H12M16 11A6 6 0 0 1 6 15L4 13M4 17V13H8"],
+    ]],
+    ["Документы и финансы", [
+      ["signed-document", "Подписанный документ", "M4 3H12L16 7V17H4ZM12 3V7H16M7 8H10M7 11H11M8 14L10 15L13 12"],
+      ["contract", "Договор", "M4 3H16V17H4ZM7 6H13M7 9H13M7 13H9M11 15L15 11"],
+      ["document-stack", "Комплект документов", "M3 4H13V15H3ZM7 17H17V7M6 7H10M6 10H10M6 12H9"],
+      ["folder-share", "Общая папка", "M3 5H8L10 7H17V16H3ZM7 12H13M11 10L13 12L11 14"],
+      ["archive-box", "Архив документов", "M3 4H17V8H3ZM4 8H16V17H4ZM8 11H12"],
+      ["invoice", "Счёт на оплату", "M5 3H15V17L12 15L10 17L8 15L5 17ZM8 6H12M8 9H12M8 12H10"],
+      ["budget", "Бюджет", "M3 5H17V15H3ZM17 8H12V12H17M14 10H14.1M5 7H7"],
+      ["payments", "Платежи", "M3 5H17V15H3ZM3 8H17M6 12H9M12 12H14"],
+      ["calculator", "Калькулятор", "M5 3H15V17H5ZM7 5H13V8H7ZM8 11H8.1M12 11H12.1M8 14H8.1M12 14H12.1"],
+      ["reconcile", "Сверка документов", "M3 4H8V16H3ZM12 4H17V16H12ZM6 10H14M12 8L14 10L12 12"],
+      ["policy", "Регламент и правила", "M3 4H17V16H3ZM6 7H14M6 10H14M6 13H11M3 5L1 7M17 15L19 13"],
+      ["receipt-check", "Подтверждение оплаты", "M4 3H14V9M4 3V17L7 15L10 17M7 6H11M7 9H10M11 13L13 15L17 11"],
+    ]],
+  ];
+  PROCESS_ICONS.forEach(function (group) {
+    var names = group[1].map(function (icon) {
+      var name = icon[0];
+      ICON_LABELS[name] = icon[1];
+      ICONS[name] = '<path d="' + icon[2] + '"/>';
+      return name;
+    });
+    ICON_GROUPS.push([group[0], names]);
+  });
+
   // «Часто используемые» (#26): иконки, назначенные ссылкам и разделам, по убыванию числа применений (без лимита).
   // Служебные тоже попадают, если уже выбраны. -> [[name, count]]
   function iconUsage(data) {
@@ -480,6 +574,7 @@
   RP.icons = {
     names: function () { return Object.keys(ICONS); },
     groups: function () { return ICON_GROUPS; },
+    label: function (n) { return ICON_LABELS[n] || n; },
     usage: iconUsage,
     has: function (n) { return Object.prototype.hasOwnProperty.call(ICONS, n); },
     svg: function (name, cls) {
@@ -1375,7 +1470,7 @@
 
   // ---------- Встроенные инструменты (§7) ----------
   var ROLE_EMP = "673892", ROLE_NAME = "EFS_NB_SUP_BUSINESS_ADMIN_GAMIFICATION";
-  var ROLE_URL = "https://iam-enigma-psi.omega.sbrf.ru/rmkib.support/api/v1/service/auth/explain/html";
+  var ROLE_URL = "https://iam-enigma-psi.omega.sbrf.ru/rmkib.auth/api/v1/service/auth/explain/html";
   function decoderForm(l) {
     var box = document.createElement("div");
     box.innerHTML = '<h2 id="mTitle"></h2><p>Ввод HEX через запятую → двоичное представление по 8 бит и список включённых битов.</p>' +
@@ -1686,7 +1781,11 @@
     }
     // Выбор иконки: сверху «Часто используемые» (раскрыт), ниже тематические блоки (свёрнуты); <details> — с клавиатуры Enter/Space
     function pickHtml(cur, withDefault, label) {
-      function btn(n) { return '<button type="button" data-icon="' + n + '" aria-pressed="' + (cur === n) + '" aria-label="' + n + '" title="' + n + '">' + I(n) + "</button>"; }
+      function btn(n) {
+        var name = esc(RP.icons.label(n));
+        return '<button type="button" data-icon="' + n + '" aria-pressed="' + (cur === n) +
+          '" aria-label="' + name + '" title="' + name + '">' + I(n) + "</button>";
+      }
       function block(title, names, open, cls) {
         return '<details class="ipg' + (cls ? " " + cls : "") + '"' + (open ? " open" : "") + "><summary>" + I("down", "ui-i ipc") + esc(title) + "<em>" + names.length + "</em></summary>" +
           '<div class="ipg-b">' + names.map(btn).join("") + "</div></details>";

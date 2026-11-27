@@ -2,6 +2,7 @@
 (() => {
   "use strict";
 
+  const production = document.body.dataset.edition === "production";
   const palettes = [
     { key: "bay", label: "Залив", columns: 4, size: "tall", icon: "globe" },
     { key: "sage", label: "Шалфей", columns: 4, size: "tall", icon: "growth" },
@@ -18,19 +19,25 @@
   const reliefStyles = [...palettes.filter((style) => preferred.has(style.key)),
     ...palettes.filter((style) => !preferred.has(style.key))].flatMap((style) => {
     const base = { ...style, id: "relief-" + style.key };
-    return preferred.has(style.key) ? [
+    return !production && preferred.has(style.key) ? [
       base, { ...base, id: base.id + "-codes", label: base.label + " · коды", codes: true }
     ] : [base];
   });
 
   const effects = [
-    ["style", "По стилю"], ["tilt", "3D-наклон"], ["lift", "Подъём"],
-    ["beam", "Блик"], ["pulse", "Световой импульс"],
-    ["rock", "Качание"], ["wave", "Мягкая волна"], ["off", "Без эффекта"]
+    ["style", "По стилю"],
+    ["tilt", "3D-наклон", "Кнопка наклоняется вслед за указателем."],
+    ["lift", "Подъём", "Кнопка приподнимается, тень становится глубже."],
+    ["beam", "Блик", "Узкий световой блик проходит по поверхности."],
+    ["pulse", "Световой импульс", "Кромка и поверхность вспыхивают на мгновение."],
+    ["rock", "Качание", "Кнопка слегка качается и возвращается на место."],
+    ["wave", "Мягкая волна", "Мягкая полоса света прокатывается по кнопке."],
+    ["off", "Без эффекта", "У кнопки нет анимации наведения."]
   ];
 
   function resolveStyle() {
-    return reliefStyles.find(({ id }) => "#" + id === location.hash) || reliefStyles[0];
+    const preferredStyle = production ? appearance.get("style", "") : location.hash.slice(1);
+    return reliefStyles.find(({ id }) => id === preferredStyle) || reliefStyles[0];
   }
 
   const stands = [["PROM", "PROM", "P"], ["PSI", "ПСИ", "Ψ"], ["IFT", "ИФТ", "I"]];
@@ -54,21 +61,41 @@
   const { core, ui, store, icons, probe } = window.RP;
   const { esc } = ui;
   const ns = "rp_concepts_";
-  const nativeGet = store.get;
-  const nativeSet = store.set;
-  store.get = (key, fallback) => nativeGet(ns + key, fallback);
-  store.set = (key, value) => nativeSet(ns + key, value);
-  const live = store.get("live", false);
+  if (!production) {
+    const nativeGet = store.get;
+    const nativeSet = store.set;
+    store.get = (key, fallback) => nativeGet(ns + key, fallback);
+    store.set = (key, value) => nativeSet(ns + key, value);
+  }
+
+  // Appearance follows the tab session in the release. The prototype keeps its own saved comparisons.
+  const appearanceCache = new Map();
+  const appearance = production ? {
+    get(key, fallback) {
+      try {
+        const value = sessionStorage.getItem("rp_relief_" + key);
+        if (value !== null) return JSON.parse(value);
+      } catch (_) { /* Storage may be unavailable when opened from disk. */ }
+      return appearanceCache.has(key) ? appearanceCache.get(key) : fallback;
+    },
+    set(key, value) {
+      appearanceCache.set(key, value);
+      try { sessionStorage.setItem("rp_relief_" + key, JSON.stringify(value)); }
+      catch (_) { /* The current page still uses the selected value. */ }
+    }
+  } : store;
+  const live = production || store.get("live", false);
   const state = {
     style: resolveStyle(),
-    effect: store.get("relief_effect", "style"),
-    edges: store.get("relief_edges", false),
+    effect: appearance.get("relief_effect", production ? "off" : "style"),
+    edges: appearance.get("relief_edges", production),
     view: "layout",
     choice: "",
     section: "",
     railOpen: store.get("rail_relief", true),
     page: 0,
     menu: "",
+    settingsChild: false,
     menuPage: 0,
     sort: store.get("sort", "source"),
     showDown: store.get("show_down", true),
@@ -93,9 +120,20 @@
   }
 
   function paintTheme() {
-    document.documentElement.dataset.theme = store.get("rp_theme", state.style.dark === false ? "light" : "dark");
+    const preset = state.style.dark === false ? "light" : "dark";
+    const theme = production ? appearance.get("theme", null) ||
+      (appearance.get("style", null) ? preset : store.get("rp_theme", preset)) : store.get("rp_theme", preset);
+    document.documentElement.dataset.theme = theme;
   }
   paintTheme();
+
+  if (production) {
+    window.RP.theme.set = (theme) => {
+      appearance.set("theme", theme);
+      paintTheme();
+      window.RP.theme.paint();
+    };
+  }
 
   function picture(name) {
     return icons.svg(icons.has(name) ? name : "link");
@@ -501,7 +539,7 @@
   function paintEffect() {
     const motion = state.effect === "style" ? (state.style.motion || "tilt") : state.effect;
     document.body.dataset.reliefMotion = motion;
-    const label = effects.find(([id]) => id === motion)?.[1];
+    const [, label, description] = effects.find(([id]) => id === motion) || [];
     $("#effects-button").title = label ? "Эффекты · " + label : "Эффекты";
     if (state.menu !== "effects") return;
 
@@ -509,7 +547,7 @@
       '<button type="button" class="control" data-action="effect" data-id="' + id + '" aria-pressed="' +
       (state.effect === id) + '">' + title + "</button>").join(""));
     $("#effect-hint").textContent = reducedMotion.matches ? "В системе включено уменьшение движения." :
-      motion === "off" ? "Показана кнопка без анимации." : "Наведите указатель или нажмите, чтобы увидеть эффект.";
+      description || "Наведите указатель или нажмите, чтобы увидеть эффект.";
   }
 
   function playEffect() {
@@ -558,14 +596,19 @@
     ui.hideTip();
     $("#relief-name").textContent = style.label;
     $("#relief-switch").title = style.label;
-    document.title = "Маршруты · Рельеф · " + style.label;
+    $("#current-palette").textContent = style.label;
+    document.title = (production ? "Ресурсная панель" : "Маршруты · Рельеф") + " · " + style.label;
     paintTheme();
     window.RP.theme.paint();
     repaint();
   }
 
+  function codeSetting() {
+    return production ? "relief_codes" : "relief_codes_" + state.style.id;
+  }
+
   function paintMarkings() {
-    const codes = store.get("relief_codes_" + state.style.id, !!state.style.codes);
+    const codes = appearance.get(codeSetting(), production || !!state.style.codes);
     document.body.toggleAttribute("data-relief-codes", codes);
     document.body.toggleAttribute("data-relief-edges", state.edges);
     $("#contour-codes").checked = codes;
@@ -607,12 +650,13 @@
   function paintMenu() {
     if (!state.menu) return;
     const labels = {
-      relief: "Вариации Рельефа", effects: "Эффекты кнопок", sections: "Разделы", scope: scope?.label || "Разделы", filters: "Фильтры",
+      relief: production ? "Оформление" : "Вариации Рельефа", effects: "Эффекты кнопок", sections: "Разделы", scope: scope?.label || "Разделы", filters: "Фильтры",
       settings: "Настройки", groups: "Видимые разделы", legend: "Условные обозначения"
     };
     const menu = $("#menu");
     menu.dataset.panel = state.menu;
     $("#menu-title").textContent = labels[state.menu];
+    $("#settings-back").hidden = !state.settingsChild || state.menu === "settings";
     const hint = $("#legend-hint");
     hint.hidden = state.menu !== "legend";
     hint.textContent = "Слева указан сегмент, справа стенд. Цвет, коды и кромки используют одну легенду.";
@@ -651,6 +695,7 @@
     const menu = $("#menu");
     ui.openLayer(menu, { focus: $("#menu-close"), onClose: () => {
       state.menu = "";
+      state.settingsChild = false;
       $("#effect-demo").classList.remove("effect-playing");
       resetTilt();
       $(".workspace").inert = false;
@@ -689,19 +734,30 @@
       restart();
       return;
     }
-    if (menu) { openMenu(menu); return; }
+    if (menu) {
+      if (state.menu === "settings" && ["relief", "effects", "legend", "groups"].includes(menu)) state.settingsChild = true;
+      openMenu(menu);
+      return;
+    }
     switch (action) {
       case "effect":
         state.effect = id;
-        store.set("relief_effect", id);
+        appearance.set("relief_effect", id);
         resetTilt();
         paintEffect();
         playEffect();
         break;
       case "replay-effect": playEffect(); break;
       case "style":
-        ui.closeLayer();
-        if (location.hash !== "#" + id) location.hash = id;
+        if (production) {
+          appearance.set("style", id);
+          appearance.set("theme", null);
+          updateStyle();
+          openMenu("settings");
+        } else {
+          ui.closeLayer();
+          if (location.hash !== "#" + id) location.hash = id;
+        }
         break;
       case "close-menu": ui.closeLayer(); break;
       case "view": changeView(id); break;
@@ -788,12 +844,12 @@
     setContent($("#inline-contours"), contourLegend());
     setContent($("#legend-colors"), contourLegend());
     $("#contour-codes").addEventListener("change", (event) => {
-      store.set("relief_codes_" + state.style.id, event.target.checked);
+      appearance.set(codeSetting(), event.target.checked);
       paintMarkings();
     });
     $("#contour-edges").addEventListener("change", (event) => {
       state.edges = event.target.checked;
-      store.set("relief_edges", state.edges);
+      appearance.set("relief_edges", state.edges);
       paintMarkings();
     });
     $("#sort").value = state.sort;
@@ -847,7 +903,7 @@
     window.visualViewport?.addEventListener("resize", setViewport);
     setViewport();
     updateStyle();
-    if (new URLSearchParams(location.search).has("effects")) {
+    if (!production && new URLSearchParams(location.search).has("effects")) {
       $("#effects-button").focus({ preventScroll: true });
       openMenu("effects");
     }

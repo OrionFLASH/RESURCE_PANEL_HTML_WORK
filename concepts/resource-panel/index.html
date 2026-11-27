@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ресурсная панель</title>
 <link rel="icon" href="data:,">
+<script>
+  window.addEventListener("error", function (event) {
+    if (!window.RP && event.target === window && (/links\.js$/.test(event.filename || "") || !event.filename)) {
+      window.RP_LOAD_ERROR = { message: event.message, line: event.lineno };
+    }
+  });
+</script>
 <link rel="stylesheet" href="../../release/panel.css">
 <link rel="stylesheet" href="concepts.css">
 <link rel="stylesheet" href="directions.css">
@@ -17,7 +24,7 @@
   <header class="gallery">
     <h1 class="relief-brand">Маршруты · Рельеф</h1>
     <span id="subt" hidden></span>
-    <button id="relief-switch" class="control" type="button" data-menu="relief" aria-haspopup="dialog" aria-label="Вариации Рельефа">
+    <button id="relief-switch" class="control preview-only" type="button" data-menu="relief" aria-haspopup="dialog" aria-label="Вариации Рельефа">
       <span data-icon="layers"></span><span id="relief-name" class="wide-label">Стиль</span><span class="relief-chevron" aria-hidden="true">⌄</span>
     </button>
     <div class="omni" id="omni">
@@ -30,7 +37,7 @@
     </div>
     <div class="gallery-tools">
       <span id="check-slot"><button id="refresh" class="control" type="button" aria-label="Проверить доступность ссылок"><span id="refIc"></span><span class="wide-label">Проверить</span><span class="prog"></span></button></span>
-      <button id="effects-button" class="control" type="button" data-menu="effects" aria-haspopup="dialog"
+      <button id="effects-button" class="control preview-only" type="button" data-menu="effects" aria-haspopup="dialog"
         aria-label="Эффекты" title="Эффекты"><span data-icon="sparkle"></span><span class="wide-label">Эффекты</span></button>
       <button id="filter-button" class="control" type="button" data-menu="filters" aria-haspopup="dialog"
         aria-label="Фильтры"><span data-icon="params"></span><span class="wide-label">Фильтры</span><span id="filter-count"></span></button>
@@ -77,7 +84,9 @@
   </main>
 </div>
 <div id="menu" class="menu-sheet" role="dialog" aria-modal="true" aria-labelledby="menu-title">
-  <header class="menu-header"><h2 id="menu-title"></h2>
+  <header class="menu-header">
+    <button id="settings-back" class="control icon-button" type="button" data-menu="settings" aria-label="Назад к настройкам" hidden>‹</button>
+    <h2 id="menu-title"></h2>
     <button id="menu-close" class="control icon-button" type="button" data-action="close-menu" aria-label="Закрыть меню">×</button>
   </header>
   <p id="legend-hint" hidden></p>
@@ -109,6 +118,11 @@
       <button type="button" class="control" data-action="reset">Сбросить поиск и фильтры</button>
     </section>
     <section id="settings-panel" hidden aria-label="Настройки">
+      <div class="settings-buttons production-only appearance-settings">
+        <button class="control" type="button" data-menu="relief" aria-label="Оформление" aria-describedby="current-palette"><span data-icon="layers"></span><span id="current-palette">Оформление</span></button>
+        <button class="control" type="button" data-menu="effects"><span data-icon="sparkle"></span>Эффекты</button>
+        <button class="control" type="button" data-menu="legend"><span data-icon="info"></span>Маркировка</button>
+      </div>
       <div class="settings-buttons">
         <button id="theme" class="control icon-button" type="button"></button>
         <button id="lock" class="control icon-button" type="button" aria-label="Администрирование" aria-haspopup="dialog"></button>
@@ -121,10 +135,10 @@
       </label>
       <div class="settings-buttons">
         <button class="control" type="button" data-menu="groups">Видимые разделы</button>
-        <a class="control" href="../../release/index.html">Текущий релиз ↗</a>
+        <a class="control preview-only" href="../../release/index.html">Текущий релиз ↗</a>
       </div>
-      <label><input id="live" type="checkbox"> Проверять реальные адреса</label>
-      <span id="data-mode"></span>
+      <label class="preview-only"><input id="live" type="checkbox"> Проверять реальные адреса</label>
+      <span id="data-mode"></span><span id="ver" class="production-only"></span>
     </section>
   </div>
   <nav class="menu-pages" aria-label="Страницы меню" hidden>
@@ -166,13 +180,12 @@
 <div class="modal glass" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle"></div>
 <aside class="drawer glass" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle"></aside>
 <div class="toasts" id="toasts" aria-live="polite"></div>
-<div id="ver" hidden></div>
 
 <!-- Экран ошибки загрузки данных (links.js не найден или содержит ошибку) -->
 <div class="rp-err" id="rp-error" role="alert" hidden></div>
 
 
-<script src="../../release/links.js"></script>
+<script src="../../release/links.js" onerror="window.RP_LINKS_MISSING = true"></script>
 <script src="../../release/version.js"></script>
 <script src="../../release/panel.js"></script>
 <script src="concepts.js"></script>
