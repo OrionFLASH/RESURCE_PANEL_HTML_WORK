@@ -340,3 +340,163 @@ html[data-theme="light"] body.prototype[data-relief-glass][data-concept="relief"
   .prototype[data-concept="relief"] #effects-button { padding-inline: 4px; }
   .prototype .effect-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Routes use one row height, with the header and link gaps measured by the layout. */
+.prototype[data-concept="relief"] {
+  --overview-link-height: 42px;
+  --overview-link-gap: 4px;
+  --overview-panel-padding: 8px;
+  --overview-panel-gap: 5px;
+}
+.prototype[data-concept="relief"] #board-grid[data-style="routes"] .link-panel {
+  padding: var(--overview-panel-padding);
+  gap: var(--overview-panel-gap);
+}
+.prototype[data-concept="relief"] .pane-links {
+  max-height: none;
+  grid-auto-rows: var(--overview-link-height);
+  gap: var(--overview-link-gap);
+  align-content: start;
+}
+.prototype[data-concept="relief"] #board-grid[data-style="routes"] .link-panel .count { white-space: nowrap; }
+
+.prototype .catalog-options {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+.prototype #contour-guide {
+  background: transparent;
+  color: var(--sub);
+  border-color: transparent;
+  padding-inline: 5px;
+}
+.prototype #contour-guide:hover { border-color: var(--stroke-soft); }
+.prototype :is(#inline-contours, #legend-colors, .contour-axis, .contour-key) {
+  display: inline-flex;
+  align-items: center;
+}
+.prototype #inline-contours { gap: 8px; }
+.prototype .contour-axis { gap: 4px; }
+.prototype .contour-axis-label { color: var(--sub); font-size: 10px; }
+.prototype .contour-key {
+  gap: 3px;
+  padding: 2px 4px;
+  color: var(--type);
+  background: var(--surface);
+  border-radius: 5px;
+  font: 550 10px/1.2 system-ui, sans-serif;
+}
+.prototype .contour-key i {
+  background: var(--seg-tone, var(--env-tone));
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.prototype #inline-contours .contour-key b { display: none; }
+.prototype #contour-guide .legend-label { display: none; }
+.prototype .menu-sheet[data-panel="legend"] {
+  height: auto;
+  max-height: calc(var(--window-height) - 12px);
+}
+.prototype #legend-panel { display: grid; gap: 10px; padding: 4px 0 1px; }
+.prototype #legend-colors { flex-wrap: wrap; gap: 6px 14px; }
+.prototype #legend-colors .contour-axis-label { font-size: 12px; }
+.prototype #legend-colors .contour-key { font-size: 12px; }
+.prototype #legend-colors .contour-key b { color: var(--sub); }
+.prototype .marking-options { display: flex; flex-wrap: wrap; gap: 5px; }
+.prototype .marking-options .control { cursor: pointer; }
+
+.prototype .contour-code { display: none; }
+.prototype[data-relief-codes] .resource .contour-code {
+  display: grid;
+  min-width: 12px;
+  height: 15px;
+  padding-inline: 2px;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 4px;
+  color: var(--type);
+  background: color-mix(in srgb, var(--code-tone) 23%, var(--surface));
+  font: 700 9px/1 system-ui, sans-serif;
+}
+.prototype .segment-code { --code-tone: var(--seg-tone); }
+.prototype .stand-code { --code-tone: var(--env-tone); }
+.prototype[data-relief-codes] .quick-context { display: none; }
+.prototype[data-relief-codes] .quick-group .resource .item-name { -webkit-line-clamp: 2; }
+.prototype[data-relief-codes] #board-grid[data-dense="true"] .resource:has(.contour-code) .item-icon { display: none; }
+.prototype[data-relief-edges] .resource:not([aria-disabled])::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  border-radius: inherit;
+  border: 2px solid transparent;
+  border-inline-start-color: var(--seg-tone);
+  border-inline-end-color: var(--env-tone);
+}
+.prototype[data-relief-edges] .resource[data-seg=""]:not([aria-disabled])::after { border-inline-start-color: transparent; }
+.prototype[data-relief-edges] .resource[data-env=""]:not([aria-disabled])::after { border-inline-end-color: transparent; }
+
+@media (max-width: 1240px) {
+  .prototype #inline-contours { display: none; }
+  .prototype #contour-guide .legend-label { display: inline; }
+}
+@media (max-width: 650px) {
+  .prototype #contour-guide .legend-label { display: none; }
+}
+@media (max-width: 420px) {
+  .prototype .catalog-options { gap: 1px; }
+  .prototype #contour-guide { padding-inline: 2px; }
+}
+@media (max-width: 1370px) {
+  .prototype[data-relief-codes] .quick-group .resource .item-icon { display: none; }
+}
+@media (max-width: 1120px) {
+  .prototype[data-relief-codes] .pane-links .resource:has(.contour-code) .item-icon { display: none; }
+}
+
+.prototype[data-relief-motion="wave"] [data-effect-target]::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  background: radial-gradient(ellipse at center,
+    color-mix(in srgb, var(--accent) 42%, transparent), transparent 62%) center / 8% 14% no-repeat;
+}
+@keyframes relief-wave {
+  0% { opacity: 0; background-size: 8% 14%; }
+  25% { opacity: .9; }
+  100% { opacity: 0; background-size: 210% 210%; }
+}
+@keyframes relief-rock {
+  0%, 100% { transform: none; }
+  26% { transform: perspective(450px) translateY(-4px) rotateZ(-2.5deg); }
+  58% { transform: perspective(450px) translateY(-2px) rotateZ(1.5deg); }
+  81% { transform: perspective(450px) rotateZ(-.6deg); }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .prototype[data-relief-motion="wave"] [data-effect-target]:hover:not(:disabled):not(#effect-demo)::before {
+    animation: relief-wave .64s ease-out;
+  }
+  .prototype[data-relief-motion="rock"] [data-effect-target]:hover:not(:active):not(:disabled):not(#effect-demo) {
+    animation: relief-rock .57s ease-out;
+    z-index: 1;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .prototype[data-relief-motion="rock"] #effect-demo.effect-playing { animation: relief-rock .57s ease-out; }
+  .prototype[data-relief-motion="wave"] #effect-demo.effect-playing { animation: relief-demo-light .64s; }
+  .prototype[data-relief-motion="wave"] #effect-demo.effect-playing::before { animation: relief-wave .64s ease-out; }
+}
+
+.prototype[data-relief-codes] #inline-contours .contour-key b { display: inline; }
+.prototype .legend-status { margin: 0; color: var(--sub); font-size: 11px; }
+@media (max-width: 950px) {
+  .prototype .catalog-options .down-label,
+  .prototype #contour-guide .legend-label { display: none; }
+  .prototype .catalog-options .down-icon { display: inline; }
+}
