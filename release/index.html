@@ -39,8 +39,21 @@
       <span id="check-slot"><button id="refresh" class="control" type="button" aria-label="Проверить доступность ссылок"><span id="refIc"></span><span class="wide-label">Проверить</span><span class="prog"></span></button></span>
       <button id="effects-button" class="control preview-only" type="button" data-menu="effects" aria-haspopup="dialog"
         aria-label="Эффекты" title="Эффекты"><span data-icon="sparkle"></span><span class="wide-label">Эффекты</span></button>
-      <button id="filter-button" class="control" type="button" data-menu="filters" aria-haspopup="dialog"
+      <button id="filter-button" class="control" type="button" popovertarget="filter-panel" aria-controls="filter-panel" aria-expanded="false"
         aria-label="Фильтры"><span data-icon="params"></span><span class="wide-label">Фильтры</span><span id="filter-count"></span></button>
+      <section id="filter-panel" popover aria-label="Фильтры">
+        <div class="filters">
+          <div class="fg" role="group" aria-label="Стенд" id="fEnv"><span>Стенд</span></div>
+          <div class="fg" role="group" aria-label="Сегмент" id="fSeg"><span>Сегмент</span></div>
+        </div>
+        <div class="fg" role="group" aria-label="Доступность" id="fAvailability">
+          <span>Доступность</span>
+          <button class="chip" type="button" data-action="availability" data-id="all" aria-pressed="true">Все</button>
+          <button class="chip" type="button" data-action="availability" data-id="up" aria-pressed="false">Доступные</button>
+          <button class="chip" type="button" data-action="availability" data-id="down" aria-pressed="false">Недоступные</button>
+        </div>
+        <button type="button" class="control" data-action="reset">Сбросить поиск и фильтры</button>
+      </section>
       <button class="control icon-button" type="button" data-menu="settings" aria-haspopup="dialog"
         aria-label="Настройки" title="Настройки"><span data-icon="gear"></span></button>
     </div>
@@ -109,19 +122,6 @@
         </button>
         <p id="effect-hint" aria-live="polite"></p>
       </div>
-    </section>
-    <section id="filter-panel" hidden aria-label="Фильтры">
-      <div class="filters">
-        <div class="fg" role="group" aria-label="Стенд" id="fEnv"><span>Стенд</span></div>
-        <div class="fg" role="group" aria-label="Сегмент" id="fSeg"><span>Сегмент</span></div>
-      </div>
-      <div class="fg" role="group" aria-label="Доступность" id="fAvailability">
-        <span>Доступность</span>
-        <button class="chip" type="button" data-action="availability" data-id="all" aria-pressed="true">Все</button>
-        <button class="chip" type="button" data-action="availability" data-id="up" aria-pressed="false">Доступные</button>
-        <button class="chip" type="button" data-action="availability" data-id="down" aria-pressed="false">Недоступные</button>
-      </div>
-      <button type="button" class="control" data-action="reset">Сбросить поиск и фильтры</button>
     </section>
     <section id="settings-panel" hidden aria-label="Настройки">
       <div class="settings-buttons production-only appearance-settings">

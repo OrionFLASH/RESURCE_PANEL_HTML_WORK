@@ -58,6 +58,8 @@
   };
   const demoDown = new Set(["h-psi-s", "h-ift-gf", "sup-ift-gf", "kap-ift", "ctl", "friend", "audit-n", "esm", "giga", "hue", "efs", "fab-db", "r-sowa", "r-bps"]);
   const $ = (selector) => document.querySelector(selector);
+  const filterButton = $("#filter-button");
+  const filterPanel = $("#filter-panel");
   const { core, ui, store, icons, probe } = window.RP;
   const { esc } = ui;
   const ns = "rp_concepts_";
@@ -139,6 +141,10 @@
     return icons.svg(icons.has(name) ? name : "link");
   }
 
+  function codeBadge(code, side) {
+    return code ? '<span class="contour-code ' + side + '" aria-hidden="true">' + code + "</span>" : "";
+  }
+
   function statusOf(link) {
     return ui.st[link.id] || "wait";
   }
@@ -178,10 +184,9 @@
     const title = '<span class="item-name">' + (quick ? esc(link.title) : highlight(link)) + "</span>" + quickContext;
     const segment = segmentCodes[link.seg];
     const stand = standCodes[link.env];
-    const badge = (code, side) => code ? '<span class="contour-code ' + side + '" aria-hidden="true">' + code + "</span>" : "";
-    const body = badge(segment, "segment-code") + '<span class="item-icon">' + picture(ui.iconOf(link)) +
+    const body = codeBadge(segment, "segment-code") + '<span class="item-icon">' + picture(ui.iconOf(link)) +
       '</span><span class="item-content">' + title + '</span><span class="item-badges" aria-hidden="true">' +
-      badges + '</span>' + badge(stand, "stand-code");
+      badges + '</span>' + codeBadge(stand, "stand-code");
     const attrs = ' class="resource' + (link.title.length >= 24 ? " long-title" : "") + '" data-st="' + status + '" data-env="' + (link.env || "") + '" data-seg="' +
       (link.seg || "") + '" data-section="' + esc(link.section) + '" data-catalog-link="' + esc(link.id) + '" aria-label="' + esc(text) + '"';
     if (status === "down") return '<div' + attrs + ' title="' + esc(text) + '" role="link" aria-disabled="true">' + body + "</div>";
@@ -482,7 +487,7 @@
     });
     const activeFilters = env.length + seg.length + Number(state.availability !== "all");
     $("#filter-count").textContent = activeFilters || "";
-    $("#filter-button").setAttribute("aria-pressed", String(!!activeFilters));
+    filterButton.toggleAttribute("data-filtered", !!activeFilters);
     const links = visibleLinks();
     const model = depiction(links);
     const board = $("#board-body");
@@ -666,7 +671,7 @@
   function paintMenu() {
     if (!state.menu) return;
     const labels = {
-      relief: production ? "Оформление" : "Вариации Рельефа", effects: "Эффекты кнопок", sections: "Разделы", scope: scope?.label || "Разделы", filters: "Фильтры",
+      relief: production ? "Оформление" : "Вариации Рельефа", effects: "Эффекты кнопок", sections: "Разделы", scope: scope?.label || "Разделы",
       settings: "Настройки", groups: "Видимые разделы", legend: "Условные обозначения"
     };
     const menu = $("#menu");
@@ -677,8 +682,8 @@
     hint.hidden = state.menu !== "legend";
     hint.textContent = "Слева указан сегмент, справа стенд. Цвет, коды и кромки используют одну легенду.";
     const grid = $("#menu-grid");
-    const mode = ["effects", "filters", "settings", "legend"];
-    mode.forEach((name) => { $("#" + (name === "filters" ? "filter" : name) + "-panel").hidden = state.menu !== name; });
+    const mode = ["effects", "settings", "legend"];
+    mode.forEach((name) => { $("#" + name + "-panel").hidden = state.menu !== name; });
     grid.hidden = mode.includes(state.menu);
     const pager = $(".menu-pages");
     pager.hidden = true;
@@ -706,6 +711,7 @@
   }
 
   function openMenu(name) {
+    if (filterButton.getAttribute("aria-expanded") === "true") filterPanel.hidePopover();
     state.menu = name;
     state.menuPage = 0;
     const menu = $("#menu");
@@ -814,7 +820,7 @@
         paintMenu();
         break;
       case "reset":
-        ui.closeLayer();
+        filterPanel.hidePopover();
         ui.resetAll();
         setAvailability("all");
         break;
@@ -853,10 +859,46 @@
     document.documentElement.style.setProperty("--measured-height", Math.floor(height) + "px");
     scheduleRender();
     if (state.menu) paintMenu();
+    positionFilters();
+  }
+
+  function positionFilters() {
+    if (filterButton.getAttribute("aria-expanded") !== "true") return;
+    const anchor = filterButton.getBoundingClientRect();
+    const { offsetWidth: width, offsetHeight: height } = filterPanel;
+    const { clientWidth, clientHeight } = document.documentElement;
+    const left = Math.max(6, Math.min(anchor.right - width, clientWidth - width - 6));
+    const top = Math.max(6, Math.min(anchor.bottom + 5, clientHeight - height - 6));
+    filterPanel.style.left = Math.round(left) + "px";
+    filterPanel.style.top = Math.round(top) + "px";
+  }
+
+  function setupFilters() {
+    for (const button of filterPanel.querySelectorAll(".chip")) {
+      const value = button.dataset.val;
+      const stand = Object.hasOwn(standCodes, value) ? value : "";
+      const segment = Object.hasOwn(segmentCodes, value) ? value : "";
+      const status = button.parentElement.id === "fAvailability" && button.dataset.id !== "all" ? button.dataset.id : "";
+      button.classList.add("resource");
+      button.dataset.env = stand;
+      button.dataset.seg = segment;
+      if (status) button.dataset.st = status;
+      const sign = status ? '<span class="state-sign" aria-hidden="true">' + statusSigns[status] + "</span>" : "";
+      button.innerHTML = codeBadge(segmentCodes[segment], "segment-code") + sign +
+        '<span class="filter-label">' + esc(button.textContent) + "</span>" +
+        codeBadge(standCodes[stand], "stand-code") + '<span class="filter-selected">' + picture("check") + "</span>";
+    }
+    filterPanel.addEventListener("toggle", () => {
+      const open = filterPanel.matches(":popover-open");
+      filterButton.setAttribute("aria-expanded", String(open));
+      positionFilters();
+      if (open) filterPanel.querySelector("button").focus({ preventScroll: true });
+    });
   }
 
   document.addEventListener("DOMContentLoaded", () => {
     if (!ui.data) return;
+    setupFilters();
     for (const node of document.querySelectorAll("span[data-icon]")) node.innerHTML = picture(node.dataset.icon);
     setContent($("#inline-contours"), contourLegend());
     setContent($("#legend-colors"), contourLegend());
