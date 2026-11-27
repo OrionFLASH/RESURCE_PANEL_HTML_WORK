@@ -488,6 +488,7 @@
     const activeFilters = env.length + seg.length + Number(state.availability !== "all");
     $("#filter-count").textContent = activeFilters || "";
     filterButton.toggleAttribute("data-filtered", !!activeFilters);
+    if (production) paintPreferences();
     const links = visibleLinks();
     const model = depiction(links);
     const board = $("#board-body");
@@ -563,7 +564,7 @@
     document.body.dataset.reliefMotion = motion;
     const [, label, description] = effects.find(([id]) => id === motion) || [];
     $("#effects-button").title = label ? "Эффекты · " + label : "Эффекты";
-    if (state.menu !== "effects") return;
+    if (!production && state.menu !== "effects") return;
 
     setContent($("#effect-options"), effects.map(([id, title]) =>
       '<button type="button" class="control" data-action="effect" data-id="' + id + '" aria-pressed="' +
@@ -617,7 +618,6 @@
     ui.hideTip();
     $("#relief-name").textContent = style.label;
     $("#relief-switch").title = style.label;
-    $("#current-palette").textContent = style.label;
     document.title = (production ? "Ресурсная панель" : "Маршруты · Рельеф") + " · " + style.label;
     paintTheme();
     window.RP.theme.paint();
@@ -645,12 +645,29 @@
     }).join("");
   }
 
+  function paletteOptions() {
+    return reliefStyles.map(({ id, label, icon }) => choiceItem({
+      id, label, icon, action: "style", pressed: state.style.id === id
+    }, true));
+  }
+
+  function groupOptions() {
+    return ui.data.sections.map((section) => choiceItem({
+      ...section, label: section.name, action: "group", pressed: !ui.off.includes(section.id)
+    }, true)).concat(choiceItem({ id: "", label: "Показать все разделы", icon: "eye", action: "show-groups" }, true));
+  }
+
+  function paintPreferences() {
+    setContent($("#pref-palettes"), paletteOptions().join(""));
+    setContent($("#pref-sections"), groupOptions().join(""));
+    $("#admin-settings").querySelectorAll('[data-action="theme"]').forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.id === RP.theme.get()));
+    });
+  }
+
   function menuContents() {
     switch (state.menu) {
-      case "relief":
-        return reliefStyles.map(({ id, label, icon }) => choiceItem({
-          id, label, icon, action: "style", pressed: state.style.id === id
-        }, true));
+      case "relief": return paletteOptions();
       case "sections":
         return [{ id: "", name: "Все разделы", icon: "layers" }, ...ui.data.sections]
           .filter((item) => !ui.off.includes(item.id) || state.view === "all")
@@ -660,10 +677,7 @@
         if (!scope) return [];
         return [{ id: "", label: "К обзору", icon: "left" }]
           .concat(scope.choices).map((item) => choiceItem({ ...item, pressed: scope.picked?.id === item.id }, true));
-      case "groups":
-        return ui.data.sections.map((section) => choiceItem({
-          ...section, label: section.name, action: "group", pressed: !ui.off.includes(section.id)
-        }, true)).concat(choiceItem({ id: "", label: "Показать все разделы", icon: "eye", action: "show-groups" }, true));
+      case "groups": return groupOptions();
       default: return [];
     }
   }
@@ -682,7 +696,7 @@
     hint.hidden = state.menu !== "legend";
     hint.textContent = "Слева указан сегмент, справа стенд. Цвет, коды и кромки используют одну легенду.";
     const grid = $("#menu-grid");
-    const mode = ["effects", "settings", "legend"];
+    const mode = production ? ["settings", "legend"] : ["effects", "settings", "legend"];
     mode.forEach((name) => { $("#" + name + "-panel").hidden = state.menu !== name; });
     grid.hidden = mode.includes(state.menu);
     const pager = $(".menu-pages");
@@ -775,11 +789,14 @@
           appearance.set("style", id);
           appearance.set("theme", null);
           updateStyle();
-          openMenu("settings");
         } else {
           ui.closeLayer();
           if (location.hash !== "#" + id) location.hash = id;
         }
+        break;
+      case "theme":
+        RP.theme.set(id);
+        paintPreferences();
         break;
       case "close-menu": ui.closeLayer(); break;
       case "view": changeView(id); break;
@@ -896,9 +913,30 @@
     });
   }
 
+  function setupAdminSettings() {
+    const lock = $("#lock");
+    lock.dataset.adminIcon = "gear";
+    lock.innerHTML = picture("gear");
+    lock.title = "Администрирование";
+    $('.gallery [data-menu="settings"]').before(lock);
+    const effectsPanel = $("#effects-panel");
+    $('[data-preference-pane="effects"]').append(effectsPanel);
+    effectsPanel.hidden = false;
+    $("#effect-options").classList.add("preference-grid");
+    const marking = $(".marking-options");
+    $('[data-preference-pane="markings"]').prepend(marking);
+    setContent($("#pref-legend"), contourLegend());
+    const reset = $("#resetUses");
+    reset.classList.remove("icon-button");
+    reset.append("Сбросить счётчики открытий");
+    $(".preference-meta").append(reset, $("#ver"));
+    $(".preference-meta").before($(".sort-control"));
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     if (!ui.data) return;
     setupFilters();
+    if (production) setupAdminSettings();
     for (const node of document.querySelectorAll("span[data-icon]")) node.innerHTML = picture(node.dataset.icon);
     setContent($("#inline-contours"), contourLegend());
     setContent($("#legend-colors"), contourLegend());
@@ -934,7 +972,11 @@
       store.set("live", $("#live").checked);
       location.reload();
     });
-    $("#lock").addEventListener("click", () => ui.closeLayer(), true);
+    $("#lock").addEventListener("click", (event) => {
+      if (filterButton.getAttribute("aria-expanded") === "true") filterPanel.hidePopover();
+      ui.closeLayer();
+      if (production) event.currentTarget.focus({ preventScroll: true });
+    }, true);
     document.addEventListener("click", handleAction);
     document.addEventListener("pointermove", tiltAtPointer, { passive: true });
     document.addEventListener("pointerout", (event) => {

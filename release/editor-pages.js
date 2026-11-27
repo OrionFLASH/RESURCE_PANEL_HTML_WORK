@@ -3,15 +3,19 @@
   "use strict";
   const drawer = document.querySelector("#drawer");
   const modal = document.querySelector("#modal");
+  const preferences = document.body.dataset.edition === "production" ? document.querySelector("#admin-settings") : null;
   const hiddenClass = "editor-page-hidden";
   const topics = [
     ["links", "Ссылки", "link"], ["sections", "Разделы", "layers"], ["favorites", "Избранное", "star"],
     ["meetings", "Встречи", "video"], ["scripts", "Скрипты", "terminal"]
   ];
+  if (preferences) topics.unshift(["settings", "Настройки панели", "gear"]);
   const lists = { sections: "#aSecs", favorites: "#aFav", meetings: "#aMeets" };
   const observer = new MutationObserver(layout);
   let frame = 0;
   let topic = "links";
+  let settingsActive = false;
+  let preference = "appearance";
   let iconForm = false;
   let pickedSelect = null;
   let revealError = false;
@@ -90,6 +94,7 @@
 
   function configureAdmin(body, scripts) {
     let bar = drawer.querySelector(".editor-topics");
+    const opening = !bar;
     if (!bar) {
       const title = drawer.querySelector("#dTitle");
       const header = document.createElement("header");
@@ -103,11 +108,40 @@
       bar.innerHTML = topics.map(([id, label, icon]) => '<button class="btn" type="button" data-topic="' + id + '">' +
         RP.icons.svg(icon) + "<span>" + label + "</span></button>").join("");
       drawer.querySelector("#apLinks").before(bar);
+      if (preferences) {
+        settingsActive = true;
+        bar.after(preferences);
+      }
     }
-    bar.classList.toggle(hiddenClass, !scripts && !body.querySelector("#aList"));
+    const selected = settingsActive ? "settings" : scripts ? "scripts" : topic;
+    drawer.dataset.adminTopic = selected;
+    bar.classList.toggle(hiddenClass, !settingsActive && !scripts && !body.querySelector("#aList"));
     bar.querySelectorAll("button").forEach((button) =>
-      button.setAttribute("aria-pressed", String(button.dataset.topic === (scripts ? "scripts" : topic)))
+      button.setAttribute("aria-pressed", String(button.dataset.topic === selected))
     );
+    return opening;
+  }
+
+  function layoutPreferences() {
+    const pane = preferences.querySelector('[data-preference-pane="' + preference + '"]');
+    preferences.querySelectorAll("[data-preference-pane]").forEach((panel) => { panel.hidden = panel !== pane; });
+    preferences.querySelectorAll("[data-preference]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.preference === preference));
+    });
+    startPage(drawer, "preferences:" + preference);
+    const grid = pane.querySelector(".preference-grid");
+    if (!grid) {
+      paintPager(drawer, 0, 1);
+      return;
+    }
+    const style = getComputedStyle(grid);
+    const columns = style.gridTemplateColumns.split(" ").length;
+    const gap = parseFloat(style.rowGap);
+    const demo = pane.querySelector(".effect-stage");
+    const stacked = demo && getComputedStyle(demo.parentElement).gridTemplateColumns.split(" ").length === 1;
+    const reserve = stacked ? demo.offsetHeight + parseFloat(getComputedStyle(demo.parentElement).rowGap) : 0;
+    const rows = Math.max(1, Math.floor((available(drawer, grid) - reserve + gap) / (parseFloat(style.gridAutoRows) + gap)));
+    pageItems(drawer, [...grid.children], columns * rows, document.activeElement);
   }
 
   function replaceLargeSelects() {
@@ -253,13 +287,30 @@
   }
 
   function layoutDrawer() {
-    if (!drawer.classList.contains("on")) { pickedSelect = null; iconForm = false; return; }
+    if (!drawer.classList.contains("on")) {
+      pickedSelect = null;
+      iconForm = false;
+      if (preferences?.parentElement === drawer) {
+        preferences.hidden = true;
+        drawer.after(preferences);
+      }
+      return;
+    }
     getPager(drawer);
     const body = drawer.querySelector("#aBody");
     drawer.querySelector(".editor-select-panel")?.remove();
     if (!body) return;
+    const links = drawer.querySelector("#apLinks");
     const scripts = drawer.querySelector("#apScripts");
-    configureAdmin(body, !scripts.hidden);
+    const opening = configureAdmin(body, !scripts.hidden);
+    if (preferences) preferences.hidden = !settingsActive;
+    if (settingsActive) {
+      links.classList.add(hiddenClass);
+      scripts.classList.add(hiddenClass);
+      layoutPreferences();
+      if (opening) preferences.querySelector('[data-preference][aria-pressed="true"]').focus({ preventScroll: true });
+      return;
+    }
     if (!scripts.hidden) {
       startPage(drawer, "scripts");
       pageBlocks(drawer, [...scripts.children], scripts, document.activeElement);
@@ -319,12 +370,16 @@
       layout();
       if (button.disabled) button.parentElement.querySelector("button:not(:disabled)")?.focus({ preventScroll: true });
     } else if (button.dataset.topic) {
+      settingsActive = button.dataset.topic === "settings";
       if (button.dataset.topic === "scripts") {
         if (drawer.querySelector("#apScripts").hidden) drawer.querySelector("#atScripts").click();
-      } else {
+      } else if (!settingsActive) {
         topic = button.dataset.topic;
         if (drawer.querySelector("#apLinks").hidden) drawer.querySelector("#atLinks").click();
       }
+      schedule();
+    } else if (button.dataset.preference) {
+      preference = button.dataset.preference;
       schedule();
     } else if (button.hasAttribute("data-icon-form")) {
       iconForm = !iconForm;
