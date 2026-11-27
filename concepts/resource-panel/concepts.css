@@ -692,7 +692,7 @@ html[data-theme="dark"] { color-scheme: dark; }
   padding: clamp(9px, 1.1vw, 16px);
 }
 .prototype .drawer.adm.editor-icon-mode .x { top: clamp(9px, 1.1vw, 16px); right: clamp(9px, 1.1vw, 16px); }
-.prototype .editor-icon-mode :is(.abar, .icon-field-label) { display: none; }
+.prototype .editor-icon-mode :is(.abar, .afh, .icon-field-label) { display: none; }
 .prototype .editor-icon-mode .editor-header { margin-bottom: 6px; }
 .prototype .drawer .editor-icons {
   --icon-cell: 36px;
@@ -707,6 +707,54 @@ html[data-theme="dark"] { color-scheme: dark; }
   align-items: center;
   gap: 7px;
 }
+.prototype .editor-icon-context {
+  order: -1;
+  flex: 1 1 500px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 4px 7px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: 10px;
+  color: var(--type);
+  background: var(--surface);
+}
+.prototype .icon-context-preview {
+  display: grid;
+  place-items: center;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--wash);
+  color: var(--accent);
+}
+.prototype .icon-context-preview .ui-i { width: 24px; height: 24px; }
+.prototype .icon-context-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 11px;
+}
+.prototype .icon-context-line :is(strong, .icon-context-section, .icon-context-address, .icon-context-choice) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prototype .icon-context-line strong { flex: 1; font-size: 13px; }
+.prototype .icon-context-section { max-width: 42%; color: var(--sub); }
+.prototype .icon-context-tag {
+  flex: none;
+  padding: 1px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.prototype .icon-context-tag[data-env] { background: color-mix(in srgb, var(--env-tone) 21%, var(--surface)); }
+.prototype .icon-context-tag[data-seg] { background: color-mix(in srgb, var(--seg-tone) 21%, var(--surface)); }
+.prototype .icon-context-address { flex: 1; color: var(--sub); }
+.prototype .icon-context-choice { max-width: 48%; color: var(--accent); font-weight: 650; }
 .prototype .editor-icon-search {
   flex: 1 1 170px;
   max-width: 330px;
@@ -758,6 +806,37 @@ html[data-theme="dark"] { color-scheme: dark; }
   background: var(--surface);
   font-size: 12px;
 }
+.prototype .editor-icons button[data-icon] { position: relative; }
+.prototype .editor-icons button[data-icon][aria-pressed="true"] {
+  background: var(--wash);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.prototype .editor-icons button[data-icon][aria-pressed="true"]::after {
+  content: "✓";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--canvas);
+  font: 700 9px/12px system-ui, sans-serif;
+  text-align: center;
+}
+.prototype .editor-icon-tools .ip-def { padding-inline-end: 17px; }
+@media (max-width: 900px) {
+  .prototype .editor-icon-context { flex-basis: 100%; }
+}
+@media (max-width: 570px) {
+  .prototype .icon-context-line:first-child { flex-wrap: wrap; }
+  .prototype .icon-context-line strong { flex-basis: 100%; }
+  .prototype .editor-icon-search { flex-basis: 90px; }
+}
+@media (max-width: 570px) and (min-height: 391px) {
+  .prototype .icon-context-section { flex-basis: 100%; max-width: 100%; }
+}
 @media (max-width: 1179px) {
   .prototype .editor-icon-library { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -768,9 +847,6 @@ html[data-theme="dark"] { color-scheme: dark; }
   .prototype .editor-icon-library { grid-template-columns: minmax(0, 1fr); }
   .prototype .editor-icon-search { flex-grow: 1; }
 }
-@media (max-height: 780px) {
-  .prototype .editor-icon-mode .afh { display: none; }
-}
 @media (max-height: 780px) and (min-width: 1180px) {
   .prototype .drawer .editor-icons { --icon-cell: 34px; }
   .prototype .editor-icon-library { gap: 4px; }
@@ -779,6 +855,10 @@ html[data-theme="dark"] { color-scheme: dark; }
 }
 @media (max-height: 390px) {
   .prototype .editor-icon-search { flex-basis: 90px; }
+  .prototype .drawer .editor-icons, .prototype .editor-icon-tools { row-gap: 4px; }
+  .prototype .editor-icon-group { padding-block: 3px; }
+  .prototype .editor-icons-grid { row-gap: 2px; }
+  .prototype .editor-icon-context { padding-block: 3px; }
 }
 .prototype .editor-pager {
   position: absolute;

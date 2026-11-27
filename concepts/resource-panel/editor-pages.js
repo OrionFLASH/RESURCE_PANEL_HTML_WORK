@@ -205,7 +205,11 @@
     toolbar.className = "editor-icon-tools";
     toolbar.append(search);
     const defaultIcon = buttons.get("");
-    if (defaultIcon) toolbar.append(defaultIcon);
+    if (defaultIcon) {
+      defaultIcon.textContent = "Как у раздела";
+      defaultIcon.setAttribute("aria-label", "Как у раздела");
+      toolbar.append(defaultIcon);
+    }
     buttons.delete("");
 
     const library = document.createElement("div");
@@ -243,6 +247,56 @@
     return library;
   }
 
+  function paintIconContext(pick, toolbar) {
+    let context = toolbar.querySelector(".editor-icon-context");
+    if (!context) {
+      context = document.createElement("div");
+      context.className = "editor-icon-context";
+      context.setAttribute("role", "group");
+      context.setAttribute("aria-label", "Редактируемая ссылка");
+      context.innerHTML = '<span class="icon-context-preview"></span><div class="icon-context-info">' +
+        '<div class="icon-context-line"><strong></strong><span class="icon-context-section"></span>' +
+        '<span class="icon-context-tag" data-env></span><span class="icon-context-tag" data-seg></span></div>' +
+        '<div class="icon-context-line"><span class="icon-context-address"></span>' +
+        '<span class="icon-context-choice" aria-live="polite"></span></div></div>';
+      toolbar.prepend(context);
+    }
+    const form = pick.closest("#eForm");
+    const field = (id) => form.querySelector("#" + id);
+    const section = field("eSec");
+    const env = field("eEnv");
+    const seg = field("eSeg");
+    const url = field("eUrl");
+    const current = pick.querySelector('[data-icon][aria-pressed="true"]')?.dataset.icon;
+    const name = field("eTitle").value.trim() || "Новая ссылка";
+    const address = url ? url.value.trim() || "Адрес не указан" : "Встроенный инструмент";
+    const icon = RP.ui.iconOf({ icon: current, section: section.value });
+    const preview = context.querySelector(".icon-context-preview");
+    if (preview.dataset.iconName !== icon) {
+      preview.innerHTML = RP.icons.svg(icon);
+      preview.dataset.iconName = icon;
+    }
+    const title = context.querySelector("strong");
+    title.textContent = name;
+    title.title = name;
+    const sectionName = context.querySelector(".icon-context-section");
+    sectionName.textContent = section.selectedOptions[0]?.label || "Без раздела";
+    sectionName.title = sectionName.textContent;
+    const standTag = context.querySelector("[data-env]");
+    standTag.dataset.env = env.value;
+    standTag.textContent = env.value ? "Стенд " + env.selectedOptions[0].label : "Без стенда";
+    const segmentTag = context.querySelector("[data-seg]");
+    segmentTag.dataset.seg = seg.value;
+    segmentTag.textContent = seg.value ? "Сегмент " + seg.selectedOptions[0].label : "Без сегмента";
+    const addressLabel = context.querySelector(".icon-context-address");
+    addressLabel.textContent = address;
+    addressLabel.title = address;
+    const selected = context.querySelector(".icon-context-choice");
+    const choice = current ? RP.icons.label(current) : "Как у раздела";
+    if (selected.textContent !== choice) selected.textContent = choice;
+    selected.title = choice;
+  }
+
   function pageIconGroups(library, groups) {
     const bottom = drawer.getBoundingClientRect().bottom - parseFloat(getComputedStyle(drawer).paddingBottom) - 2;
     if (library.getBoundingClientRect().bottom <= bottom) {
@@ -274,7 +328,10 @@
   function iconsInPages(pick, back) {
     const library = pick.querySelector(".editor-icon-library") || buildIconLibrary(pick);
     const toolbar = pick.querySelector(".editor-icon-tools");
-    if (back && back.parentElement !== toolbar) toolbar.prepend(back);
+    if (back) {
+      if (back.parentElement !== toolbar) toolbar.prepend(back);
+      paintIconContext(pick, toolbar);
+    }
     const normalize = (text) => text.toLowerCase().replaceAll("ё", "е");
     const terms = normalize(pick.querySelector(".editor-icon-search").value.trim()).split(/\s+/);
     const visible = [...library.children].filter((group) => {
@@ -455,6 +512,8 @@
       schedule();
     } else if (button.hasAttribute("data-icon-form")) {
       iconForm = !iconForm;
+      schedule();
+    } else if (button.matches("#eIcon [data-icon]")) {
       schedule();
     } else if (button.hasAttribute("data-editor-select")) {
       pickedSelect = document.getElementById(button.dataset.editorSelect);
