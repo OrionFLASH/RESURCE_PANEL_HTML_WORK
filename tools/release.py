@@ -8,15 +8,26 @@
 """
 import argparse
 import datetime
+import os
 import re
 import shutil
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "panel-v8"
 DST = ROOT / "release"
-FILES = ["index.html", "panel.css", "panel.js", "links.js", "version.js"]
+DESIGN = ROOT / "concepts" / "resource-panel"
+ASSETS = {
+    "panel.css": SRC / "panel.css",
+    "panel.js": SRC / "panel.js",
+    "links.js": SRC / "release-links.js",
+    **{name: DESIGN / name for name in (
+        "concepts.css", "directions.css", "variations.css", "relief.css",
+        "concepts.js", "editor-pages.js",
+    )},
+}
 VERSION_RE = re.compile(r'version:\s*"([^"]+)",\s*date:\s*"([^"]+)"')
 
 
@@ -34,17 +45,38 @@ def main():
     date = a.date or datetime.date.today().isoformat()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         sys.exit("версия должна быть вида X.Y.Z")
-    vf.write_text(text[:m.start()] + 'version: "%s", date: "%s"' % (version, date) + text[m.end():], encoding="utf-8")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        sys.exit("дата должна быть вида YYYY-MM-DD")
+    try:
+        datetime.date.fromisoformat(date)
+    except ValueError:
+        sys.exit("указана недопустимая дата")
+    version_text = text[:m.start()] + f'version: "{version}", date: "{date}"' + text[m.end():]
 
-    if DST.exists():
-        shutil.rmtree(DST)
-    DST.mkdir()
-    for f in FILES:
-        shutil.copy2(SRC / f, DST / f)
-    (DST / "README.txt").write_text(
-        "Ресурсная панель v%s (%s)\nОткройте index.html в браузере. Ссылки правятся в links.js.\n" % (version, date),
-        encoding="utf-8")
-    print("release/ собран: v%s, %s (%d файлов)" % (version, date, len(FILES) + 1))
+    index = (DESIGN / "index.html").read_text(encoding="utf-8")
+    if '<body class="prototype' not in index:
+        sys.exit("в шаблоне не найдено место для атрибута data-edition")
+    index = index.replace('<body class="prototype', '<body data-edition="production" class="prototype', 1)
+    index = index.replace("../../release/", "")
+
+    DST.mkdir(exist_ok=True)
+    with TemporaryDirectory(dir=DST.parent) as tmp:
+        stage = Path(tmp)
+        for name, source in ASSETS.items():
+            shutil.copyfile(source, stage / name)
+        (stage / "index.html").write_text(index, encoding="utf-8")
+        (stage / "version.js").write_text(version_text, encoding="utf-8")
+        (stage / "README.txt").write_text(
+            f"Ресурсная панель v{version} ({date})\n"
+            "Откройте index.html в браузере. Для переноса скопируйте всю папку.\n"
+            "Ссылки можно редактировать в настройках панели и выгружать в links.js.\n",
+            encoding="utf-8",
+        )
+        for file in stage.iterdir():
+            os.replace(file, DST / file.name)
+    if text != version_text:
+        vf.write_text(version_text, encoding="utf-8")
+    print(f"release/ собран: v{version}, {date} ({len(ASSETS) + 3} файлов)")
 
 
 if __name__ == "__main__":

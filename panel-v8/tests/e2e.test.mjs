@@ -717,7 +717,7 @@ test("Декодер permission: 5 → биты 0, 2; zz → ошибка; Оч�
     assert.deepEqual(realErrors(errors), []);
   }));
 
-test("Проверка роли (ПСИ): «Открыть» неактивна при пустом поле; открывает URL из §7; «По умолчанию»", () =>
+test("Проверка роли (ПСИ): «Открыть» неактивна при пустом поле; открывает рабочий URL; «По умолчанию»", () =>
   withPanel(interact(), async ({ page, errors }) => {
     await page.click('#idx [data-link-id="role"]');
     assert.equal(await modalOn(page), true);
@@ -735,7 +735,7 @@ test("Проверка роли (ПСИ): «Открыть» неактивна 
     assert.equal(await page.isEnabled("#tOpen"), true);
     await page.evaluate(() => { const o = window.open; window.__openArgs = []; window.open = function (u, t, f) { window.__openArgs.push([t, f]); return o.apply(this, arguments); }; });
     await page.click("#tOpen");
-    assert.deepEqual(await opened(page), ["https://iam-enigma-psi.omega.sbrf.ru/rmkib.support/api/v1/service/auth/explain/html?employee-number=673892&role=EFS_NB_SUP_BUSINESS_ADMIN_GAMIFICATION"]);
+    assert.deepEqual(await opened(page), ["https://iam-enigma-psi.omega.sbrf.ru/rmkib.auth/api/v1/service/auth/explain/html?employee-number=673892&role=EFS_NB_SUP_BUSINESS_ADMIN_GAMIFICATION"]);
     assert.deepEqual(await page.evaluate(() => window.__openArgs), [["_blank", "noopener"]]);
     // кодирование значений
     await page.fill("#tRole", "A&B ?");

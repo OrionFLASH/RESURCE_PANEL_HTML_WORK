@@ -139,6 +139,19 @@
     let grid = pick.querySelector(".editor-icons-grid");
     if (!grid) {
       const names = new Set();
+      const search = document.createElement("input");
+      search.className = "editor-icon-search";
+      search.type = "search";
+      search.placeholder = "Найти иконку";
+      search.setAttribute("aria-label", "Поиск иконок");
+      search.addEventListener("input", () => {
+        drawer.dataset.editorPage = "0";
+        schedule();
+      });
+      const empty = document.createElement("p");
+      empty.className = "editor-icons-empty";
+      empty.setAttribute("role", "status");
+      empty.textContent = "Иконки не найдены";
       grid = document.createElement("div");
       grid.className = "editor-icons-grid";
       pick.querySelectorAll("button[data-icon]").forEach((button) => {
@@ -146,13 +159,22 @@
         names.add(button.dataset.icon);
         grid.append(button);
       });
-      pick.replaceChildren(grid);
+      pick.replaceChildren(search, grid, empty);
     }
     pick.classList.add("editor-icons");
     const cols = Math.max(1, Math.floor((grid.clientWidth + 2) / 38));
     grid.style.setProperty("--editor-columns", cols);
     const rows = Math.max(1, Math.floor((available(drawer, grid) - 5) / 36));
-    pageItems(drawer, [...grid.children], rows * cols);
+    const normalize = (text) => text.toLowerCase().replaceAll("ё", "е");
+    const terms = normalize(pick.querySelector(".editor-icon-search").value.trim()).split(/\s+/);
+    const matches = [...grid.children].filter((button) => {
+      const label = normalize(button.title + " " + button.dataset.icon);
+      const hit = terms.every((term) => label.includes(term));
+      button.classList.toggle(hiddenClass, !hit);
+      return hit;
+    });
+    pick.querySelector(".editor-icons-empty").hidden = matches.length > 0;
+    pageItems(drawer, matches, rows * cols);
   }
 
   function editorList(body) {
