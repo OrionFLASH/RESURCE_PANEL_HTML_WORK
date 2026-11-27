@@ -2,9 +2,25 @@
 (() => {
   "use strict";
 
+  const relief = { id: "relief", name: "Маршруты · Рельеф", icon: "flag", mode: "glaze", variation: true, rail: true, dark: true };
+  const reliefStyles = [
+    { key: "bay", label: "Залив", columns: 4, size: "tall", icon: "globe" },
+    { key: "sage", label: "Шалфей", columns: 4, size: "tall", icon: "growth" },
+    { key: "stone", label: "Камень", columns: 3, size: "regular", icon: "layers", dark: false },
+    { key: "graphite", label: "Графит", columns: 4, size: "compact", icon: "grid" },
+    { key: "opal", label: "Опаловое стекло", columns: 4, size: "tall", icon: "gem", glass: true, dark: false },
+    { key: "dusk", label: "Сумеречное стекло", columns: 4, size: "tall", icon: "moon", glass: true },
+    { key: "mist", label: "Дымка", columns: 3, size: "regular", icon: "info", tip: true },
+    { key: "lift", label: "Подъём", columns: 4, size: "tall", icon: "up", motion: "lift" },
+    { key: "beam", label: "Скользящий блик", columns: 4, size: "regular", icon: "sparkle", motion: "beam" },
+    { key: "plum", label: "Слива", columns: 3, size: "tall", icon: "book" }
+  ].map((profile) => ({
+    ...relief, id: "relief-" + profile.key, dark: profile.dark ?? relief.dark, profile
+  }));
+
   const concepts = [
     { id: "pearl", name: "Атлас · Перламутр", icon: "layers", mode: "glaze", full: true, variation: true },
-    { id: "relief", name: "Маршруты · Рельеф", icon: "flag", mode: "glaze", variation: true, rail: true, dark: true },
+    relief,
     { id: "prism", name: "Витрина · Призма", icon: "bundle", mode: "glaze", variation: true, rail: true },
     { id: "folio", name: "Атлас ресурсов", icon: "layers", mode: "edges", full: true },
     { id: "cabinet", name: "Кабинет", icon: "folder" },
@@ -17,6 +33,14 @@
     { id: "signal", name: "Монитор доступности", icon: "gauge", mode: "symbols", dark: true },
     { id: "services", name: "Витрина сервисов", icon: "bundle", mode: "split" }
   ];
+  function resolveConcept() {
+    return [...concepts, ...reliefStyles].find(({ id }) => "#" + id === location.hash) || concepts[0];
+  }
+
+  function isRelief(concept) {
+    return concept === relief || !!concept.profile;
+  }
+
   const sectionShort = {
     comms: "Связь", heroes: "Герои продаж", kap: "КАП", sup: "СУП", access: "Доступы",
     itsm: "Сервис", data: "Данные", docs: "Документы", jira: "Задачи", repo: "Репозитории", tools: "Инструменты"
@@ -47,7 +71,7 @@
   store.set = (key, value) => nativeSet(ns + key, value);
   const live = store.get("live", false);
   const state = {
-    concept: concepts.find(({ id }) => "#" + id === location.hash) || concepts[0],
+    concept: resolveConcept(),
     view: "layout",
     choice: "",
     section: "",
@@ -134,13 +158,14 @@
     const body = '<span class="item-icon">' + picture(ui.iconOf(link)) + '</span><span class="item-content">' +
       title + contourMarks(link) + '</span><span class="item-badges" aria-hidden="true">' + badges + "</span>";
     const attrs = ' class="resource' + (link.title.length >= 24 ? " long-title" : "") + '" data-st="' + status + '" data-env="' + (link.env || "") + '" data-seg="' +
-      (link.seg || "") + '" data-section="' + esc(link.section) + '" data-catalog-link="' + esc(link.id) + '" aria-label="' + esc(text) + '" title="' + esc(text) + '"';
+      (link.seg || "") + '" data-section="' + esc(link.section) + '" data-catalog-link="' + esc(link.id) + '" aria-label="' + esc(text) + '"';
+    const nativeTip = state.concept.profile && status !== "down" ? "" : ' title="' + esc(text) + '"';
     if (inspect) {
-      return '<button type="button"' + attrs + ' data-action="inspect" data-id="' + esc(link.id) +
+      return '<button type="button"' + attrs + nativeTip + ' data-action="inspect" data-id="' + esc(link.id) +
         '" aria-pressed="' + (state.focusLink === link.id) + '">' + body + "</button>";
     }
-    if (status === "down") return '<div' + attrs + ' role="link" aria-disabled="true">' + body + "</div>";
-    const action = attrs + ' data-link-id="' + esc(link.id) + '"';
+    if (status === "down") return '<div' + attrs + nativeTip + ' role="link" aria-disabled="true">' + body + "</div>";
+    const action = attrs + nativeTip + ' data-link-id="' + esc(link.id) + '"';
     if (link.tool) return '<button type="button"' + action + ">" + body + "</button>";
     return '<a' + action + ' href="' + esc(link.url) + '" target="_blank" rel="noopener">' + body + "</a>";
   }
@@ -338,7 +363,7 @@
     const { q, env, seg } = ui.filter;
     if (q.trim() || env.length || seg.length) return { entries: links };
     if (state.view === "all") return state.concept.full ? layouts[state.concept.id](links) : { entries: links };
-    return layouts[state.concept.id](links);
+    return layouts[state.concept.profile ? "relief" : state.concept.id](links);
   }
 
   const compact = [
@@ -372,11 +397,21 @@
     if (model.style === "spectrum") return {
       presets: [{ width: 250, height: 205 }, { width: 150, height: 191 }], max: 560, columns: 4, flow: "row"
     };
+    const profile = state.concept.profile;
+    if (model.style === "routes" && profile) {
+      const height = profile.size === "tall" ? 199 : profile.size === "compact" ? 166 : 181;
+      return {
+        presets: [{ width: profile.columns === 4 ? 215 : 255, height }, { width: 149, height }],
+        max: profile.size === "tall" ? 345 : profile.size === "compact" ? 278 : 315,
+        columns: profile.columns, flow: "row"
+      };
+    }
     if (model.style === "routes") return {
       presets: [{ width: 260, height: 205 }, { width: 146, height: 191 }], max: 280, columns: 3, flow: "row"
     };
     if (model.style === "route-choices") return {
-      presets: [{ width: 220, height: 66 }, { width: 146, height: 58 }], max: 105, columns: 3, flow: "row"
+      presets: [{ width: 220, height: 66 }, { width: 146, height: 58 }],
+      max: 105, columns: profile?.columns || 3, flow: "row"
     };
     if (model.style === "command") return { presets: spacious, max: 67, columns: 6, flow: "row" };
     const useTiles = model.style === "regular" || model.style === "services";
@@ -460,7 +495,9 @@
   }
 
   function shelfFits() {
-    return !!state.concept.variation && window.innerWidth >= 740 && document.documentElement.clientHeight >= 665;
+    const minimumHeight = isRelief(state.concept) ? 570 : 665;
+    return !!state.concept.variation && window.innerWidth >= 740 &&
+      document.documentElement.clientHeight >= minimumHeight;
   }
 
   function railChoices() {
@@ -494,9 +531,10 @@
     const favorites = favoriteLinks(links);
     const meetings = links.filter((link) => link.meet && (state.showDown || statusOf(link) !== "down"));
     const shelfSize = window.innerWidth >= 1400 ? 2 : window.innerWidth >= 1090 ? 1 : 0;
+    const fullShelf = isRelief(state.concept);
     for (const [id, label, icon, collection, limit] of [
-      ["favorite", "Избранное", "star", favorites, [2, 4, 5][shelfSize]],
-      ["meetings", "Встречи", "video", meetings, 1 + shelfSize]
+      ["favorite", "Избранное", "star", favorites, fullShelf ? 12 : [2, 4, 5][shelfSize]],
+      ["meetings", "Встречи", "video", meetings, fullShelf ? 3 : 1 + shelfSize]
     ]) {
       const title = '<button type="button" class="control quick-view" data-action="view" data-id="' + id +
         '" aria-label="' + label + '" aria-pressed="' + (state.view === id) + '">' + picture(icon) +
@@ -650,29 +688,45 @@
   }
 
   function updateConcept() {
-    state.concept = concepts.find(({ id }) => "#" + id === location.hash) || concepts[0];
-    state.view = state.concept.full ? "all" : "layout";
-    state.railOpen = store.get("rail_" + state.concept.id, !!state.concept.rail);
+    state.concept = resolveConcept();
+    const { profile } = state.concept;
+    const family = isRelief(state.concept);
+    const sameFamily = family && document.body.dataset.concept === "relief";
+    const conceptId = family ? "relief" : state.concept.id;
+    if (!sameFamily) {
+      state.view = state.concept.full ? "all" : "layout";
+      state.railOpen = store.get("rail_" + conceptId, !!state.concept.rail);
+      state.choice = "";
+      state.section = "";
+      state.focusLink = "";
+    }
     document.body.toggleAttribute("data-variation", !!state.concept.variation);
-    state.choice = "";
-    state.section = "";
-    state.focusLink = "";
+    document.body.dataset.relief = profile?.key || "";
+    document.body.dataset.reliefSize = profile?.size || "";
+    document.body.dataset.reliefMotion = profile?.motion || "";
+    document.body.toggleAttribute("data-relief-glass", !!profile?.glass);
+    document.body.toggleAttribute("data-relief-tip", !!profile?.tip);
     const { q, env, seg } = ui.filter;
     if (state.concept.full && (q.trim() || env.length || seg.length)) {
       const former = document.activeElement;
       ui.resetAll();
       former?.focus({ preventScroll: true });
     }
-    document.body.dataset.concept = state.concept.id;
+    ui.hideTip();
+    document.body.dataset.concept = conceptId;
     document.body.dataset.marks = state.concept.mode || "text";
     $("#concept-name").textContent = state.concept.name;
     $("#concept-emblem").innerHTML = picture(state.concept.icon);
     $("#concept").title = state.concept.name;
-    document.title = state.concept.name + " · Ресурсная панель";
+    $("#relief-switch").hidden = !family;
+    $("#relief-name").textContent = profile?.label || "Вариации";
+    $("#relief-switch").title = profile?.label || "Вариации Рельефа";
+    document.title = state.concept.name + (profile ? " · " + profile.label : "") + " · Ресурсная панель";
     paintTheme();
     window.RP.theme.paint();
     paintViews();
-    restart();
+    if (sameFamily) repaint();
+    else restart();
   }
 
   function legendItems() {
@@ -695,7 +749,12 @@
     switch (state.menu) {
       case "concepts":
         return concepts.map((item) => choiceItem({
-          ...item, label: item.name, action: "concept", pressed: state.concept.id === item.id
+          ...item, label: item.name, action: "concept",
+          pressed: item === relief ? isRelief(state.concept) : state.concept === item
+        }, true));
+      case "relief":
+        return reliefStyles.map(({ id, profile }) => choiceItem({
+          id, label: profile.label, icon: profile.icon, action: "concept", pressed: state.concept.id === id
         }, true));
       case "sections":
         return [{ id: "", name: "Все разделы", icon: "layers" }, ...ui.data.sections]
@@ -718,7 +777,7 @@
   function paintMenu() {
     if (!state.menu) return;
     const labels = {
-      concepts: "Концепты", sections: "Разделы", scope: scope?.label || "Разделы", filters: "Фильтры",
+      concepts: "Концепты", relief: "Вариации Рельефа", sections: "Разделы", scope: scope?.label || "Разделы", filters: "Фильтры",
       settings: "Настройки", groups: "Видимые разделы", legend: "Условные обозначения", inspect: "Ссылка"
     };
     const menu = $("#menu");
@@ -801,7 +860,7 @@
     const { action, id, menu } = button.dataset;
     if (menu === "sections" && railFits()) {
       state.railOpen = !state.railOpen;
-      store.set("rail_" + state.concept.id, state.railOpen);
+      store.set("rail_" + (isRelief(state.concept) ? "relief" : state.concept.id), state.railOpen);
       restart();
       return;
     }
