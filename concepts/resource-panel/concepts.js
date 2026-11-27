@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const reliefStyles = [
+  const palettes = [
     { key: "bay", label: "Залив", columns: 4, size: "tall", icon: "globe" },
     { key: "sage", label: "Шалфей", columns: 4, size: "tall", icon: "growth" },
     { key: "stone", label: "Камень", columns: 3, size: "regular", icon: "layers", dark: false },
@@ -13,19 +13,30 @@
     { key: "lift", label: "Подъём", columns: 4, size: "tall", icon: "up", motion: "lift" },
     { key: "beam", label: "Скользящий блик", columns: 4, size: "regular", icon: "sparkle", motion: "beam" },
     { key: "plum", label: "Слива", columns: 3, size: "tall", icon: "book" }
-  ].map((style) => ({ ...style, id: "relief-" + style.key }));
+  ];
+  const preferred = new Set(["bay", "sage", "stone", "opal", "dusk", "lift"]);
+  const reliefStyles = [...palettes.filter((style) => preferred.has(style.key)),
+    ...palettes.filter((style) => !preferred.has(style.key))].flatMap((style) => {
+    const base = { ...style, id: "relief-" + style.key };
+    return preferred.has(style.key) ? [
+      base, { ...base, id: base.id + "-codes", label: base.label + " · коды", codes: true }
+    ] : [base];
+  });
 
   const effects = [
     ["style", "По стилю"], ["tilt", "3D-наклон"], ["lift", "Подъём"],
-    ["beam", "Блик"], ["pulse", "Световой импульс"], ["off", "Без эффекта"]
+    ["beam", "Блик"], ["pulse", "Световой импульс"],
+    ["rock", "Качание"], ["wave", "Мягкая волна"], ["off", "Без эффекта"]
   ];
 
   function resolveStyle() {
     return reliefStyles.find(({ id }) => "#" + id === location.hash) || reliefStyles[0];
   }
 
-  const stands = [["PROM", "PROM"], ["PSI", "ПСИ"], ["IFT", "ИФТ"]];
-  const segments = [["ALPHA", "Alpha"], ["SIGMA", "Sigma"]];
+  const stands = [["PROM", "PROM", "P"], ["PSI", "ПСИ", "Ψ"], ["IFT", "ИФТ", "I"]];
+  const segments = [["ALPHA", "Alpha", "A"], ["SIGMA", "Sigma", "S"]];
+  const standCodes = Object.fromEntries(stands.map(([id, , code]) => [id, code]));
+  const segmentCodes = Object.fromEntries(segments.map(([id, , code]) => [id, code]));
   const statusSigns = { up: "✓", down: "×", wait: "◌", local: "◆", skip: "–" };
   const workflows = [
     ["Связаться с командой", "chat", ["chat", "mail", "jazz", "efir", "daily", "k2", "open"]],
@@ -51,6 +62,7 @@
   const state = {
     style: resolveStyle(),
     effect: store.get("relief_effect", "style"),
+    edges: store.get("relief_edges", false),
     view: "layout",
     choice: "",
     section: "",
@@ -116,8 +128,12 @@
     const context = [ui.ENV[link.env], ui.SEG[link.seg]].filter(Boolean).join(" · ");
     const quickContext = quick && context ? '<span class="quick-context">' + esc(context) + "</span>" : "";
     const title = '<span class="item-name">' + (quick ? esc(link.title) : highlight(link)) + "</span>" + quickContext;
-    const body = '<span class="item-icon">' + picture(ui.iconOf(link)) + '</span><span class="item-content">' +
-      title + '</span><span class="item-badges" aria-hidden="true">' + badges + "</span>";
+    const segment = segmentCodes[link.seg];
+    const stand = standCodes[link.env];
+    const badge = (code, side) => code ? '<span class="contour-code ' + side + '" aria-hidden="true">' + code + "</span>" : "";
+    const body = badge(segment, "segment-code") + '<span class="item-icon">' + picture(ui.iconOf(link)) +
+      '</span><span class="item-content">' + title + '</span><span class="item-badges" aria-hidden="true">' +
+      badges + '</span>' + badge(stand, "stand-code");
     const attrs = ' class="resource' + (link.title.length >= 24 ? " long-title" : "") + '" data-st="' + status + '" data-env="' + (link.env || "") + '" data-seg="' +
       (link.seg || "") + '" data-section="' + esc(link.section) + '" data-catalog-link="' + esc(link.id) + '" aria-label="' + esc(text) + '"';
     if (status === "down") return '<div' + attrs + ' title="' + esc(text) + '" role="link" aria-disabled="true">' + body + "</div>";
@@ -218,10 +234,10 @@
   function boardConfig(model) {
     const profile = state.style;
     if (model.style === "routes") {
-      const height = profile.size === "tall" ? 199 : profile.size === "compact" ? 166 : 181;
+      const height = profile.size === "tall" ? 174 : profile.size === "compact" ? 160 : 168;
       return {
         presets: [{ width: profile.columns === 4 ? 215 : 255, height }, { width: 149, height }],
-        max: profile.size === "tall" ? 345 : profile.size === "compact" ? 278 : 315,
+        max: 560,
         columns: profile.columns, flow: "row"
       };
     }
@@ -245,7 +261,8 @@
     const attr = ' data-action="' + (item.action || "choose") + '" data-id="' + esc(item.id) + '"';
     const stateAttr = item.pressed === undefined ? "" : ' aria-pressed="' + item.pressed + '"';
     const icon = item.icon ? '<span class="choice-icon">' + picture(item.icon) + "</span>" : "";
-    const size = item.links ? '<span class="count">' + item.links.length + "</span>" : "";
+    const count = item.range || item.links?.length;
+    const size = count ? '<span class="count">' + esc(count) + "</span>" : "";
     const disabled = item.links && !item.links.length ? " disabled" : "";
     const animate = item.kind === "panel" || sample ? " data-effect-target" : "";
     const examples = sample && item.links?.slice(0, 2).map((link) => link.title).join(" · ");
@@ -259,7 +276,7 @@
     if (item.kind === "panel") {
       const preview = item.links.slice(0, previewLimit);
       return '<section class="link-panel" data-panel="' + esc(item.id) + '">' +
-        choiceItem(item) + '<div class="pane-links" style="--pane-limit:' + (preview.length * 44) + 'px">' +
+        choiceItem(item) + '<div class="pane-links">' +
         preview.map((link) => linkItem(link)).join("") + "</div></section>";
     }
     if (item.kind === "choice") return choiceItem(item, false, true);
@@ -377,6 +394,29 @@
     $("#q").removeAttribute("aria-activedescendant");
   }
 
+  function routePreviews(entries, shape, grid) {
+    const css = getComputedStyle(grid);
+    const pixels = (name) => parseFloat(css.getPropertyValue(name));
+    const linkGap = pixels("--overview-link-gap");
+    const reserved = pixels("--route-key-height") + 2 * pixels("--overview-panel-padding") +
+      pixels("--overview-panel-gap") + 2; // Includes both borders.
+    const previewLimit = Math.max(1, Math.min(10,
+      Math.floor((shape.rowHeight - reserved + linkGap) / (pixels("--overview-link-height") + linkGap))));
+
+    const other = entries.find((entry) => entry.id === "other");
+    if (!other || entries.length > shape.capacity) return { entries, previewLimit };
+    const slots = Math.ceil(entries.length / shape.columns) * shape.columns;
+    const parts = Math.min(slots - entries.length + 1, Math.ceil(other.links.length / previewLimit));
+    if (parts < 2) return { entries, previewLimit };
+
+    const continued = Array.from({ length: parts }, (_, part) => {
+      const start = part * previewLimit;
+      const end = Math.min(start + previewLimit, other.links.length);
+      return { ...other, links: other.links.slice(start, end), range: (start + 1) + "–" + end + " / " + other.links.length };
+    });
+    return { entries: entries.flatMap((entry) => entry === other ? continued : [entry]), previewLimit };
+  }
+
   function render() {
     frame = 0;
     if (!ui.data) return;
@@ -409,6 +449,10 @@
       config = boardConfig({ style: "route-choices" });
       shape = fit(entries.length, board.clientWidth, board.clientHeight, config.presets, config.max, config.columns);
     }
+    let previewLimit = 0;
+    if (entries.some((entry) => entry.kind === "panel")) {
+      ({ entries, previewLimit } = routePreviews(entries, shape, grid));
+    }
     const pages = Math.max(1, Math.ceil(entries.length / shape.capacity));
     state.page = Math.min(state.page, pages - 1);
     const start = state.page * shape.capacity;
@@ -417,7 +461,6 @@
     drawGrid(grid, config, shape, rows);
     grid.dataset.style = model.style || "catalog";
     grid.dataset.dense = String(shape.rowHeight < 49);
-    const previewLimit = Math.max(2, Math.min(12, Math.floor((shape.rowHeight - 64) / 34)));
     const html = shown.map((item) => gridItem(item, previewLimit)).join("");
     const empty = model.fallback || (ui.off.length === ui.data.sections.length && state.view !== "all" ?
       "Все разделы скрыты. Откройте «Настройки» или «Все ссылки»." : "По выбранным условиям ссылок нет.");
@@ -505,6 +548,7 @@
 
   function updateStyle() {
     const style = state.style = resolveStyle();
+    paintMarkings();
     resetTilt();
     document.body.dataset.relief = style.key;
     document.body.dataset.reliefSize = style.size;
@@ -520,19 +564,21 @@
     repaint();
   }
 
-  function legendItems() {
-    const rows = [
-      ...stands.map(([id, label]) => ({ axis: "env", id, label })),
-      ...segments.map(([id, label]) => ({ axis: "seg", id, label }))
-    ];
-    return rows.map(({ axis, id, label }) => '<div class="legend-item" data-' + axis + '="' + id +
-      '"><span class="legend-swatch"></span><span>' + label + '</span></div>').concat([
-      '<div class="legend-item legend-up"><span>✓</span><span>Доступна</span></div>',
-      '<div class="legend-item legend-down"><span>×</span><span>Недоступна</span></div>',
-      '<div class="legend-item"><span>◆</span><span>Инструмент</span></div>',
-      '<div class="legend-item"><span>–</span><span>Без проверки</span></div>',
-      '<div class="legend-item"><span>★</span><span>Закреплена</span></div>'
-    ]);
+  function paintMarkings() {
+    const codes = store.get("relief_codes_" + state.style.id, !!state.style.codes);
+    document.body.toggleAttribute("data-relief-codes", codes);
+    document.body.toggleAttribute("data-relief-edges", state.edges);
+    $("#contour-codes").checked = codes;
+    $("#contour-edges").checked = state.edges;
+  }
+
+  function contourLegend() {
+    return [["seg", segments], ["env", stands]].map(([axis, options]) => {
+      const label = axis === "seg" ? "Сегмент" : "Стенд";
+      const chips = options.map(([id, text, code]) => '<span class="contour-key" data-' + axis + '="' + id +
+        '"><i></i><b>' + code + '</b><span>' + text + '</span></span>').join("");
+      return '<span class="contour-axis"><span class="contour-axis-label">' + label + '</span>' + chips + '</span>';
+    }).join("");
   }
 
   function menuContents() {
@@ -554,7 +600,6 @@
         return ui.data.sections.map((section) => choiceItem({
           ...section, label: section.name, action: "group", pressed: !ui.off.includes(section.id)
         }, true)).concat(choiceItem({ id: "", label: "Показать все разделы", icon: "eye", action: "show-groups" }, true));
-      case "legend": return legendItems();
       default: return [];
     }
   }
@@ -570,14 +615,15 @@
     $("#menu-title").textContent = labels[state.menu];
     const hint = $("#legend-hint");
     hint.hidden = state.menu !== "legend";
-    hint.textContent = "Градиент идёт от цвета сегмента к цвету стенда. Подписи доступны в фильтрах и подсказке ссылки.";
+    hint.textContent = "Слева указан сегмент, справа стенд. Цвет, коды и кромки используют одну легенду.";
     const grid = $("#menu-grid");
-    const mode = ["effects", "filters", "settings"];
+    const mode = ["effects", "filters", "settings", "legend"];
     mode.forEach((name) => { $("#" + (name === "filters" ? "filter" : name) + "-panel").hidden = state.menu !== name; });
     grid.hidden = mode.includes(state.menu);
     const pager = $(".menu-pages");
     pager.hidden = true;
     if (state.menu === "effects") paintEffect();
+    if (state.menu === "legend") paintMarkings();
     if (grid.hidden) return;
     const entries = menuContents();
     const width = $("#menu-main").clientWidth;
@@ -739,6 +785,17 @@
   document.addEventListener("DOMContentLoaded", () => {
     if (!ui.data) return;
     for (const node of document.querySelectorAll("span[data-icon]")) node.innerHTML = picture(node.dataset.icon);
+    setContent($("#inline-contours"), contourLegend());
+    setContent($("#legend-colors"), contourLegend());
+    $("#contour-codes").addEventListener("change", (event) => {
+      store.set("relief_codes_" + state.style.id, event.target.checked);
+      paintMarkings();
+    });
+    $("#contour-edges").addEventListener("change", (event) => {
+      state.edges = event.target.checked;
+      store.set("relief_edges", state.edges);
+      paintMarkings();
+    });
     $("#sort").value = state.sort;
     $("#show-down").checked = state.showDown;
     $("#live").checked = live;
@@ -775,7 +832,7 @@
     reducedMotion.addEventListener("change", paintEffect);
     $("#effect-demo").addEventListener("pointerenter", (event) => {
       if (event.pointerType === "mouse" && pointerMotion.matches &&
-          ["beam", "pulse"].includes(document.body.dataset.reliefMotion)) playEffect();
+          ["beam", "pulse", "rock", "wave"].includes(document.body.dataset.reliefMotion)) playEffect();
     });
     $("#effect-demo").addEventListener("animationend", (event) => {
       if (event.target.id === "effect-demo" && !event.pseudoElement) event.target.classList.remove("effect-playing");

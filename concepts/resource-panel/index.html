@@ -34,8 +34,6 @@
         aria-label="Эффекты" title="Эффекты"><span data-icon="sparkle"></span><span class="wide-label">Эффекты</span></button>
       <button id="filter-button" class="control" type="button" data-menu="filters" aria-haspopup="dialog"
         aria-label="Фильтры"><span data-icon="params"></span><span class="wide-label">Фильтры</span><span id="filter-count"></span></button>
-      <button class="control icon-button" type="button" data-menu="legend" aria-haspopup="dialog"
-        aria-label="Условные обозначения" title="Условные обозначения"><span data-icon="info"></span></button>
       <button class="control icon-button" type="button" data-menu="settings" aria-haspopup="dialog"
         aria-label="Настройки" title="Настройки"><span data-icon="gear"></span></button>
     </div>
@@ -50,10 +48,16 @@
     </button>
     <button id="health-view" class="control" type="button" data-action="view" data-id="health"
       aria-label="Доступность ссылок"><span id="health-readout"><span id="sum" class="sum" aria-live="polite"></span></span><span id="check-mode"></span></button>
-    <label id="availability-toggle" title="Показывать недоступные ссылки">
-      <input id="show-down" type="checkbox" checked aria-label="Показывать недоступные ссылки">
-      <span class="down-label">Недоступные</span><span class="down-icon" aria-hidden="true">×</span>
-    </label>
+    <div class="catalog-options">
+      <label id="availability-toggle" title="Показывать недоступные ссылки">
+        <input id="show-down" type="checkbox" checked aria-label="Показывать недоступные ссылки">
+        <span class="down-label">Недоступные</span><span class="down-icon" aria-hidden="true">×</span>
+      </label>
+      <button id="contour-guide" class="control" type="button" data-menu="legend" aria-haspopup="dialog"
+        aria-label="Цвета и маркировка" title="Цвета и маркировка">
+        <span data-icon="info"></span><span class="wide-label legend-label">Цвета</span><span id="inline-contours" aria-hidden="true"></span>
+      </button>
+    </div>
     <nav class="catalog-pages" aria-label="Страницы каталога">
       <button id="previous-page" class="control icon-button" type="button" data-action="page" data-id="-1" aria-label="Предыдущая страница">‹</button>
       <output id="range" aria-live="polite"></output>
@@ -79,6 +83,14 @@
   <p id="legend-hint" hidden></p>
   <div id="menu-main">
     <div id="menu-grid"></div>
+    <section id="legend-panel" hidden aria-label="Цвета и маркировка">
+      <div id="legend-colors"></div>
+      <div class="marking-options">
+        <label class="control"><input id="contour-codes" type="checkbox"> Коды на кнопках</label>
+        <label class="control"><input id="contour-edges" type="checkbox"> Цветная кромка</label>
+      </div>
+      <p class="legend-status">✓ Доступна · × Недоступна · ◆ Инструмент · – Без проверки · ★ Закреплена</p>
+    </section>
     <section id="effects-panel" hidden aria-label="Эффекты кнопок">
       <div id="effect-options" class="effect-options" role="group" aria-label="Выбор эффекта"></div>
       <div class="effect-stage">
