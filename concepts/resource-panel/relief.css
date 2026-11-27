@@ -203,26 +203,69 @@ html[data-theme="light"] body.prototype[data-relief-glass][data-concept="relief"
   box-shadow: inset 0 1px 0 var(--light-edge), 0 8px 24px var(--drop);
 }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .prototype[data-relief-motion="lift"] :is(.workspace .resource:not([aria-disabled]), .link-panel > .choice):hover:not(:active) {
-    transform: perspective(550px) translateY(-2px) rotateX(4deg);
-    box-shadow: inset 0 1px 0 var(--light-edge), 0 4px 8px var(--drop);
-    position: relative;
+  .prototype[data-relief-motion="tilt"] [data-effect-target]:hover:not(:active):not(:disabled) {
+    transform: perspective(430px) translateY(-3px) rotateX(var(--tilt-x, 6deg)) rotateY(var(--tilt-y, -8deg));
+    box-shadow: inset 0 1px 0 var(--light-edge), 0 8px 15px var(--drop);
     z-index: 1;
   }
-  .prototype[data-relief-motion="lift"] :is(.item-icon, .choice-icon) { transition: transform .16s ease-out; }
-  .prototype[data-relief-motion="lift"] :is(.resource:not([aria-disabled]), .link-panel > .choice):hover:not(:active) > :is(.item-icon, .choice-icon) {
-    transform: translateY(-1px) scale(1.07);
+  .prototype[data-relief-motion="lift"] [data-effect-target]:hover:not(:active):not(:disabled) {
+    transform: perspective(600px) translateY(-5px) rotateX(4deg);
+    box-shadow: inset 0 1px 0 var(--light-edge), 0 8px 14px var(--drop);
+    z-index: 1;
   }
-  .prototype[data-relief-motion="beam"] :is(.workspace .resource:not([aria-disabled]), .link-panel > .choice):hover::before {
-    content: "";
-    position: absolute;
-    pointer-events: none;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(110deg, transparent 35%, #d4e9ff24 49%, transparent 63%) 100% 0 / 265% 100%;
-    animation: relief-beam .48s ease-out both;
+  .prototype[data-relief-motion="beam"] [data-effect-target]:hover:not(:disabled):not(#effect-demo)::before {
+    animation: relief-beam .68s ease-out both;
   }
-  @keyframes relief-beam { to { background-position: 0 0; } }
+  .prototype[data-relief-motion="pulse"] [data-effect-target]:hover:not(:disabled):not(#effect-demo)::before {
+    animation: relief-pulse .68s ease-out both;
+  }
+}
+
+.prototype[data-relief-motion="beam"] [data-effect-target]::before,
+.prototype[data-relief-motion="pulse"] [data-effect-target]::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+}
+.prototype[data-relief-motion="beam"] [data-effect-target]::before {
+  background: linear-gradient(108deg, transparent 32%, #c5e9ff58 48%, transparent 63%) 100% 0 / 265% 100%;
+}
+.prototype[data-relief-motion="pulse"] [data-effect-target]::before {
+  inset: -1px;
+  box-shadow: inset 0 0 0 2px var(--accent), 0 0 15px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+@keyframes relief-beam {
+  0% { opacity: 0; background-position: 100% 0; }
+  24%, 72% { opacity: 1; }
+  100% { opacity: 0; background-position: 0 0; }
+}
+@keyframes relief-pulse {
+  0%, 100% { opacity: 0; }
+  26% { opacity: .85; }
+}
+@keyframes relief-demo-tilt {
+  0%, 100% { transform: none; }
+  32% { transform: perspective(380px) translateY(-5px) rotateX(11deg) rotateY(-13deg); }
+  66% { transform: perspective(380px) translateY(-5px) rotateX(-9deg) rotateY(12deg); }
+}
+@keyframes relief-demo-lift {
+  0%, 100% { transform: none; }
+  38%, 60% { transform: perspective(550px) translateY(-7px) rotateX(5deg); }
+}
+@keyframes relief-demo-light {
+  from, to { outline-offset: -2px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .prototype[data-relief-motion="tilt"] #effect-demo.effect-playing { animation: relief-demo-tilt .92s ease-in-out; }
+  .prototype[data-relief-motion="lift"] #effect-demo.effect-playing { animation: relief-demo-lift .74s ease-in-out; }
+  .prototype:is([data-relief-motion="beam"], [data-relief-motion="pulse"]) #effect-demo.effect-playing {
+    animation: relief-demo-light .68s;
+  }
+  .prototype[data-relief-motion="beam"] #effect-demo.effect-playing::before { animation: relief-beam .68s ease-out both; }
+  .prototype[data-relief-motion="pulse"] #effect-demo.effect-playing::before { animation: relief-pulse .68s ease-out both; }
 }
 
 @media (max-width: 1240px) {
@@ -257,4 +300,43 @@ html[data-theme="light"] body.prototype[data-relief-glass][data-concept="relief"
     height: 1px;
     clip-path: inset(50%);
   }
+}
+
+.prototype[data-concept="relief"] #effects-button {
+  background: var(--wash);
+  color: var(--accent);
+  border-color: var(--light-edge);
+}
+.prototype[data-concept="relief"] #effects-button:hover { border-color: var(--accent); }
+.prototype .menu-sheet[data-panel="effects"] {
+  height: auto;
+  max-height: calc(var(--window-height) - 12px);
+}
+.prototype #effects-panel { display: grid; gap: 10px; }
+.prototype .effect-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+.prototype .effect-options .control { white-space: normal; line-height: 1.2; }
+.prototype .effect-stage {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 16px 8px 6px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: 11px;
+  background: var(--surface);
+}
+.prototype #effect-demo {
+  width: min(100%, 280px);
+  min-height: 54px;
+  padding-inline: 12px;
+  background: linear-gradient(145deg, var(--paper), var(--wash));
+  border-color: var(--stroke-soft);
+  border-top-color: var(--light-edge);
+  border-radius: var(--route-key-radius);
+  box-shadow: inset 0 1px 0 var(--light-edge), 0 3px 7px var(--drop);
+}
+.prototype #effect-demo .choice-icon { width: 25px; height: 25px; }
+.prototype #effect-hint { margin: 2px 0 0; color: var(--sub); text-align: center; font-size: 12px; }
+@media (max-width: 345px) {
+  .prototype[data-concept="relief"] #effects-button { padding-inline: 4px; }
+  .prototype .effect-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

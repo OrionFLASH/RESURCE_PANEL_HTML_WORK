@@ -30,6 +30,8 @@
     </div>
     <div class="gallery-tools">
       <span id="check-slot"><button id="refresh" class="control" type="button" aria-label="Проверить доступность ссылок"><span id="refIc"></span><span class="wide-label">Проверить</span><span class="prog"></span></button></span>
+      <button id="effects-button" class="control" type="button" data-menu="effects" aria-haspopup="dialog"
+        aria-label="Эффекты" title="Эффекты"><span data-icon="sparkle"></span><span class="wide-label">Эффекты</span></button>
       <button id="filter-button" class="control" type="button" data-menu="filters" aria-haspopup="dialog"
         aria-label="Фильтры"><span data-icon="params"></span><span class="wide-label">Фильтры</span><span id="filter-count"></span></button>
       <button class="control icon-button" type="button" data-menu="legend" aria-haspopup="dialog"
@@ -77,6 +79,16 @@
   <p id="legend-hint" hidden></p>
   <div id="menu-main">
     <div id="menu-grid"></div>
+    <section id="effects-panel" hidden aria-label="Эффекты кнопок">
+      <div id="effect-options" class="effect-options" role="group" aria-label="Выбор эффекта"></div>
+      <div class="effect-stage">
+        <button id="effect-demo" class="choice" type="button" data-action="replay-effect" data-effect-target
+          aria-describedby="effect-hint">
+          <span class="choice-icon" data-icon="sparkle"></span><span class="choice-name">Попробовать эффект</span>
+        </button>
+        <p id="effect-hint" aria-live="polite"></p>
+      </div>
+    </section>
     <section id="filter-panel" hidden aria-label="Фильтры">
       <div class="filters">
         <div class="fg" role="group" aria-label="Стенд" id="fEnv"><span>Стенд</span></div>
