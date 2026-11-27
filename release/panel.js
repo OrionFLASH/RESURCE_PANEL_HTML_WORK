@@ -1375,7 +1375,7 @@
 
   // ---------- Встроенные инструменты (§7) ----------
   var ROLE_EMP = "673892", ROLE_NAME = "EFS_NB_SUP_BUSINESS_ADMIN_GAMIFICATION";
-  var ROLE_URL = "https://iam-enigma-psi.omega.sbrf.ru/rmkib.support/api/v1/service/auth/explain/html";
+  var ROLE_URL = "https://iam-enigma-psi.omega.sbrf.ru/rmkib.auth/api/v1/service/auth/explain/html";
   function decoderForm(l) {
     var box = document.createElement("div");
     box.innerHTML = '<h2 id="mTitle"></h2><p>Ввод HEX через запятую → двоичное представление по 8 бит и список включённых битов.</p>' +
