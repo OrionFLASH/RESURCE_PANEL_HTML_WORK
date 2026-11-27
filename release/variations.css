@@ -167,13 +167,20 @@ body.prototype[data-variation] {
   background: linear-gradient(165deg, var(--paper) 25%, var(--surface));
 }
 .prototype[data-variation] .resource[data-st="down"] {
-  background: color-mix(in srgb, var(--surface) 83%, var(--paper));
+  --down-surface: color-mix(in srgb, var(--surface) 83%, var(--paper));
+  background: var(--down-surface);
   border-color: var(--stroke-soft);
   border-style: dashed;
   box-shadow: none;
 }
 .prototype[data-variation] .resource[data-st="down"] .state-sign { color: var(--bad); }
-.prototype[data-variation] .resource[data-st="down"] .item-name { color: var(--sub); }
+.prototype[data-variation] .resource[data-st="down"] :is(.item-name, .quick-context) {
+  color: color-mix(in srgb, var(--sub) 32%, var(--down-surface));
+}
+.prototype[data-variation] .resource[data-st="down"] .item-name mark {
+  color: inherit;
+  background: none;
+}
 .prototype[data-variation] .resource .item-icon {
   color: var(--accent);
   width: 21px;
