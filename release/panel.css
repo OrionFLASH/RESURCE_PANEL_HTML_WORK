@@ -499,6 +499,7 @@ label.f textarea { min-height: 84px; resize: vertical; font-family: var(--mono);
 .a-open .ui-i { width: 16px; height: 16px; color: var(--ink2); }
 .a-open .cp { width: 13px; height: 13px; color: var(--mut); }
 .at { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.a-address { display: none; }
 .flist .at { padding-left: 8px; }
 .ab { flex: none; font-size: var(--fs-xs); color: var(--mut); }
 .ab.err { color: var(--red-ink); }

@@ -1718,7 +1718,9 @@
           html += '<li class="arow" data-lid="' + esc(l.id) + '">' +
             '<button class="a-open" type="button" data-k="o:' + esc(l.id) + '" aria-label="Изменить «' + esc(l.title) + '»">' + I(S.iconOf(l)) +
             '<span class="at">' + esc(l.title) + "</span>" + (l.tool ? '<span class="ab">инструмент</span>' : "") +
-            (l.copy ? I("copy", "ui-i cp") : "") + tagsHtml(l) + "</button>" +
+            (l.copy ? I("copy", "ui-i cp") : "") +
+            (l.url ? '<span class="a-address" aria-hidden="true" title="' + esc(l.url) + '">' + esc(RP.core.parseUrl(l.url).host) + '</span>' : "") +
+            tagsHtml(l) + "</button>" +
             tg("a-fav", "star", l.fav === true && !l.meet, (l.fav && !l.meet ? "Убрать из избранного" : "В избранное") + ": «" + l.title + "»", "f:" + l.id) +
             tg("a-meet", "video", !!l.meet, (l.meet ? "Убрать из встреч" : "Сделать встречей") + ": «" + l.title + "»", "m:" + l.id, !!l.tool) +
             ib("a-up", "up", "Выше: «" + l.title + "»", "u:" + l.id, i === 0) +

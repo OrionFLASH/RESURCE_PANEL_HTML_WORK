@@ -4,7 +4,10 @@
   const drawer = document.querySelector("#drawer");
   const modal = document.querySelector("#modal");
   const hiddenClass = "editor-page-hidden";
-  const topics = [["links", "Ссылки"], ["sections", "Разделы"], ["favorites", "Избранное"], ["meetings", "Встречи"]];
+  const topics = [
+    ["links", "Ссылки", "link"], ["sections", "Разделы", "layers"], ["favorites", "Избранное", "star"],
+    ["meetings", "Встречи", "video"], ["scripts", "Скрипты", "terminal"]
+  ];
   const lists = { sections: "#aSecs", favorites: "#aFav", meetings: "#aMeets" };
   const observer = new MutationObserver(layout);
   let frame = 0;
@@ -64,11 +67,17 @@
     const limit = anchor ? available(layer, anchor) : 1;
     const groups = [[]];
     let used = 0;
-    items.filter((item) => !item.hidden && item.getClientRects().length).forEach((item) => {
+    const blocks = items.filter((item) => !item.hidden && item.getClientRects().length);
+    function blockHeight(item) {
       const style = getComputedStyle(item);
-      const height = item.getBoundingClientRect().height + Math.max(0, parseFloat(style.marginTop)) +
+      return item.getBoundingClientRect().height + Math.max(0, parseFloat(style.marginTop)) +
         Math.max(0, parseFloat(style.marginBottom));
-      if (used && used + height > limit) { groups.push([]); used = 0; }
+    }
+    blocks.forEach((item, index) => {
+      const height = blockHeight(item);
+      const paired = item.classList.contains("ahd") && blocks[index + 1];
+      const needed = paired ? height + blockHeight(paired) : height;
+      if (used && used + needed > limit) { groups.push([]); used = 0; }
       groups.at(-1).push(item);
       used += height;
     });
@@ -79,18 +88,25 @@
     paintPager(layer, page, groups.length);
   }
 
-  function configureTopic(body) {
+  function configureAdmin(body, scripts) {
     let bar = drawer.querySelector(".editor-topics");
     if (!bar) {
+      const title = drawer.querySelector("#dTitle");
+      const header = document.createElement("header");
+      header.className = "editor-header";
+      header.innerHTML = '<span class="editor-emblem">' + RP.icons.svg("lock") + "</span>";
+      title.before(header);
+      header.append(title);
       bar = document.createElement("nav");
       bar.className = "editor-topics";
-      bar.setAttribute("aria-label", "Коллекции");
-      bar.innerHTML = topics.map(([id, label]) => '<button class="btn" type="button" data-topic="' + id + '">' + label + "</button>").join("");
-      body.before(bar);
+      bar.setAttribute("aria-label", "Разделы администрирования");
+      bar.innerHTML = topics.map(([id, label, icon]) => '<button class="btn" type="button" data-topic="' + id + '">' +
+        RP.icons.svg(icon) + "<span>" + label + "</span></button>").join("");
+      drawer.querySelector("#apLinks").before(bar);
     }
-    bar.classList.toggle(hiddenClass, !body.querySelector("#aList"));
+    bar.classList.toggle(hiddenClass, !scripts && !body.querySelector("#aList"));
     bar.querySelectorAll("button").forEach((button) =>
-      button.setAttribute("aria-pressed", button.dataset.topic === topic ? "true" : "false")
+      button.setAttribute("aria-pressed", String(button.dataset.topic === (scripts ? "scripts" : topic)))
     );
   }
 
@@ -193,6 +209,10 @@
       return;
     }
     const section = body.querySelector(lists[topic]);
+    const collection = section.querySelector(".flist");
+    if (collection && collection.previousElementSibling?.matches(".ahint, .awarn")) {
+      collection.after(...section.querySelectorAll(":scope > p:is(.ahint, .awarn)"));
+    }
     const pick = section.querySelector(".ipick");
     startPage(drawer, pick ? "section-icon" : topic);
     if (pick) {
@@ -237,11 +257,14 @@
     getPager(drawer);
     const body = drawer.querySelector("#aBody");
     drawer.querySelector(".editor-select-panel")?.remove();
-    if (!body || drawer.querySelector("#apLinks").hidden) {
-      pageItems(drawer, [], 1);
+    if (!body) return;
+    const scripts = drawer.querySelector("#apScripts");
+    configureAdmin(body, !scripts.hidden);
+    if (!scripts.hidden) {
+      startPage(drawer, "scripts");
+      pageBlocks(drawer, [...scripts.children], scripts, document.activeElement);
       return;
     }
-    configureTopic(body);
     replaceLargeSelects();
     if (pickedSelect && drawer.contains(pickedSelect)) selectPages(body);
     else if (body.querySelector("#eForm")) editorForm(body);
@@ -296,7 +319,12 @@
       layout();
       if (button.disabled) button.parentElement.querySelector("button:not(:disabled)")?.focus({ preventScroll: true });
     } else if (button.dataset.topic) {
-      topic = button.dataset.topic;
+      if (button.dataset.topic === "scripts") {
+        if (drawer.querySelector("#apScripts").hidden) drawer.querySelector("#atScripts").click();
+      } else {
+        topic = button.dataset.topic;
+        if (drawer.querySelector("#apLinks").hidden) drawer.querySelector("#atLinks").click();
+      }
       schedule();
     } else if (button.hasAttribute("data-icon-form")) {
       iconForm = !iconForm;
