@@ -374,14 +374,16 @@
     const links = ui.data.links;
     const favorites = favoriteLinks(links);
     const meetings = links.filter((link) => link.meet && (state.showDown || statusOf(link) !== "down"));
-    for (const [id, label, icon, collection, limit] of [
-      ["favorite", "Избранное", "star", favorites, 12],
-      ["meetings", "Встречи", "video", meetings, 3]
+    for (const [id, icon, collection, limit] of [
+      ["favorite", "star", favorites, 12],
+      ["meetings", "video", meetings, 3]
     ]) {
+      const group = $("#quick-" + id);
+      const label = esc(group.getAttribute("aria-label"));
       const title = '<button type="button" class="control quick-view" data-action="view" data-id="' + id +
         '" aria-label="' + label + '" aria-pressed="' + (state.view === id) + '">' + picture(icon) +
         "<span>" + label + '</span><small>' + collection.length + '</small></button>';
-      setContent($("#quick-" + id), title + collection.slice(0, limit).map((link) => linkItem(link, true)).join(""));
+      setContent(group, title + collection.slice(0, limit).map((link) => linkItem(link, true)).join(""));
     }
   }
 
