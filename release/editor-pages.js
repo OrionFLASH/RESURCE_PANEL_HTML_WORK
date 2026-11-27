@@ -185,46 +185,112 @@
     pageItems(drawer, [...options.children], rows * columns);
   }
 
-  function iconsInPages(pick) {
-    let grid = pick.querySelector(".editor-icons-grid");
-    if (!grid) {
-      const names = new Set();
-      const search = document.createElement("input");
-      search.className = "editor-icon-search";
-      search.type = "search";
-      search.placeholder = "Найти иконку";
-      search.setAttribute("aria-label", "Поиск иконок");
-      search.addEventListener("input", () => {
-        drawer.dataset.editorPage = "0";
-        schedule();
-      });
-      const empty = document.createElement("p");
-      empty.className = "editor-icons-empty";
-      empty.setAttribute("role", "status");
-      empty.textContent = "Иконки не найдены";
-      grid = document.createElement("div");
+  function buildIconLibrary(pick) {
+    const buttons = new Map();
+    pick.querySelectorAll("button[data-icon]").forEach((button) => {
+      if (!buttons.has(button.dataset.icon)) buttons.set(button.dataset.icon, button);
+    });
+
+    const search = document.createElement("input");
+    search.className = "editor-icon-search";
+    search.type = "search";
+    search.placeholder = "Найти иконку или тему";
+    search.setAttribute("aria-label", "Поиск иконок");
+    search.addEventListener("input", () => {
+      drawer.dataset.editorPage = "0";
+      schedule();
+    });
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "editor-icon-tools";
+    toolbar.append(search);
+    const defaultIcon = buttons.get("");
+    if (defaultIcon) toolbar.append(defaultIcon);
+    buttons.delete("");
+
+    const library = document.createElement("div");
+    library.className = "editor-icon-library";
+    function addGroup(title, entries) {
+      if (!entries.length) return;
+      const group = document.createElement("section");
+      group.className = "editor-icon-group";
+      group.setAttribute("aria-label", title);
+      const heading = document.createElement("h3");
+      heading.textContent = title;
+      const grid = document.createElement("div");
       grid.className = "editor-icons-grid";
-      pick.querySelectorAll("button[data-icon]").forEach((button) => {
-        if (names.has(button.dataset.icon)) return;
-        names.add(button.dataset.icon);
-        grid.append(button);
-      });
-      pick.replaceChildren(search, grid, empty);
+      grid.append(...entries);
+      group.append(heading, grid);
+      library.append(group);
     }
+    RP.icons.groups().forEach(([title, names]) => {
+      const entries = [];
+      const groupNames = names.includes("shield-lock") ? [...names, "lock", "unlock"] : names;
+      groupNames.forEach((name) => {
+        if (buttons.has(name)) entries.push(buttons.get(name));
+        buttons.delete(name);
+      });
+      addGroup(title, entries);
+    });
+    addGroup("Служебные иконки в каталоге", [...buttons.values()]);
+
+    const empty = document.createElement("p");
+    empty.className = "editor-icons-empty";
+    empty.setAttribute("role", "status");
+    empty.textContent = "Иконки не найдены";
+    pick.replaceChildren(toolbar, library, empty);
     pick.classList.add("editor-icons");
-    const cols = Math.max(1, Math.floor((grid.clientWidth + 2) / 38));
-    grid.style.setProperty("--editor-columns", cols);
-    const rows = Math.max(1, Math.floor((available(drawer, grid) - 5) / 36));
+    return library;
+  }
+
+  function pageIconGroups(library, groups) {
+    const bottom = drawer.getBoundingClientRect().bottom - parseFloat(getComputedStyle(drawer).paddingBottom) - 2;
+    if (library.getBoundingClientRect().bottom <= bottom) {
+      paintPager(drawer, 0, 1);
+      return;
+    }
+    const style = getComputedStyle(library);
+    const columns = style.gridTemplateColumns.split(" ").length;
+    const gap = parseFloat(style.rowGap);
+    const limit = available(drawer, library);
+    const pages = [[]];
+    let space = 0;
+    for (let i = 0; i < groups.length; i += columns) {
+      const row = groups.slice(i, i + columns);
+      const height = Math.max(...row.map((group) => group.offsetHeight));
+      if (space && space + gap + height > limit) {
+        pages.push([]);
+        space = 0;
+      }
+      space += (space ? gap : 0) + height;
+      pages.at(-1).push(...row);
+    }
+    const page = Math.min(Number(drawer.dataset.editorPage), pages.length - 1);
+    drawer.dataset.editorPage = String(page);
+    groups.forEach((group) => group.classList.toggle(hiddenClass, !pages[page].includes(group)));
+    paintPager(drawer, page, pages.length);
+  }
+
+  function iconsInPages(pick, back) {
+    const library = pick.querySelector(".editor-icon-library") || buildIconLibrary(pick);
+    const toolbar = pick.querySelector(".editor-icon-tools");
+    if (back && back.parentElement !== toolbar) toolbar.prepend(back);
     const normalize = (text) => text.toLowerCase().replaceAll("ё", "е");
     const terms = normalize(pick.querySelector(".editor-icon-search").value.trim()).split(/\s+/);
-    const matches = [...grid.children].filter((button) => {
-      const label = normalize(button.title + " " + button.dataset.icon);
-      const hit = terms.every((term) => label.includes(term));
-      button.classList.toggle(hiddenClass, !hit);
-      return hit;
+    const visible = [...library.children].filter((group) => {
+      const category = normalize(group.getAttribute("aria-label"));
+      let found = false;
+      for (const button of group.querySelectorAll("[data-icon]")) {
+        const label = normalize(button.title + " " + button.dataset.icon) + " " + category;
+        const hit = terms.every((term) => label.includes(term));
+        button.classList.toggle(hiddenClass, !hit);
+        found ||= hit;
+      }
+      group.classList.toggle(hiddenClass, !found);
+      return found;
     });
-    pick.querySelector(".editor-icons-empty").hidden = matches.length > 0;
-    pageItems(drawer, matches, rows * cols);
+    pick.querySelector(".editor-icons-empty").hidden = visible.length > 0;
+    pageIconGroups(library, visible);
   }
 
   function editorList(body) {
@@ -272,12 +338,13 @@
       pick.before(toggle);
     }
     toggle.textContent = iconForm ? "← К полям" : "Выбрать иконку";
+    if (!iconForm && toggle.parentElement !== field) pick.before(toggle);
     pick.classList.toggle(hiddenClass, !iconForm);
     startPage(drawer, iconForm ? "form-icon" : "form:" + (body.querySelector(".aid")?.textContent || ""));
     const fields = [...form.children];
     if (iconForm) {
       fields.forEach((item) => item.classList.toggle(hiddenClass, item !== field));
-      iconsInPages(pick);
+      iconsInPages(pick, toggle);
     } else {
       const invalid = revealError ? form.querySelector('[aria-invalid="true"]') : null;
       pageBlocks(drawer, fields, form, invalid || document.activeElement);
@@ -288,6 +355,7 @@
 
   function layoutDrawer() {
     if (!drawer.classList.contains("on")) {
+      drawer.classList.remove("editor-icon-mode");
       pickedSelect = null;
       iconForm = false;
       if (preferences?.parentElement === drawer) {
@@ -303,6 +371,10 @@
     const links = drawer.querySelector("#apLinks");
     const scripts = drawer.querySelector("#apScripts");
     const opening = configureAdmin(body, !scripts.hidden);
+    const choosingIcon = !settingsActive && scripts.hidden &&
+      (body.querySelector("#eForm") ? iconForm : topic === "sections" && !!body.querySelector("#aSecs .ipick"));
+    drawer.classList.toggle("editor-icon-mode", choosingIcon);
+    if (choosingIcon) drawer.querySelector(".editor-topics").classList.add(hiddenClass);
     if (preferences) preferences.hidden = !settingsActive;
     if (settingsActive) {
       links.classList.add(hiddenClass);

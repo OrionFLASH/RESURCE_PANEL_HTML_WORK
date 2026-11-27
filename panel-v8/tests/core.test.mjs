@@ -392,13 +392,13 @@ test("hiddenInIndex (#19): скрыты и автодобранные по кл�
   assert.deepEqual([...core.hiddenInIndex({ links }, p.shown)].sort(), ["a", "b"]);
 });
 
-test("иконки (#24, #25): служебные вне блоков; каждая смысловая — ровно в одном блоке; смысловых ≥ 30 × 1.5", () => {
+test("иконки (#24, #25): служебные вне блоков; каждая смысловая — ровно в одном блоке; смысловых не меньше 304", () => {
   const ctx = loadCore();   // RP.core с реестром иконок
   const groups = clone(ctx.ICON_GROUPS), ui = clone(ctx.ICON_UI);
   const all = groups.flatMap((g) => g[1]);
   assert.equal(new Set(all).size, all.length, "иконка в двух блоках");
   assert.ok(all.every((n) => !ui.includes(n)), "служебная иконка в выборе");
-  assert.ok(all.length >= 45, "смысловых " + all.length);
+  assert.ok(all.length >= 304, "смысловых " + all.length);
   ["IT", "Разработка", "Тестирование", "Гонка героев", "Призы", "Победа", "Настройка"].forEach((t) =>
     assert.ok(groups.some((g) => g[0].startsWith(t)), "нет блока " + t));
   // реестр: все имена блоков и служебные есть в наборе, а каждая иконка набора — либо служебная, либо в блоке
