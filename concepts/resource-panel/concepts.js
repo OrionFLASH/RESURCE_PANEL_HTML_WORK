@@ -15,6 +15,11 @@
     { key: "plum", label: "Слива", columns: 3, size: "tall", icon: "book" }
   ].map((style) => ({ ...style, id: "relief-" + style.key }));
 
+  const effects = [
+    ["style", "По стилю"], ["tilt", "3D-наклон"], ["lift", "Подъём"],
+    ["beam", "Блик"], ["pulse", "Световой импульс"], ["off", "Без эффекта"]
+  ];
+
   function resolveStyle() {
     return reliefStyles.find(({ id }) => "#" + id === location.hash) || reliefStyles[0];
   }
@@ -45,6 +50,7 @@
   const live = store.get("live", false);
   const state = {
     style: resolveStyle(),
+    effect: store.get("relief_effect", "style"),
     view: "layout",
     choice: "",
     section: "",
@@ -115,7 +121,7 @@
     const attrs = ' class="resource' + (link.title.length >= 24 ? " long-title" : "") + '" data-st="' + status + '" data-env="' + (link.env || "") + '" data-seg="' +
       (link.seg || "") + '" data-section="' + esc(link.section) + '" data-catalog-link="' + esc(link.id) + '" aria-label="' + esc(text) + '"';
     if (status === "down") return '<div' + attrs + ' title="' + esc(text) + '" role="link" aria-disabled="true">' + body + "</div>";
-    const action = attrs + ' data-link-id="' + esc(link.id) + '"';
+    const action = attrs + ' data-effect-target data-link-id="' + esc(link.id) + '"';
     if (link.tool) return '<button type="button"' + action + ">" + body + "</button>";
     return '<a' + action + ' href="' + esc(link.url) + '" target="_blank" rel="noopener">' + body + "</a>";
   }
@@ -241,10 +247,11 @@
     const icon = item.icon ? '<span class="choice-icon">' + picture(item.icon) + "</span>" : "";
     const size = item.links ? '<span class="count">' + item.links.length + "</span>" : "";
     const disabled = item.links && !item.links.length ? " disabled" : "";
+    const animate = item.kind === "panel" || sample ? " data-effect-target" : "";
     const examples = sample && item.links?.slice(0, 2).map((link) => link.title).join(" · ");
     const label = '<span class="choice-name">' + esc(item.label) + "</span>";
     return '<button class="' + (asMenu ? "menu-option" : "choice") + '" type="button"' + attr + stateAttr +
-      disabled + ">" + icon + (examples ? '<span class="route-copy">' + label +
+      disabled + animate + ">" + icon + (examples ? '<span class="route-copy">' + label +
         '<span class="route-sample">' + esc(examples) + "</span></span>" : label) + size + "</button>";
   }
 
@@ -443,11 +450,65 @@
     repaint();
   }
 
+  const pointerMotion = window.matchMedia("(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let hoveredButton = null;
+  let hoverBounds = null;
+
+  function paintEffect() {
+    const motion = state.effect === "style" ? (state.style.motion || "tilt") : state.effect;
+    document.body.dataset.reliefMotion = motion;
+    const label = effects.find(([id]) => id === motion)?.[1];
+    $("#effects-button").title = label ? "Эффекты · " + label : "Эффекты";
+    if (state.menu !== "effects") return;
+
+    setContent($("#effect-options"), effects.map(([id, title]) =>
+      '<button type="button" class="control" data-action="effect" data-id="' + id + '" aria-pressed="' +
+      (state.effect === id) + '">' + title + "</button>").join(""));
+    $("#effect-hint").textContent = reducedMotion.matches ? "В системе включено уменьшение движения." :
+      motion === "off" ? "Показана кнопка без анимации." : "Наведите указатель или нажмите, чтобы увидеть эффект.";
+  }
+
+  function playEffect() {
+    const demo = $("#effect-demo");
+    demo.classList.remove("effect-playing");
+    if (reducedMotion.matches || document.body.dataset.reliefMotion === "off") return;
+    // Restart the same animation when the user presses the preview button again.
+    void demo.offsetWidth;
+    demo.classList.add("effect-playing");
+  }
+
+  function resetTilt() {
+    if (!hoveredButton) return;
+    hoveredButton.style.removeProperty("--tilt-x");
+    hoveredButton.style.removeProperty("--tilt-y");
+    hoveredButton = null;
+    hoverBounds = null;
+  }
+
+  function tiltAtPointer(event) {
+    const button = event.target.closest("[data-effect-target]");
+    if (!pointerMotion.matches || event.pointerType !== "mouse" || document.body.dataset.reliefMotion !== "tilt" || !button) {
+      resetTilt();
+      return;
+    }
+    if (hoveredButton !== button) {
+      resetTilt();
+      hoveredButton = button;
+      hoverBounds = button.getBoundingClientRect();
+    }
+    const x = Math.max(-.5, Math.min(.5, (event.clientX - hoverBounds.left) / hoverBounds.width - .5));
+    const y = Math.max(-.5, Math.min(.5, (event.clientY - hoverBounds.top) / hoverBounds.height - .5));
+    button.style.setProperty("--tilt-x", (-y * 22).toFixed(1) + "deg");
+    button.style.setProperty("--tilt-y", (x * 27).toFixed(1) + "deg");
+  }
+
   function updateStyle() {
     const style = state.style = resolveStyle();
+    resetTilt();
     document.body.dataset.relief = style.key;
     document.body.dataset.reliefSize = style.size;
-    document.body.dataset.reliefMotion = style.motion || "";
+    paintEffect();
     document.body.toggleAttribute("data-relief-glass", !!style.glass);
     document.body.toggleAttribute("data-relief-tip", !!style.tip);
     ui.hideTip();
@@ -501,7 +562,7 @@
   function paintMenu() {
     if (!state.menu) return;
     const labels = {
-      relief: "Вариации Рельефа", sections: "Разделы", scope: scope?.label || "Разделы", filters: "Фильтры",
+      relief: "Вариации Рельефа", effects: "Эффекты кнопок", sections: "Разделы", scope: scope?.label || "Разделы", filters: "Фильтры",
       settings: "Настройки", groups: "Видимые разделы", legend: "Условные обозначения"
     };
     const menu = $("#menu");
@@ -511,11 +572,12 @@
     hint.hidden = state.menu !== "legend";
     hint.textContent = "Градиент идёт от цвета сегмента к цвету стенда. Подписи доступны в фильтрах и подсказке ссылки.";
     const grid = $("#menu-grid");
-    const mode = ["filters", "settings"];
+    const mode = ["effects", "filters", "settings"];
     mode.forEach((name) => { $("#" + (name === "filters" ? "filter" : name) + "-panel").hidden = state.menu !== name; });
     grid.hidden = mode.includes(state.menu);
     const pager = $(".menu-pages");
     pager.hidden = true;
+    if (state.menu === "effects") paintEffect();
     if (grid.hidden) return;
     const entries = menuContents();
     const width = $("#menu-main").clientWidth;
@@ -543,10 +605,13 @@
     const menu = $("#menu");
     ui.openLayer(menu, { focus: $("#menu-close"), onClose: () => {
       state.menu = "";
+      $("#effect-demo").classList.remove("effect-playing");
+      resetTilt();
       $(".workspace").inert = false;
     } });
     $(".workspace").inert = true;
     paintMenu();
+    if (name === "effects") playEffect();
   }
 
   function choose(id) {
@@ -580,6 +645,14 @@
     }
     if (menu) { openMenu(menu); return; }
     switch (action) {
+      case "effect":
+        state.effect = id;
+        store.set("relief_effect", id);
+        resetTilt();
+        paintEffect();
+        playEffect();
+        break;
+      case "replay-effect": playEffect(); break;
       case "style":
         ui.closeLayer();
         if (location.hash !== "#" + id) location.hash = id;
@@ -694,6 +767,19 @@
     });
     $("#lock").addEventListener("click", () => ui.closeLayer(), true);
     document.addEventListener("click", handleAction);
+    document.addEventListener("pointermove", tiltAtPointer, { passive: true });
+    document.addEventListener("pointerout", (event) => {
+      if (hoveredButton?.contains(event.target) && !hoveredButton.contains(event.relatedTarget)) resetTilt();
+    }, { passive: true });
+    window.addEventListener("blur", resetTilt);
+    reducedMotion.addEventListener("change", paintEffect);
+    $("#effect-demo").addEventListener("pointerenter", (event) => {
+      if (event.pointerType === "mouse" && pointerMotion.matches &&
+          ["beam", "pulse"].includes(document.body.dataset.reliefMotion)) playEffect();
+    });
+    $("#effect-demo").addEventListener("animationend", (event) => {
+      if (event.target.id === "effect-demo" && !event.pseudoElement) event.target.classList.remove("effect-playing");
+    });
     $("#q").addEventListener("keydown", handleKeys, true);
     const observer = new MutationObserver(scheduleRender);
     for (const target of [$("#idx"), $("#dock"), $("#sum")]) {
@@ -704,5 +790,9 @@
     window.visualViewport?.addEventListener("resize", setViewport);
     setViewport();
     updateStyle();
+    if (new URLSearchParams(location.search).has("effects")) {
+      $("#effects-button").focus({ preventScroll: true });
+      openMenu("effects");
+    }
   });
 })();
