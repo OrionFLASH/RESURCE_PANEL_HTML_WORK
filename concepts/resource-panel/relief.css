@@ -1,0 +1,241 @@
+/* Relief keeps the same panel controls and links. These rules vary its finish and proportions. */
+.prototype[data-concept="relief"] {
+  --relief-hue: 209;
+  --relief-sat: 23%;
+  --relief-accent: 188;
+  --shelf-row: 32px;
+  --route-key-height: 47px;
+  --route-key-radius: 11px;
+}
+.prototype[data-concept="relief"] .quick-shelf {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1.04fr);
+}
+.prototype[data-concept="relief"] .quick-group {
+  display: grid;
+  grid-auto-rows: var(--shelf-row);
+  height: auto;
+  align-content: start;
+}
+.prototype[data-concept="relief"] #quick-favorite { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.prototype[data-concept="relief"] #quick-meetings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.prototype[data-concept="relief"] .quick-view { grid-column: 1 / -1; justify-content: flex-start; }
+.prototype[data-concept="relief"] .quick-view small { display: inline; }
+.prototype[data-concept="relief"] .quick-group .resource { min-width: 0; }
+.prototype[data-concept="relief"] #relief-switch {
+  max-width: 24%;
+  border-radius: 10px;
+  color: var(--accent);
+  background: var(--wash);
+  border-color: var(--light-edge);
+  box-shadow: inset 0 1px 0 var(--light-edge), 0 2px 4px var(--drop);
+}
+.prototype[data-concept="relief"] #relief-name { overflow: hidden; text-overflow: ellipsis; }
+.prototype[data-concept="relief"] #relief-switch:hover { border-color: var(--accent); }
+
+html body.prototype[data-concept="relief"][data-marks][data-relief]:not([data-relief=""]) {
+  --canvas: hsl(var(--relief-hue) var(--relief-sat) 18%);
+  --surface: hsl(var(--relief-hue) var(--relief-sat) 22%);
+  --paper: hsl(var(--relief-hue) var(--relief-sat) 29%);
+  --chrome: hsl(var(--relief-hue) var(--relief-sat) 24%);
+  --chrome-strong: hsl(var(--relief-hue) var(--relief-sat) 36%);
+  --chrome-ink: #f7fafc;
+  --type: #edf3f7;
+  --sub: #bdcbd6;
+  --stroke: hsl(var(--relief-hue) var(--relief-sat) 45%);
+  --stroke-soft: hsl(var(--relief-hue) var(--relief-sat) 36%);
+  --accent: hsl(var(--relief-accent) 43% 81%);
+  --wash: hsl(var(--relief-accent) 17% 31%);
+  --dock-surface: hsl(var(--relief-hue) var(--relief-sat) 23%);
+  --light-edge: #eaf7ff26;
+  --depth: #0b152677;
+  --drop: #0c102557;
+  --good: #a3dbbd;
+  --bad: #f0b7ae;
+  background: radial-gradient(ellipse at 14% -9%,
+    hsl(var(--relief-hue) var(--relief-sat) 36%), transparent 62%), var(--canvas);
+}
+html[data-theme="light"] body.prototype[data-concept="relief"][data-marks][data-relief]:not([data-relief=""]) {
+  --canvas: hsl(var(--relief-hue) var(--relief-sat) 91%);
+  --surface: hsl(var(--relief-hue) var(--relief-sat) 93%);
+  --paper: hsl(var(--relief-hue) var(--relief-sat) 97%);
+  --chrome: hsl(var(--relief-hue) var(--relief-sat) 97%);
+  --chrome-strong: hsl(var(--relief-hue) var(--relief-sat) 37%);
+  --type: #26353c;
+  --sub: #506371;
+  --stroke: hsl(var(--relief-hue) var(--relief-sat) 69%);
+  --stroke-soft: hsl(var(--relief-hue) var(--relief-sat) 77%);
+  --accent: hsl(var(--relief-accent) 29% 32%);
+  --wash: hsl(var(--relief-accent) 26% 87%);
+  --dock-surface: hsl(var(--relief-hue) var(--relief-sat) 94%);
+  --light-edge: #ffffffb8;
+  --depth: #23374527;
+  --drop: #26364730;
+  --good: #347157;
+  --bad: #995554;
+  background: radial-gradient(ellipse at 10% -10%,
+    hsl(var(--relief-hue) var(--relief-sat) 83%), transparent 62%), var(--canvas);
+}
+html body.prototype[data-concept="relief"][data-relief="sage"][data-marks] {
+  --relief-hue: 154;
+  --relief-sat: 14%;
+  --relief-accent: 146;
+}
+html body.prototype[data-concept="relief"][data-relief="stone"][data-marks] {
+  --relief-hue: 39;
+  --relief-sat: 20%;
+  --relief-accent: 30;
+}
+html body.prototype[data-concept="relief"][data-relief="graphite"][data-marks] {
+  --relief-hue: 219;
+  --relief-sat: 8%;
+  --relief-accent: 214;
+}
+html body.prototype[data-concept="relief"][data-relief="opal"][data-marks] {
+  --relief-hue: 206;
+  --relief-sat: 35%;
+  --relief-accent: 225;
+}
+html body.prototype[data-concept="relief"][data-relief="dusk"][data-marks] {
+  --relief-hue: 231;
+  --relief-sat: 25%;
+  --relief-accent: 250;
+}
+html body.prototype[data-concept="relief"][data-relief="mist"][data-marks] {
+  --relief-hue: 267;
+  --relief-sat: 15%;
+  --relief-accent: 276;
+}
+html body.prototype[data-concept="relief"][data-relief="lift"][data-marks] {
+  --relief-hue: 198;
+  --relief-sat: 23%;
+  --relief-accent: 182;
+}
+html body.prototype[data-concept="relief"][data-relief="beam"][data-marks] {
+  --relief-hue: 220;
+  --relief-sat: 30%;
+  --relief-accent: 210;
+}
+html body.prototype[data-concept="relief"][data-relief="plum"][data-marks] {
+  --relief-hue: 319;
+  --relief-sat: 13%;
+  --relief-accent: 324;
+}
+.prototype[data-concept="relief"][data-relief-size="tall"] {
+  --route-key-height: 57px;
+  --route-key-radius: 15px;
+  --shelf-row: 35px;
+}
+.prototype[data-concept="relief"][data-relief-size="regular"] { --route-key-height: 49px; }
+.prototype[data-concept="relief"][data-relief-size="compact"] {
+  --route-key-height: 42px;
+  --route-key-radius: 9px;
+  --shelf-row: 28px;
+}
+.prototype[data-concept="relief"] #board-grid[data-style="routes"] .link-panel {
+  grid-template-rows: var(--route-key-height) minmax(0, 1fr);
+}
+.prototype[data-concept="relief"]:not([data-relief=""]) #board-grid[data-style="routes"] .link-panel {
+  border-radius: calc(var(--route-key-radius) + 5px);
+}
+.prototype[data-concept="relief"][data-relief-size] #board-grid[data-style="routes"] .link-panel > .choice {
+  border-radius: var(--route-key-radius);
+}
+.prototype[data-concept="relief"][data-relief-size="tall"] #board-grid[data-style="routes"] .choice-icon {
+  width: 31px;
+  height: 31px;
+  border-radius: 11px;
+}
+
+/* Light and dark glass share the optics, with stronger tint under the lettering. */
+html body.prototype[data-relief-glass][data-concept="relief"][data-marks][data-relief] {
+  --glass-blur: blur(18px) saturate(128%);
+  background:
+    radial-gradient(ellipse at 0% 3%, hsl(var(--relief-hue) 40% 57% / .46), transparent 56%),
+    radial-gradient(ellipse at 93% 8%, hsl(calc(var(--relief-hue) + 38) 44% 52% / .51), transparent 58%),
+    radial-gradient(ellipse at 53% 103%, hsl(calc(var(--relief-hue) - 39) 40% 51% / .32), transparent 66%),
+    var(--canvas);
+}
+html[data-theme="light"] body.prototype[data-relief-glass][data-concept="relief"][data-marks][data-relief] {
+  background:
+    radial-gradient(ellipse at 5% 0%, #c2dfeec4, transparent 54%),
+    radial-gradient(ellipse at 89% 2%, #d4ceefcf, transparent 62%),
+    radial-gradient(ellipse at 34% 106%, #cee8e8, transparent 65%),
+    var(--canvas);
+}
+.prototype[data-relief-glass] :is(.gallery, .quick-group, #section-rail, .menu-sheet) {
+  background-color: color-mix(in srgb, var(--chrome) 71%, transparent);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-color: var(--light-edge);
+}
+.prototype[data-relief-glass][data-concept="relief"] #board-grid[data-style="routes"] .link-panel {
+  background: linear-gradient(138deg, color-mix(in srgb, var(--paper) 75%, transparent),
+    color-mix(in srgb, var(--surface) 66%, transparent));
+  -webkit-backdrop-filter: blur(11px) saturate(117%);
+  backdrop-filter: blur(11px) saturate(117%);
+  border-color: var(--light-edge);
+  box-shadow: inset 0 1px 0 var(--light-edge), 0 4px 9px var(--drop);
+}
+.prototype[data-relief-glass][data-concept="relief"] #board-grid[data-style="routes"] .link-panel > .choice {
+  background: linear-gradient(155deg, color-mix(in srgb, var(--route) 29%, var(--paper)),
+    color-mix(in srgb, var(--surface) 70%, transparent));
+  box-shadow: inset 0 1px 0 var(--light-edge), inset 0 -2px 0 var(--depth), 0 3px 7px var(--drop);
+}
+.prototype[data-relief-glass][data-concept="relief"] #board-grid[data-style="routes"] .link-panel > .choice:active {
+  box-shadow: inset 0 2px 6px var(--depth);
+}
+
+/* The real tooltip content comes from the panel's existing link inspection. */
+.prototype[data-concept="relief"][data-relief]:not([data-relief=""]) #tip {
+  color: var(--type);
+  max-width: min(365px, calc(100vw - 16px));
+  background: var(--paper);
+  border: 1px solid var(--light-edge);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: 0 6px 20px var(--drop);
+}
+.prototype[data-concept="relief"][data-relief]:not([data-relief=""]) #tip :is(dt, .u, .hint) { color: var(--sub); }
+.prototype[data-relief-tip][data-concept="relief"][data-relief="mist"] #tip {
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  -webkit-backdrop-filter: blur(15px) saturate(135%);
+  backdrop-filter: blur(15px) saturate(135%);
+  box-shadow: inset 0 1px 0 var(--light-edge), 0 8px 24px var(--drop);
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .prototype[data-relief-motion="lift"] :is(.workspace .resource:not([aria-disabled]), .link-panel > .choice):hover:not(:active) {
+    transform: translateY(-2px);
+    box-shadow: inset 0 1px 0 var(--light-edge), 0 4px 8px var(--drop);
+    position: relative;
+    z-index: 1;
+  }
+  .prototype[data-relief-motion="lift"] :is(.item-icon, .choice-icon) { transition: transform .16s ease-out; }
+  .prototype[data-relief-motion="lift"] :is(.resource:not([aria-disabled]), .link-panel > .choice):hover:not(:active) > :is(.item-icon, .choice-icon) {
+    transform: translateY(-1px) scale(1.07);
+  }
+  .prototype[data-relief-motion="beam"] :is(.workspace .resource:not([aria-disabled]), .link-panel > .choice):hover::before {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(110deg, transparent 35%, #d4e9ff24 49%, transparent 63%) 100% 0 / 265% 100%;
+    animation: relief-beam .48s ease-out both;
+  }
+  @keyframes relief-beam { to { background-position: 0 0; } }
+}
+
+@media (max-width: 1240px) {
+  .prototype[data-concept="relief"] .quick-group .resource .item-icon { display: none; }
+}
+@media (max-width: 995px) {
+  .prototype[data-concept="relief"] #quick-favorite { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .prototype[data-concept="relief"] #quick-meetings { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .prototype[data-concept="relief"] #relief-switch { gap: 2px; padding-inline: 4px; }
+  .prototype[data-concept="relief"] #relief-switch .relief-chevron { display: none; }
+}
+@media (max-width: 390px) {
+  .prototype[data-concept="relief"] #relief-switch .ui-i { width: 15px; height: 15px; }
+}
