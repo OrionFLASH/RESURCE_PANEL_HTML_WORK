@@ -3,6 +3,9 @@
   "use strict";
 
   const concepts = [
+    { id: "pearl", name: "Атлас · Перламутр", icon: "layers", mode: "glaze", full: true, variation: true },
+    { id: "relief", name: "Маршруты · Рельеф", icon: "flag", mode: "glaze", variation: true, rail: true, dark: true },
+    { id: "prism", name: "Витрина · Призма", icon: "bundle", mode: "glaze", variation: true, rail: true },
     { id: "folio", name: "Атлас ресурсов", icon: "layers", mode: "edges", full: true },
     { id: "cabinet", name: "Кабинет", icon: "folder" },
     { id: "chroma", name: "Спектр контуров", icon: "flask", mode: "split" },
@@ -48,6 +51,7 @@
     view: "layout",
     choice: "",
     section: "",
+    railOpen: false,
     focusLink: "",
     page: 0,
     menu: "",
@@ -107,7 +111,7 @@
   function contourMarks(link) {
     const mode = state.concept.mode || "text";
     if (mode === "text") return ui.tagsHtml(link);
-    if (mode === "split" || mode === "edges" || (!link.env && !link.seg)) return "";
+    if (["split", "edges", "glaze"].includes(mode) || (!link.env && !link.seg)) return "";
     return '<span class="contour-marks" aria-hidden="true">' + [
       ["env", stands, link.env], ["seg", segments, link.seg]
     ].map(([axis, values, value]) => {
@@ -116,7 +120,7 @@
     }).join("") + "</span>";
   }
 
-  function linkItem(link, inspect = false) {
+  function linkItem(link, inspect = false, quick = false) {
     const status = statusOf(link);
     const pinned = ui.data.favorites.includes(link.id) || link.fav;
     const opens = ui.uses[link.id];
@@ -124,7 +128,9 @@
     const badges = (pinned ? '<span class="pin" title="Закреплена">★</span>' : "") +
       (opens ? '<span class="uses" title="Открытий">' + opens + "</span>" : "") +
       '<span class="state-sign" aria-hidden="true">' + statusSigns[status] + "</span>";
-    const title = '<span class="item-name">' + highlight(link) + "</span>";
+    const context = [ui.ENV[link.env], ui.SEG[link.seg]].filter(Boolean).join(" · ");
+    const quickContext = quick && context ? '<span class="quick-context">' + esc(context) + "</span>" : "";
+    const title = '<span class="item-name">' + (quick ? esc(link.title) : highlight(link)) + "</span>" + quickContext;
     const body = '<span class="item-icon">' + picture(ui.iconOf(link)) + '</span><span class="item-content">' +
       title + contourMarks(link) + '</span><span class="item-badges" aria-hidden="true">' + badges + "</span>";
     const attrs = ' class="resource' + (link.title.length >= 24 ? " long-title" : "") + '" data-st="' + status + '" data-env="' + (link.env || "") + '" data-seg="' +
@@ -298,8 +304,15 @@
     return model;
   }
 
+  function atlas(links) {
+    return { entries: clusters(sections(links)), plain: links, style: "folio" };
+  }
+
   const layouts = {
-    folio: (links) => ({ entries: clusters(sections(links)), plain: links, style: "folio" }),
+    pearl: atlas,
+    relief: routes,
+    prism: services,
+    folio: atlas,
     cabinet: (links) => selection(sections(links), "Разделы", { first: true, rail: true }),
     chroma: spectrum,
     bench: workstation,
@@ -315,6 +328,7 @@
     if (state.view === "favorite") return { entries: favoriteLinks(links), fallback: "По этим условиям в избранном ничего нет." };
     if (state.view === "meetings") return { entries: links.filter((link) => link.meet) };
     if (state.view === "recent") return { entries: recentLinks(links) };
+    if (state.view === "health") return availability(links);
     if (state.section) return {
       entries: links, style: "regular", inspect: state.concept.id === "relay",
       scope: { label: "Разделы", choices: sections(ui.data.links.filter((link) => !ui.off.includes(link.section))),
@@ -437,31 +451,87 @@
     const views = [
       ["layout", "Обзор", "grid"], ["all", "Все ссылки", "link"], ["favorite", "Избранное", "star"], ["meetings", "Встречи", "video"]
     ];
-    const visibleViews = state.concept.full ? views.slice(1) : views;
+    const useShelf = shelfFits();
+    const visibleViews = views.filter(([id]) => !(state.concept.full && id === "layout") &&
+      !(useShelf && ["favorite", "meetings"].includes(id)));
     setContent($("#views"), visibleViews.map(([id, name, icon]) => '<button class="control" type="button" data-action="view" data-id="' +
       id + '" aria-label="' + name + '" title="' + name + '" aria-pressed="' +
       (state.view === id) + '">' + picture(icon) + '<span class="wide-label">' + name + "</span></button>").join(""));
+  }
+
+  function shelfFits() {
+    return !!state.concept.variation && window.innerWidth >= 740 && document.documentElement.clientHeight >= 665;
+  }
+
+  function railChoices() {
+    return [{ id: "", label: "Все разделы", icon: "layers" }, ...ui.data.sections
+      .filter((section) => !ui.off.includes(section.id) || state.view === "all")
+      .map((section) => ({ ...section, label: section.name }))];
+  }
+
+  function railFits() {
+    return !!state.concept.variation && $("#catalog").clientWidth >= 1070 &&
+      railChoices().length * 31 + 28 <= $("#catalog").clientHeight;
+  }
+
+  function paintQuickAccess() {
+    const variation = !!state.concept.variation;
+    const shelf = $("#quick-shelf");
+    shelf.hidden = !shelfFits();
+    const refresh = $("#refresh");
+    const sum = $("#sum");
+    const refreshHost = $(variation ? "#check-slot" : "#check-home");
+    const sumHost = $(variation ? "#health-readout" : "#status-home");
+    if (refresh.parentNode !== refreshHost) refreshHost.append(refresh);
+    if (sum.parentNode !== sumHost) sumHost.append(sum);
+    $("#check-slot").hidden = !variation;
+    $("#health-view").hidden = !variation;
+    $("#health-view").setAttribute("aria-pressed", String(state.view === "health"));
+    paintViews();
+    if (shelf.hidden) return;
+
+    const links = ui.data.links;
+    const favorites = favoriteLinks(links);
+    const meetings = links.filter((link) => link.meet && (state.showDown || statusOf(link) !== "down"));
+    const shelfSize = window.innerWidth >= 1400 ? 2 : window.innerWidth >= 1090 ? 1 : 0;
+    for (const [id, label, icon, collection, limit] of [
+      ["favorite", "Избранное", "star", favorites, [2, 4, 5][shelfSize]],
+      ["meetings", "Встречи", "video", meetings, 1 + shelfSize]
+    ]) {
+      const title = '<button type="button" class="control quick-view" data-action="view" data-id="' + id +
+        '" aria-label="' + label + '" aria-pressed="' + (state.view === id) + '">' + picture(icon) +
+        "<span>" + label + '</span><small>' + collection.length + '</small></button>';
+      setContent($("#quick-" + id), title + collection.slice(0, limit).map((link) => linkItem(link, false, true)).join(""));
+    }
   }
 
   function paintScope(model) {
     scope = model.scope || null;
     const catalog = $("#catalog");
     const rail = $("#section-rail");
-    const showRail = scope && model.rail && catalog.clientWidth >= 950 &&
+    const canToggle = railFits();
+    const showRail = state.concept.variation ? canToggle && state.railOpen :
+      scope && model.rail && catalog.clientWidth >= 950 &&
       (scope.choices.length + Number(scope.back)) * 43 - gap <= catalog.clientHeight;
     rail.hidden = !showRail;
-    $("#scope").hidden = !scope || showRail || scope.label === "Разделы" ||
-      (state.concept.id === "signal" && !scope.picked);
+    const railToggle = $("#sections-button");
+    railToggle.setAttribute("aria-haspopup", canToggle ? "false" : "dialog");
+    if (canToggle) railToggle.setAttribute("aria-expanded", String(!!showRail));
+    else railToggle.removeAttribute("aria-expanded");
+    $("#scope").hidden = !scope || scope.label === "Разделы" ||
+      ((state.concept.id === "signal" || state.view === "health") && !scope.picked);
     if (scope?.label === "Разделы" && !showRail && scope.picked && !state.section) {
       $("#section-label").textContent = scope.picked.label;
     }
-    if (!scope) return;
-    $("#scope-label").textContent = scope.picked?.label || scope.label;
-    $("#scope").setAttribute("aria-label", scope.label + (scope.picked ? " · " + scope.picked.label : ""));
     if (showRail) {
-      const choices = scope.back ? [{ id: "", label: "Все статусы", icon: "gauge" }, ...scope.choices] : scope.choices;
+      const choices = state.concept.variation ? railChoices() : scope.choices;
+      const picked = state.concept.variation ? state.section : scope.picked?.id || "";
       setContent(rail, choices.map((choice) =>
-        choiceItem({ ...choice, action: scope.label === "Разделы" ? "section" : "choose", pressed: choice.id === (scope.picked?.id || "") })).join(""));
+        choiceItem({ ...choice, action: "section", pressed: choice.id === picked })).join(""));
+    }
+    if (scope) {
+      $("#scope-label").textContent = scope.picked?.label || scope.label;
+      $("#scope").setAttribute("aria-label", scope.label + (scope.picked ? " · " + scope.picked.label : ""));
     }
   }
 
@@ -482,7 +552,8 @@
     const target = $("#board-mast");
     const label = ui.secById[state.section]?.name || model.scope?.picked?.label ||
       (state.view === "favorite" ? "Избранное" : state.view === "meetings" ? "Встречи" : "");
-    const status = state.concept.id === "signal" && model.scope && !model.scope.picked && state.view === "layout";
+    const status = model.scope && !model.scope.picked &&
+      (state.view === "health" || (state.concept.id === "signal" && state.view === "layout"));
     target.hidden = !label && !status && !model.shortcuts?.length;
     if (status) {
       setContent(target, model.scope.choices.map((choice) => choiceItem(choice)).join(""));
@@ -519,6 +590,7 @@
     if (inspected) state.focusLink = inspected.id;
     preview.hidden = !(inspected && catalog.clientWidth >= 790 && catalog.clientHeight >= 282);
     if (!preview.hidden) setContent(preview, previewContent(inspected));
+    paintQuickAccess();
     paintSections();
     paintScope(model);
     paintMast(model, links);
@@ -580,6 +652,8 @@
   function updateConcept() {
     state.concept = concepts.find(({ id }) => "#" + id === location.hash) || concepts[0];
     state.view = state.concept.full ? "all" : "layout";
+    state.railOpen = store.get("rail_" + state.concept.id, !!state.concept.rail);
+    document.body.toggleAttribute("data-variation", !!state.concept.variation);
     state.choice = "";
     state.section = "";
     state.focusLink = "";
@@ -652,6 +726,7 @@
     $("#menu-title").textContent = labels[state.menu];
     const hint = $("#legend-hint");
     const legend = {
+      glaze: "Оттенок у значка показывает сегмент и плавно переходит в цвет стенда. Подписи доступны в фильтрах и при наведении.",
       split: "Левая половина — сегмент, правая — стенд. Серый цвет обозначает отсутствие отметки.",
       edges: "Левая обводка — сегмент, правая — стенд.",
       symbols: "Первая фигура — стенд, вторая — сегмент.",
@@ -711,9 +786,10 @@
     state.choice = "";
     state.section = "";
     state.focusLink = "";
-    if (id === "all") {
+    if (id === "all" || (state.concept.variation && ["favorite", "meetings", "health"].includes(id))) {
+      const trigger = document.activeElement;
       ui.resetAll();
-      $("#views [data-id='all']").focus({ preventScroll: true });
+      trigger?.focus({ preventScroll: true });
     }
     paintViews();
     restart();
@@ -723,6 +799,12 @@
     const button = event.target.closest("button[data-action], button[data-menu]");
     if (!button) return;
     const { action, id, menu } = button.dataset;
+    if (menu === "sections" && railFits()) {
+      state.railOpen = !state.railOpen;
+      store.set("rail_" + state.concept.id, state.railOpen);
+      restart();
+      return;
+    }
     if (menu) { openMenu(menu); return; }
     switch (action) {
       case "concept":
@@ -737,7 +819,7 @@
         state.section = id;
         state.choice = id;
         state.focusLink = "";
-        if (["favorite", "meetings", "recent"].includes(state.view)) {
+        if (["favorite", "meetings", "recent", "health"].includes(state.view)) {
           state.view = state.concept.full ? "all" : "layout";
           paintViews();
         }
@@ -843,6 +925,9 @@
     $("#show-down").checked = state.showDown;
     $("#live").checked = live;
     $("#data-mode").textContent = live ? "Реальные статусы" : "Демо-статусы";
+    $("#check-mode").textContent = live ? "Сеть" : "Демо";
+    $("#health-view").title = live ? "Доступность в сети" : "Демонстрационные статусы";
+    $("#refresh").title = live ? "Проверить рабочие адреса" : "Обновить демонстрационные статусы";
     window.addEventListener("hashchange", updateConcept);
     $(".skip-link").addEventListener("click", (event) => {
       event.preventDefault();
