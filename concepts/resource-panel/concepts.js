@@ -3,22 +3,22 @@
   "use strict";
 
   const concepts = [
-    { id: "sections", name: "Навигатор по разделам", icon: "panel" },
-    { id: "desk", name: "Рабочий стол", icon: "star" },
-    { id: "matrix", name: "Матрица контуров", icon: "params", dark: true },
-    { id: "accordion", name: "Каталог-аккордеон", icon: "layers" },
-    { id: "finder", name: "Проводник", icon: "folder" },
-    { id: "search", name: "Пусковая строка", icon: "search", dark: true },
-    { id: "alphabet", name: "Алфавитный указатель", icon: "book" },
-    { id: "routes", name: "Сценарии работы", icon: "target" },
-    { id: "status", name: "Пульт доступности", icon: "gauge", dark: true },
-    { id: "services", name: "Варианты сервисов", icon: "bundle" },
-    { id: "wall", name: "Весь каталог", icon: "grid", full: true },
-    { id: "symbols", name: "Контуры символами", icon: "shapes", full: true, mode: "symbols" },
-    { id: "split", name: "Двухцветные карточки", icon: "fit", full: true, mode: "split" },
-    { id: "atlas", name: "Карта разделов", icon: "globe", mode: "edges" },
-    { id: "registry", name: "Реестр ссылок", icon: "terminal", full: true, mode: "codes", dark: true }
+    { id: "folio", name: "Атлас ресурсов", icon: "layers", mode: "edges", full: true },
+    { id: "cabinet", name: "Кабинет", icon: "folder" },
+    { id: "chroma", name: "Спектр контуров", icon: "flask", mode: "split" },
+    { id: "bench", name: "Рабочая станция", icon: "monitor", dark: true },
+    { id: "relay", name: "Инспектор", icon: "target", mode: "symbols", dark: true },
+    { id: "command", name: "Командная строка", icon: "cmd", mode: "codes", dark: true },
+    { id: "index", name: "Указатель", icon: "book" },
+    { id: "routes", name: "Маршруты", icon: "flag", mode: "edges" },
+    { id: "signal", name: "Монитор доступности", icon: "gauge", mode: "symbols", dark: true },
+    { id: "services", name: "Витрина сервисов", icon: "bundle", mode: "split" }
   ];
+  const sectionShort = {
+    comms: "Связь", heroes: "Герои продаж", kap: "КАП", sup: "СУП", access: "Доступы",
+    itsm: "Сервис", data: "Данные", docs: "Документы", jira: "Задачи", repo: "Репозитории", tools: "Инструменты"
+  };
+  const quickIds = ["h-prom-a", "kap-prom", "qlik", "dpm"];
   const stands = [["PROM", "PROM", "●", "P"], ["PSI", "ПСИ", "▲", "Ψ"], ["IFT", "ИФТ", "■", "I"], ["", "Без стенда", "–", "–"]];
   const segments = [["ALPHA", "Alpha", "║", "α"], ["SIGMA", "Sigma", "○", "σ"], ["", "Без сегмента", "–", "–"]];
   const statusSigns = { up: "✓", down: "×", wait: "◌", local: "◆", skip: "–" };
@@ -44,9 +44,10 @@
   store.set = (key, value) => nativeSet(ns + key, value);
   const live = store.get("live", false);
   const state = {
-    concept: concepts.find(({ id }) => "#" + id === location.hash) || concepts.find(({ id }) => id === "wall"),
+    concept: concepts.find(({ id }) => "#" + id === location.hash) || concepts[0],
     view: "layout",
     choice: "",
+    section: "",
     focusLink: "",
     page: 0,
     menu: "",
@@ -127,7 +128,7 @@
     const body = '<span class="item-icon">' + picture(ui.iconOf(link)) + '</span><span class="item-content">' +
       title + contourMarks(link) + '</span><span class="item-badges" aria-hidden="true">' + badges + "</span>";
     const attrs = ' class="resource' + (link.title.length >= 24 ? " long-title" : "") + '" data-st="' + status + '" data-env="' + (link.env || "") + '" data-seg="' +
-      (link.seg || "") + '" data-catalog-link="' + esc(link.id) + '" aria-label="' + esc(text) + '" title="' + esc(text) + '"';
+      (link.seg || "") + '" data-section="' + esc(link.section) + '" data-catalog-link="' + esc(link.id) + '" aria-label="' + esc(text) + '" title="' + esc(text) + '"';
     if (inspect) {
       return '<button type="button"' + attrs + ' data-action="inspect" data-id="' + esc(link.id) +
         '" aria-pressed="' + (state.focusLink === link.id) + '">' + body + "</button>";
@@ -142,7 +143,7 @@
     const { q, env, seg } = ui.filter;
     const full = state.view === "all" || state.concept.full;
     const links = ui.data.links.filter((link) => {
-      return (full || !ui.off.includes(link.section)) && (state.showDown || statusOf(link) !== "down") &&
+      return (!state.section || state.section === link.section) && (full || !ui.off.includes(link.section)) && (state.showDown || statusOf(link) !== "down") &&
         core.passFilter(link, env, seg) && core.match(link, ui.secById[link.section]?.name || "", q).hit;
     });
     if (state.sort === "alpha") links.sort(byTitle);
@@ -184,7 +185,7 @@
 
   function clusters(groups) {
     return groups.flatMap((group) => group.links.length ? [
-      { kind: "group", label: group.label, icon: group.icon, size: group.links.length }, ...group.links
+      { kind: "group", id: group.id, label: group.label, icon: group.icon, size: group.links.length }, ...group.links
     ] : []);
   }
 
@@ -199,32 +200,38 @@
     };
   }
 
-  function dashboard(links) {
-    const choices = sections(links);
-    if (state.choice && choices.some(({ id }) => id === state.choice)) return selection(choices, "Разделы");
-    const favorites = favoriteLinks(links);
-    const meetings = links.filter((link) => link.meet);
-    return {
-      entries: clusters([
-        { label: "Избранное", icon: "star", links: favorites },
-        { label: "Встречи", icon: "video", links: meetings }
-      ]).concat(choiceItems(choices)),
-      scope: { label: "Разделы", choices, back: true },
-      style: "desk"
-    };
+  function panel(id, label, icon, links, action = "choose", env = "") {
+    return { kind: "panel", id, label, icon, links, action, env };
   }
 
-  function matrix(links) {
-    const choices = stands.flatMap(([env, stand]) => segments.map(([seg, segment]) => ({
-      id: env + "/" + seg, label: stand + " / " + segment, env, seg,
-      links: links.filter((link) => (link.env || "") === env && (link.seg || "") === seg)
-    })));
-    const model = selection(choices, "Контуры", { style: "matrix" });
+  function recentLinks(links) {
+    const recent = state.recent.map((id) => links.find((link) => link.id === id)).filter(Boolean);
+    return recent.length ? recent : links.filter((link) => quickIds.includes(link.id));
+  }
+
+  function workstation(links) {
+    return { style: "workstation", entries: [
+      panel("favorite", "Избранное", "star", favoriteLinks(links), "view"),
+      panel("meetings", "Встречи", "video", links.filter((link) => link.meet), "view"),
+      panel("recent", state.recent.length ? "Последние открытия" : "Рабочие системы", "clock", recentLinks(links), "desk-list"),
+      panel("tools", "Инструменты", "cmd", links.filter((link) => link.tool), "section")
+    ].filter(({ links: items }) => items.length) };
+  }
+
+  function spectrum(links) {
+    const choices = stands.map(([env, label]) => ({
+      id: env || "none", label, env,
+      links: links.filter((link) => (link.env || "") === env)
+    })).filter(({ links: items }) => items.length);
+    const model = selection(choices, "Стенды");
     if (!model.scope.picked) {
-      model.entries = stands.flatMap(([env, label]) => [{ kind: "group", label, env }, ...
-        choiceItems(choices.filter((choice) => choice.env === env).map((choice) => ({
-          ...choice, label: contourValue(segments, choice.seg)[1]
-        })))]);
+      model.style = "spectrum";
+      model.entries = choices.map((item) =>
+        panel(item.id, item.label, item.env ? "flask" : "link", item.links, "choose", item.env));
+    } else {
+      model.entries = clusters(segments.map(([seg, label]) => ({
+        label, links: model.entries.filter((link) => (link.seg || "") === seg)
+      })));
     }
     return model;
   }
@@ -234,7 +241,24 @@
     const choices = [...grouped].sort(([a], [b]) => a.localeCompare(b, "ru")).map(([letter, items]) => ({
       id: letter, label: letter, links: state.sort === "usage" ? items : [...items].sort(byTitle)
     }));
-    return selection(choices, "Буквы", { style: "letters" });
+    const model = selection(choices, "Буквы");
+    if (!model.scope.picked) {
+      model.entries = clusters(choices);
+      model.plain = choices.flatMap(({ links: items }) => items);
+    }
+    return model;
+  }
+
+  function command(links) {
+    const favorites = favoriteLinks(links);
+    const hints = [...new Set(links.filter((link) => quickIds.includes(link.id)).map((link) => link.title))];
+    const shortcuts = hints.map((label) => ({ id: label, label, icon: "search", action: "query" }));
+    return { style: "command", shortcuts, entries: clusters([
+      { label: "Избранное", icon: "star", links: favorites },
+      { label: "Последние открытия", icon: "clock", links: state.recent.length ?
+        recentLinks(links).filter((link) => !favorites.includes(link)) : [] }
+    ]).concat([{ kind: "group", label: "Разделы", icon: "layers" }],
+      choiceItems(sections(links).map((section) => ({ ...section, action: "section" })))) };
   }
 
   function routes(links) {
@@ -243,7 +267,12 @@
       id: String(index), label, icon, links: links.filter((link) => ids.includes(link.id))
     }));
     choices.push({ id: "other", label: "Остальные ссылки", icon: "link", links: links.filter((link) => !chosen.has(link.id)) });
-    return selection(choices.filter((choice) => choice.links.length), "Сценарии", { style: "routes" });
+    const model = selection(choices.filter((choice) => choice.links.length), "Сценарии");
+    if (!model.scope.picked) {
+      model.style = "routes";
+      model.entries = model.scope.choices.map((item) => panel(item.id, item.label, item.icon, item.links));
+    }
+    return model;
   }
 
   function availability(links) {
@@ -252,8 +281,8 @@
       { id: "down", label: "Недоступны", icon: "alert", links: links.filter((link) => statusOf(link) === "down") },
       { id: "other", label: "Остальные", icon: "cmd", links: links.filter((link) => !["up", "down"].includes(statusOf(link))) }
     ].filter(({ links: items }) => items.length);
-    const model = selection(choices, "Статусы", { rail: true });
-    if (!model.scope.picked) model.entries = clusters(choices);
+    const model = selection(choices, "Статусы");
+    if (!model.scope.picked) { model.entries = clusters(choices); model.plain = choices.flatMap(({ links: items }) => items); }
     return model;
   }
 
@@ -265,42 +294,36 @@
     const model = selection(choices.filter(({ links: items }) => items.length > 1), "Сервисы");
     if (!model.scope.picked) model.entries = choices.map((choice) =>
       choice.links.length > 1 ? { ...choice, kind: "choice" } : choice.links[0]);
+    if (!model.scope.picked) model.style = "services";
     return model;
   }
 
   const layouts = {
-    sections: (links) => selection(sections(links), "Разделы", { first: true, rail: true }),
-    desk: dashboard,
-    matrix,
-    accordion: (links) => selection(sections(links), "Разделы", { style: "accordion" }),
-    finder: (links) => selection(sections(links), "Разделы", { first: true, rail: true, inspect: true }),
-    search: (links) => {
-      const favorites = favoriteLinks(links);
-      const favoriteIds = new Set(favorites.map((link) => link.id));
-      const recent = state.recent.map((id) => links.find((link) => link.id === id))
-        .filter((link) => link && !favoriteIds.has(link.id));
-      return { entries: clusters([
-        { label: "Избранное", icon: "star", links: favorites },
-        { label: "Недавно открытые", icon: "clock", links: recent }
-      ]), fallback: "Введите название, адрес или раздел в строке поиска.", style: "launch" };
-    },
-    alphabet,
+    folio: (links) => ({ entries: clusters(sections(links)), plain: links, style: "folio" }),
+    cabinet: (links) => selection(sections(links), "Разделы", { first: true, rail: true }),
+    chroma: spectrum,
+    bench: workstation,
+    relay: (links) => selection(sections(links), "Разделы", { first: true, rail: true, inspect: true }),
+    command,
+    index: alphabet,
     routes,
-    status: availability,
-    services,
-    wall: (links) => ({ entries: links }),
-    symbols: (links) => ({ entries: links }),
-    split: (links) => ({ entries: links }),
-    atlas: (links) => selection(sections(links), "Разделы", { style: "atlas" }),
-    registry: (links) => ({ entries: links })
+    signal: availability,
+    services
   };
 
   function depiction(links) {
     if (state.view === "favorite") return { entries: favoriteLinks(links), fallback: "По этим условиям в избранном ничего нет." };
     if (state.view === "meetings") return { entries: links.filter((link) => link.meet) };
-    if (state.view === "all") return state.concept.full ? layouts[state.concept.id](links) : { entries: links };
+    if (state.view === "recent") return { entries: recentLinks(links) };
+    if (state.section) return {
+      entries: links, style: "regular", inspect: state.concept.id === "relay",
+      scope: { label: "Разделы", choices: sections(ui.data.links.filter((link) => !ui.off.includes(link.section))),
+        picked: { id: state.section, label: ui.secById[state.section]?.name } },
+      rail: ["cabinet", "relay"].includes(state.concept.id)
+    };
     const { q, env, seg } = ui.filter;
     if (q.trim() || env.length || seg.length) return { entries: links };
+    if (state.view === "all") return state.concept.full ? layouts[state.concept.id](links) : { entries: links };
     return layouts[state.concept.id](links);
   }
 
@@ -324,16 +347,27 @@
     return { ...best, rowHeight };
   }
 
-  function boardConfig(model, board) {
-    const simple = !model.style || model.style === "regular";
-    const desktop = window.innerWidth >= 740;
-    if (model.style === "matrix") return { presets: [{ width: 1, height: 42 }], max: 96, columns: 4, flow: "row" };
-    if (model.style === "accordion") return { presets: spacious, max: 58, columns: board.clientHeight >= 525 ? 1 : 2, flow: "row" };
-    if (model.style === "letters") return { presets: [{ width: 72, height: 44 }], max: 76, columns: 10, flow: "row" };
-    if (model.style === "atlas" || model.style === "routes") return { presets: spacious, max: 104, columns: 5, flow: "row" };
-    if (model.style === "desk" || model.style === "launch") return { presets: spacious, max: 80, columns: 8, flow: "row" };
-    const flow = model.style === "regular" ? "row" : "column";
-    return { presets: simple && desktop ? compact : spacious, max: model.style === "regular" ? 72 : 58, columns: Infinity, flow };
+  function boardConfig(model) {
+    if (model.style === "regular" && model.entries.length <= 22 && state.concept.id === "cabinet") {
+      return { presets: [{ width: 222, height: 83 }, ...spacious], max: 130, columns: 3, flow: "row" };
+    }
+    if (model.inspect) return { presets: spacious, max: 66, columns: 1, flow: "row" };
+    if (model.style === "workstation") return {
+      presets: [{ width: 340, height: 205 }, { width: 150, height: 191 }], max: 400, columns: 2, flow: "row"
+    };
+    if (model.style === "spectrum") return {
+      presets: [{ width: 250, height: 205 }, { width: 150, height: 191 }], max: 560, columns: 4, flow: "row"
+    };
+    if (model.style === "routes") return {
+      presets: [{ width: 260, height: 205 }, { width: 146, height: 191 }], max: 280, columns: 3, flow: "row"
+    };
+    if (model.style === "route-choices") return {
+      presets: [{ width: 220, height: 66 }, { width: 146, height: 58 }], max: 105, columns: 3, flow: "row"
+    };
+    if (model.style === "command") return { presets: spacious, max: 67, columns: 6, flow: "row" };
+    const useTiles = model.style === "regular" || model.style === "services";
+    const presets = window.innerWidth >= 740 && (!useTiles || model.entries.length > 30) ? compact : spacious;
+    return { presets, max: useTiles ? 92 : 58, columns: Infinity, flow: useTiles ? "row" : "column" };
   }
 
   function drawGrid(grid, config, shape, rows) {
@@ -343,20 +377,29 @@
     grid.dataset.flow = config.flow;
   }
 
-  function choiceItem(item, asMenu = false) {
+  function choiceItem(item, asMenu = false, sample = false) {
     const attr = ' data-action="' + (item.action || "choose") + '" data-id="' + esc(item.id) + '"';
     const stateAttr = item.pressed === undefined ? "" : ' aria-pressed="' + item.pressed + '"';
-    const environment = item.env === undefined ? "" : ' data-env="' + item.env + '" data-seg="' + item.seg + '"';
+    const environment = item.env === undefined ? "" : ' data-env="' + item.env + '"';
     const icon = item.icon ? '<span class="choice-icon">' + picture(item.icon) + "</span>" : "";
     const size = item.links ? '<span class="count">' + item.links.length + "</span>" : "";
     const disabled = item.links && !item.links.length ? " disabled" : "";
+    const examples = sample && item.links?.slice(0, 2).map((link) => link.title).join(" · ");
+    const label = '<span class="choice-name">' + esc(item.label) + "</span>";
     return '<button class="' + (asMenu ? "menu-option" : "choice") + '" type="button"' + attr + stateAttr +
-      environment + disabled + ">" + icon + "<span class=\"choice-name\">" + esc(item.label) + "</span>" + size + "</button>";
+      environment + disabled + ">" + icon + (examples ? '<span class="route-copy">' + label +
+        '<span class="route-sample">' + esc(examples) + "</span></span>" : label) + size + "</button>";
   }
 
-  function gridItem(item, inspect) {
-    if (item.kind === "choice") return choiceItem(item);
-    if (item.kind === "group") return '<h2 class="group-label" data-env="' + (item.env || "") + '">' +
+  function gridItem(item, inspect, previewLimit) {
+    if (item.kind === "panel") {
+      const preview = item.links.slice(0, previewLimit);
+      return '<section class="link-panel" data-env="' + item.env + '" data-panel="' + esc(item.id) + '">' +
+        choiceItem(item) + '<div class="pane-links" style="--pane-limit:' + (preview.length * 44) + 'px">' +
+        preview.map((link) => linkItem(link)).join("") + "</div></section>";
+    }
+    if (item.kind === "choice") return choiceItem(item, false, state.concept.id === "routes");
+    if (item.kind === "group") return '<h2 class="group-label" data-section="' + esc(item.id || "") + '">' +
       (item.icon ? picture(item.icon) : "") + "<span>" + esc(item.label) + "</span>" +
       (item.size ? '<small class="count">' + item.size + "</small>" : "") + "</h2>";
     return linkItem(item, inspect);
@@ -407,14 +450,47 @@
     const showRail = scope && model.rail && catalog.clientWidth >= 950 &&
       (scope.choices.length + Number(scope.back)) * 43 - gap <= catalog.clientHeight;
     rail.hidden = !showRail;
-    $("#scope").hidden = !scope || showRail;
+    $("#scope").hidden = !scope || showRail || scope.label === "Разделы" ||
+      (state.concept.id === "signal" && !scope.picked);
+    if (scope?.label === "Разделы" && !showRail && scope.picked && !state.section) {
+      $("#section-label").textContent = scope.picked.label;
+    }
     if (!scope) return;
     $("#scope-label").textContent = scope.picked?.label || scope.label;
     $("#scope").setAttribute("aria-label", scope.label + (scope.picked ? " · " + scope.picked.label : ""));
     if (showRail) {
       const choices = scope.back ? [{ id: "", label: "Все статусы", icon: "gauge" }, ...scope.choices] : scope.choices;
       setContent(rail, choices.map((choice) =>
-        choiceItem({ ...choice, pressed: choice.id === (scope.picked?.id || "") })).join(""));
+        choiceItem({ ...choice, action: scope.label === "Разделы" ? "section" : "choose", pressed: choice.id === (scope.picked?.id || "") })).join(""));
+    }
+  }
+
+  function paintSections() {
+    const section = ui.secById[state.section];
+    $("#section-label").textContent = section?.name || "Разделы";
+    $("#sections-button").title = section?.name || "Разделы";
+    $("#sections-button").setAttribute("aria-pressed", String(!!section));
+    const items = ui.data.sections.filter((item) => !ui.off.includes(item.id) || state.view === "all");
+    const buttons = items.map((item) => '<button type="button" data-section="' + esc(item.id) +
+      '" data-action="section" data-id="' + esc(item.id) + '" aria-pressed="' + (item.id === state.section) +
+      '" title="' + esc(item.name) + '" aria-label="' + esc(item.name) + '">' + picture(item.icon) +
+      '<span>' + esc(sectionShort[item.id] || item.name) + "</span></button>");
+    setContent($("#section-strip"), buttons.join(""));
+  }
+
+  function paintMast(model, links) {
+    const target = $("#board-mast");
+    const label = ui.secById[state.section]?.name || model.scope?.picked?.label ||
+      (state.view === "favorite" ? "Избранное" : state.view === "meetings" ? "Встречи" : "");
+    const status = state.concept.id === "signal" && model.scope && !model.scope.picked && state.view === "layout";
+    target.hidden = !label && !status && !model.shortcuts?.length;
+    if (status) {
+      setContent(target, model.scope.choices.map((choice) => choiceItem(choice)).join(""));
+    } else if (model.shortcuts?.length) {
+      setContent(target, model.shortcuts.map((choice) => choiceItem(choice)).join(""));
+    } else if (label) {
+      setContent(target, '<h2>' + esc(label) + '</h2><span>' +
+        (model.entries.some((entry) => entry.kind) ? links.length : model.entries.length) + "</span>");
     }
   }
 
@@ -437,18 +513,29 @@
     const links = visibleLinks();
     const model = depiction(links);
     const catalog = $("#catalog");
-    const board = $("#board");
+    const board = $("#board-body");
     const preview = $("#preview");
     const inspected = model.inspect && (model.entries.find((link) => link.id === state.focusLink) || model.entries[0]);
     if (inspected) state.focusLink = inspected.id;
     preview.hidden = !(inspected && catalog.clientWidth >= 790 && catalog.clientHeight >= 282);
     if (!preview.hidden) setContent(preview, previewContent(inspected));
+    paintSections();
     paintScope(model);
+    paintMast(model, links);
 
     const grid = $("#board-grid");
-    const { entries } = model;
-    const config = boardConfig(model, board);
-    const shape = fit(entries.length, board.clientWidth, board.clientHeight, config.presets, config.max, config.columns);
+    let { entries } = model;
+    let config = boardConfig(model);
+    let shape = fit(entries.length, board.clientWidth, board.clientHeight, config.presets, config.max, config.columns);
+    if (model.plain && entries.length > shape.capacity) {
+      entries = model.plain;
+      shape = fit(entries.length, board.clientWidth, board.clientHeight, config.presets, config.max, config.columns);
+    }
+    if (entries.some((entry) => entry.kind === "panel") && board.clientHeight < 191) {
+      entries = entries.map((entry) => ({ ...entry, kind: "choice" }));
+      config = boardConfig({ style: "route-choices" });
+      shape = fit(entries.length, board.clientWidth, board.clientHeight, config.presets, config.max, config.columns);
+    }
     const pages = Math.max(1, Math.ceil(entries.length / shape.capacity));
     state.page = Math.min(state.page, pages - 1);
     const start = state.page * shape.capacity;
@@ -457,7 +544,8 @@
     drawGrid(grid, config, shape, rows);
     grid.dataset.style = model.style || "catalog";
     grid.dataset.dense = String(shape.rowHeight < 49);
-    const html = shown.map((item) => gridItem(item, model.inspect)).join("");
+    const previewLimit = Math.max(2, Math.min(12, Math.floor((shape.rowHeight - 64) / 34)));
+    const html = shown.map((item) => gridItem(item, model.inspect, previewLimit)).join("");
     const empty = model.fallback || (ui.off.length === ui.data.sections.length && state.view !== "all" && !state.concept.full ?
       "Все разделы скрыты. Откройте «Настройки» или «Все ссылки»." : "По выбранным условиям ссылок нет.");
     const contents = html || '<p class="board-empty">' + empty + "</p>";
@@ -467,7 +555,8 @@
     $("#next-page").disabled = state.page >= pages - 1;
     $("#catalog").dataset.pages = pages;
     $(".catalog-pages").classList.toggle("single-page", pages === 1);
-    const count = entries.filter((entry) => !entry.kind).length;
+    const count = shown.reduce((total, entry) =>
+      total + (entry.kind === "panel" ? Math.min(previewLimit, entry.links.length) : Number(!entry.kind)), 0);
     $("#range").textContent = pages > 1 ? (state.page + 1) + " / " + pages :
       (count ? count + " / " + ui.data.links.length : entries.length || "0");
     $("#range").setAttribute("aria-label", pages > 1 ? "Страница " + (state.page + 1) + " из " + pages : "Показано ссылок: " + count);
@@ -489,10 +578,10 @@
   }
 
   function updateConcept() {
-    const concept = concepts.find(({ id }) => "#" + id === location.hash);
-    if (concept) state.concept = concept;
+    state.concept = concepts.find(({ id }) => "#" + id === location.hash) || concepts[0];
     state.view = state.concept.full ? "all" : "layout";
     state.choice = "";
+    state.section = "";
     state.focusLink = "";
     const { q, env, seg } = ui.filter;
     if (state.concept.full && (q.trim() || env.length || seg.length)) {
@@ -503,6 +592,7 @@
     document.body.dataset.concept = state.concept.id;
     document.body.dataset.marks = state.concept.mode || "text";
     $("#concept-name").textContent = state.concept.name;
+    $("#concept-emblem").innerHTML = picture(state.concept.icon);
     $("#concept").title = state.concept.name;
     document.title = state.concept.name + " · Ресурсная панель";
     paintTheme();
@@ -533,6 +623,11 @@
         return concepts.map((item) => choiceItem({
           ...item, label: item.name, action: "concept", pressed: state.concept.id === item.id
         }, true));
+      case "sections":
+        return [{ id: "", name: "Все разделы", icon: "layers" }, ...ui.data.sections]
+          .filter((item) => !ui.off.includes(item.id) || state.view === "all")
+          .map((item) => choiceItem({ ...item, label: item.name, action: "section",
+            pressed: (state.section || scope?.picked?.id || "") === item.id }, true));
       case "scope":
         if (!scope) return [];
         return (scope.back ? [{ id: "", label: "К обзору", icon: "left" }] : [])
@@ -549,7 +644,7 @@
   function paintMenu() {
     if (!state.menu) return;
     const labels = {
-      concepts: "Концепты", scope: scope?.label || "Разделы", filters: "Фильтры",
+      concepts: "Концепты", sections: "Разделы", scope: scope?.label || "Разделы", filters: "Фильтры",
       settings: "Настройки", groups: "Видимые разделы", legend: "Условные обозначения", inspect: "Ссылка"
     };
     const menu = $("#menu");
@@ -614,6 +709,7 @@
   function changeView(id) {
     state.view = id;
     state.choice = "";
+    state.section = "";
     state.focusLink = "";
     if (id === "all") {
       ui.resetAll();
@@ -636,6 +732,27 @@
       case "close-menu": ui.closeLayer(); break;
       case "view": changeView(id); break;
       case "choose": choose(id); break;
+      case "section":
+        if (state.menu) ui.closeLayer();
+        state.section = id;
+        state.choice = id;
+        state.focusLink = "";
+        if (["favorite", "meetings", "recent"].includes(state.view)) {
+          state.view = state.concept.full ? "all" : "layout";
+          paintViews();
+        }
+        restart();
+        break;
+      case "desk-list": changeView("recent"); break;
+      case "query": {
+        const input = $("#q");
+        input.value = id;
+        ui.filter.q = id;
+        ui.apply();
+        input.focus();
+        restart();
+        break;
+      }
       case "inspect":
         state.focusLink = id;
         if ($("#preview").hidden) {
