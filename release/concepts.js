@@ -98,7 +98,7 @@
     settingsChild: false,
     menuPage: 0,
     sort: store.get("sort", "source"),
-    showDown: store.get("show_down", true),
+    availability: store.get("availability", store.get("show_down", true) ? "all" : "up"),
     keyboardIndex: -1
   };
   let scope = null;
@@ -143,6 +143,16 @@
     return ui.st[link.id] || "wait";
   }
 
+  function matchesAvailability(link) {
+    return state.availability === "all" || statusOf(link) === state.availability;
+  }
+
+  function setAvailability(mode) {
+    state.availability = mode;
+    store.set("availability", mode);
+    restart();
+  }
+
   function highlight(link) {
     const { ranges } = core.match(link, ui.secById[link.section]?.name || "", ui.filter.q);
     const spans = [];
@@ -184,7 +194,7 @@
     const { q, env, seg } = ui.filter;
     const full = state.view === "all";
     const links = ui.data.links.filter((link) => {
-      return (!state.section || state.section === link.section) && (full || !ui.off.includes(link.section)) && (state.showDown || statusOf(link) !== "down") &&
+      return (!state.section || state.section === link.section) && (full || !ui.off.includes(link.section)) && matchesAvailability(link) &&
         core.passFilter(link, env, seg) && core.match(link, ui.secById[link.section]?.name || "", q).hit;
     });
     if (state.sort === "alpha") links.sort(byTitle);
@@ -245,7 +255,7 @@
     if (state.view === "health") return availability(links);
     if (state.section) return { entries: links, style: "regular" };
     const { q, env, seg } = ui.filter;
-    if (state.view === "all" || q.trim() || env.length || seg.length) return { entries: links };
+    if (state.view === "all" || q.trim() || env.length || seg.length || state.availability !== "all") return { entries: links };
     return routes(links);
   }
 
@@ -371,9 +381,9 @@
     paintViews();
     if (shelf.hidden) return;
 
-    const links = ui.data.links;
+    const links = ui.data.links.filter(matchesAvailability);
     const favorites = favoriteLinks(links);
-    const meetings = links.filter((link) => link.meet && (state.showDown || statusOf(link) !== "down"));
+    const meetings = links.filter((link) => link.meet);
     for (const [id, icon, collection, limit] of [
       ["favorite", "star", favorites, 12],
       ["meetings", "video", meetings, 3]
@@ -465,7 +475,12 @@
     if (resetPage || signature !== filterSignature) state.page = 0;
     resetPage = false;
     filterSignature = signature;
-    const activeFilters = env.length + seg.length;
+    $("#show-down").checked = state.availability !== "up";
+    $("#availability-toggle .down-label").textContent = state.availability === "down" ? "Только недоступные" : "Недоступные";
+    $("#fAvailability").querySelectorAll("button").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.id === state.availability));
+    });
+    const activeFilters = env.length + seg.length + Number(state.availability !== "all");
     $("#filter-count").textContent = activeFilters || "";
     $("#filter-button").setAttribute("aria-pressed", String(!!activeFilters));
     const links = visibleLinks();
@@ -763,6 +778,7 @@
         break;
       case "close-menu": ui.closeLayer(); break;
       case "view": changeView(id); break;
+      case "availability": setAvailability(id); break;
       case "choose": choose(id); break;
       case "section":
         if (state.menu) ui.closeLayer();
@@ -801,7 +817,7 @@
       case "reset":
         ui.closeLayer();
         ui.resetAll();
-        restart();
+        setAvailability("all");
         break;
     }
   }
@@ -855,7 +871,6 @@
       paintMarkings();
     });
     $("#sort").value = state.sort;
-    $("#show-down").checked = state.showDown;
     $("#live").checked = live;
     $("#data-mode").textContent = live ? "Реальные статусы" : "Демо-статусы";
     $("#check-mode").textContent = live ? "Сеть" : "Демо";
@@ -872,9 +887,7 @@
       restart();
     });
     $("#show-down").addEventListener("change", () => {
-      state.showDown = $("#show-down").checked;
-      store.set("show_down", state.showDown);
-      restart();
+      setAvailability($("#show-down").checked ? "all" : "up");
     });
     $("#live").addEventListener("change", () => {
       store.set("live", $("#live").checked);

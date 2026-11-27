@@ -115,6 +115,12 @@
         <div class="fg" role="group" aria-label="Стенд" id="fEnv"><span>Стенд</span></div>
         <div class="fg" role="group" aria-label="Сегмент" id="fSeg"><span>Сегмент</span></div>
       </div>
+      <div class="fg" role="group" aria-label="Доступность" id="fAvailability">
+        <span>Доступность</span>
+        <button class="chip" type="button" data-action="availability" data-id="all" aria-pressed="true">Все</button>
+        <button class="chip" type="button" data-action="availability" data-id="up" aria-pressed="false">Доступные</button>
+        <button class="chip" type="button" data-action="availability" data-id="down" aria-pressed="false">Недоступные</button>
+      </div>
       <button type="button" class="control" data-action="reset">Сбросить поиск и фильтры</button>
     </section>
     <section id="settings-panel" hidden aria-label="Настройки">

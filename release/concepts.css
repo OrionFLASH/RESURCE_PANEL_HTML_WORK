@@ -391,7 +391,7 @@ html[data-theme="dark"] { color-scheme: dark; }
   justify-content: flex-start;
   gap: 4px;
 }
-.prototype #filter-panel .fg > span { flex: 0 0 64px; margin: 0; color: var(--sub); font-size: 13px; }
+.prototype #filter-panel .fg > span { flex: 0 0 88px; margin: 0; color: var(--sub); font-size: 13px; }
 .prototype #filter-panel .chip { min-height: var(--bar-height); padding-inline: 8px; color: var(--type); background: var(--surface); border-color: var(--stroke); }
 .prototype #filter-panel .chip[aria-pressed="true"] { background: var(--wash); color: var(--accent); border-color: var(--accent); }
 .prototype #settings-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; gap: 5px 12px; }
