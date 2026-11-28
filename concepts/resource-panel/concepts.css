@@ -729,7 +729,7 @@ html[data-theme="dark"] { color-scheme: dark; }
   background: var(--wash);
   color: var(--accent);
 }
-.prototype .icon-context-preview .ui-i { width: 24px; height: 24px; }
+.prototype .icon-context-preview .ui-i { width: 24px; height: 24px; stroke-width: 1.15; }
 .prototype .icon-context-line {
   display: flex;
   align-items: center;
@@ -789,7 +789,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 }
 .prototype .editor-icons-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--icon-cell), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--icon-min-width, var(--icon-cell)), 1fr));
   gap: 3px;
 }
 .prototype .editor-icons-grid button {
@@ -799,7 +799,7 @@ html[data-theme="dark"] { color-scheme: dark; }
   background: color-mix(in srgb, var(--paper) 72%, var(--surface));
   color: var(--type);
 }
-.prototype .editor-icons-grid button .ui-i { width: 26px; height: 26px; }
+.prototype .editor-icons-grid button .ui-i { width: 24px; height: 24px; stroke-width: 1.15; }
 .prototype .editor-icon-tools :is(.ip-def, [data-icon-form]) {
   padding-inline: 9px;
   white-space: nowrap;
@@ -848,10 +848,10 @@ html[data-theme="dark"] { color-scheme: dark; }
   .prototype .editor-icon-search { flex-grow: 1; }
 }
 @media (max-height: 780px) and (min-width: 1180px) {
-  .prototype .drawer .editor-icons { --icon-cell: 34px; }
+  .prototype .drawer .editor-icons { --icon-cell: 32px; --icon-min-width: 27px; }
   .prototype .editor-icon-library { gap: 4px; }
   .prototype .editor-icon-group { padding-block: 3px; }
-  .prototype .editor-icons-grid { row-gap: 2px; }
+  .prototype .editor-icons-grid { gap: 2px; }
 }
 @media (max-height: 390px) {
   .prototype .editor-icon-search { flex-basis: 90px; }

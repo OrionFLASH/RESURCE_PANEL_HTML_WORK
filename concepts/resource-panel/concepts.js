@@ -689,6 +689,7 @@
       settings: "Настройки", groups: "Видимые разделы", legend: "Условные обозначения"
     };
     const menu = $("#menu");
+    menu.style.removeProperty("height");
     menu.dataset.panel = state.menu;
     $("#menu-title").textContent = labels[state.menu];
     $("#settings-back").hidden = !state.settingsChild || state.menu === "settings";
@@ -705,13 +706,14 @@
     if (state.menu === "legend") paintMarkings();
     if (grid.hidden) return;
     const entries = menuContents();
-    const width = $("#menu-main").clientWidth;
-    const height = $("#menu-main").clientHeight;
+    const main = $("#menu-main");
+    const width = main.clientWidth;
+    const height = main.clientHeight;
     const config = { flow: "row", width: width < 370 ? 140 : 173, height: 40 };
-    let shape = fit(entries.length, width, height, [config], 52, 3);
+    let shape = fit(entries.length, width, height, [config], 44, 3);
     if (entries.length > shape.capacity) {
       pager.hidden = false;
-      shape = fit(entries.length, width, $("#menu-main").clientHeight, [config], 52, 3);
+      shape = fit(entries.length, width, main.clientHeight, [config], 44, 3);
     }
     const pages = Math.max(1, Math.ceil(entries.length / shape.capacity));
     state.menuPage = Math.min(state.menuPage, pages - 1);
@@ -719,6 +721,7 @@
     const shown = entries.slice(start, start + shape.capacity);
     drawGrid(grid, config, shape, Math.ceil(shown.length / shape.columns));
     setContent(grid, shown.join(""));
+    menu.style.height = (menu.offsetHeight - main.clientHeight + grid.offsetHeight) + "px";
     $("#menu-previous").disabled = state.menuPage === 0;
     $("#menu-next").disabled = state.menuPage >= pages - 1;
     $("#menu-range").textContent = (state.menuPage + 1) + " / " + pages;

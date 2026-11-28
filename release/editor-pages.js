@@ -481,12 +481,28 @@
     if (frame) cancelAnimationFrame(frame);
     frame = 0;
     observer.disconnect();
-    [drawer, modal].forEach((layer) => layer.querySelectorAll("." + hiddenClass).forEach((node) => node.classList.remove(hiddenClass)));
+    [drawer, modal].forEach((layer) => {
+      layer.style.removeProperty("height");
+      layer.querySelectorAll("." + hiddenClass).forEach((node) => node.classList.remove(hiddenClass));
+    });
     layoutDrawer();
     layoutModal();
+    [drawer, modal].forEach(fitDialog);
     [drawer, modal].forEach((layer) => observer.observe(layer, {
       childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden"]
     }));
+  }
+
+  function fitDialog(layer) {
+    if (!layer.classList.contains("on")) return;
+    const box = layer.getBoundingClientRect();
+    const style = getComputedStyle(layer);
+    const pager = layer.querySelector(":scope > .editor-pager");
+    const content = [...layer.children].filter((node) => node !== pager && node.getClientRects().length);
+    const bottom = Math.max(box.top, ...content.map((node) => node.getBoundingClientRect().bottom));
+    const footer = pager && !pager.hidden ? pager.offsetHeight + parseFloat(getComputedStyle(pager).bottom) + 8 : 0;
+    const height = bottom - box.top + Math.max(footer, parseFloat(style.paddingBottom)) + parseFloat(style.borderBottomWidth);
+    layer.style.height = Math.min(box.height, Math.ceil(height)) + "px";
   }
 
   function action(event) {
