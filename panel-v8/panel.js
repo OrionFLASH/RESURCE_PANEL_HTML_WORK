@@ -734,7 +734,81 @@
       ["period-close", "Закрытие периода", "M3 5H17V16H3ZM3 8H17M6 3V6M14 3V6M8 12L10 14L14 10"],
     ]],
   ];
-  PROCESS_ICONS.concat(WORKFLOW_ICONS).forEach(function (group) {
+  var THEME_ICONS = [
+    ["Герои продаж", [
+      ["sales-hero-mask", "Герой продаж в маске", "M3 7Q10 2 17 7L16 11Q14 14 11 11H9Q6 14 4 11ZM6 8L8 9M12 9L14 8M8 15Q10 17 12 15"],
+      ["sales-hero-cape", "Плащ героя", "M8 3H12L14 7L17 16Q10 13 3 17L6 7ZM6 7Q10 10 14 7M8 11L7 14"],
+      ["sales-shield", "Щит героя продаж", "M10 2.5L16.5 5V9Q16.5 14 10 17.5Q3.5 14 3.5 9V5ZM7 11L9.5 8.5L11 10L13.5 7.5"],
+      ["sales-personal-plan", "Личный план продаж", "M3 4H11V16H3ZM5.5 7H8.5M5.5 10H8.5M5.5 13H8M15 5V14M12.5 10.5L15 8L17.5 10.5"],
+      ["sales-target-hit", "План выполнен", "M9 4A6 6 0 1 0 15 10M9 7A3 3 0 1 0 12 10M9 10L16 3M13 3H16V6M13 15L15 17L18 14"],
+      ["sales-branch-score", "Результат отделения", "M2.5 16H9M3.5 16V8H8V16M4.5 10H7M4.5 12.5H7M11 11L13.5 8.5L15 10L17.5 6M14 6H17.5V9.5"],
+      ["sales-hero-duo", "Дуэт героев", "M3 6L7 4L10 6V10L7 13L3 10ZM10 8L13 6L17 8V12L13 15L10 12M5 8H8M12 10H15M6 15L8 17M13 15L15 17"],
+      ["sales-client-win", "Новый клиент", "M8 3.5A2.5 2.5 0 1 0 8 8.5A2.5 2.5 0 0 0 8 3.5ZM2.5 16V14Q8 9 12 13M14.5 9.5V15.5M11.5 12.5H17.5"],
+      ["sales-conversation", "Диалог с клиентом", "M2.5 4H13V10.5H7L4 13V10.5H2.5ZM9.5 12H15.5M11 14H17.5V7H15M5 7H10.5"],
+      ["sales-deal", "Закрытая сделка", "M3 6L6 4L9 6L12 4L17 7L15 13L11 16L8 15L3 11ZM6 7L8 10L11 7L14 10M9 13L11 15M11 12L13 14"],
+      ["sales-product-mix", "Набор продуктов", "M3 7L8 4L13 7V13L8 16L3 13ZM3 7L8 10L13 7M8 10V16M12 4L17 7V12L15 13"],
+      ["sales-referral", "Рекомендация клиента", "M6 4A2 2 0 1 0 6 8A2 2 0 0 0 6 4ZM2.5 15V13Q6 10 9.5 13M10 7H17M14.5 4.5L17 7L14.5 9.5M13 13H17"],
+      ["sales-growth-sprint", "Спринт продаж", "M2.5 14H6M3.5 10.5H7M2.5 7H5M7 15L10.5 11.5L13 13L17.5 6M14 6H17.5V9.5"],
+      ["sales-review", "Разбор продаж", "M3 3.5H16.5V11M3 3.5V16.5H9M5.5 10.5L8 8L10 9.5L13 6.5M13.5 11A2.5 2.5 0 1 0 13.5 16A2.5 2.5 0 0 0 13.5 11ZM15.3 15.3L17.5 17.5"],
+      ["sales-coach", "Наставник героя", "M6 4A2 2 0 1 0 6 8A2 2 0 0 0 6 4ZM2.5 16V14Q6 10 9 13M10 4H17.5V10.5H15L12 13V10.5H10ZM12 7H15.5"],
+      ["sales-hero-emblem", "Эмблема героя продаж", "M10 2.5L17.5 7L15 15L10 17.5L5 15L2.5 7ZM10 5.5L11.4 8.5L14.5 9L12.3 11.2L12.8 14.3L10 12.8L7.2 14.3L7.7 11.2L5.5 9L8.6 8.5Z"],
+    ]],
+    ["Игры и достижения", [
+      ["game-controller", "Геймпад", "M6 6H14Q16 6 17 9L18 13Q18 15 16 15L13 12H7L4 15Q2 15 2 13L3 9Q4 6 6 6ZM6 8V11M4.5 9.5H7.5M13 8.5H13.15M15 10.5H15.15"],
+      ["game-dice", "Игральный кубик", "M4 4H16V16H4ZM7 7H7.15M10 10H10.15M13 13H13.15"],
+      ["game-chess-knight", "Шахматный конь", "M5 16H15M6 14H14V10Q14 6 9 4L7 7L4 10L5 12L9 10L8 14M9 7H9.15M9 4L9.5 2.5L12 5.5"],
+      ["game-treasure", "Сундук с наградой", "M3 9Q3 5 7 5H13Q17 5 17 9V16H3ZM3 10H17M8 9H12V13H8ZM6 6V9M14 6V9"],
+      ["game-quest", "Задание в игре", "M4 4H15V16H4ZM7 8H12M7 11H10M13 12L15 14L18 10M7 2.5V5.5M12 2.5V5.5"],
+      ["game-level-up", "Новый уровень", "M5 12L10 7L15 12M5 7L10 2L15 7M5 16H15M7 14H13"],
+      ["game-energy", "Энергия игрока", "M4 5H15V15H4ZM15 8H17V12H15M10 6.5L7.5 10H10L8.8 13.5L12 9.5H9.5Z"],
+      ["game-combo", "Серия действий", "M3 13L7 9L10 12L13 7L17 4M14 4H17V7M4 16H8M10 16H13M15 16H17"],
+      ["game-skill-tree", "Дерево навыков", "M10 6V9M5 13V9H15V13M10 9V13M10 3L12 5L10 7L8 5ZM5 13L7 15L5 17L3 15ZM10 13L12 15L10 17L8 15ZM15 13L17 15L15 17L13 15Z"],
+      ["game-season-pass", "Сезонный пропуск", "M3 6H17V14H3V11Q5 10 3 9ZM7 8V12M12 7.5L13 9L15 9.3L13.5 10.6L13.8 12.5L12 11.6L10.2 12.5L10.5 10.6L9 9.3L11 9Z"],
+      ["game-arena", "Игровая арена", "M3 10Q10 4 17 10Q10 16 3 10ZM3 10V13Q10 19 17 13V10M7 10H13M10 8V12"],
+      ["game-extra-life", "Дополнительная жизнь", "M10 15L4.5 10Q2 7 4.8 5Q7 3.5 10 6Q13 3.5 15.2 5Q18 7 15.5 10ZM9 9H11M10 8V10"],
+      ["game-lantern", "Фонарь приключений", "M7 6H13L14 15H6ZM8 6V4Q10 2 12 4V6M5 16H15M10 8.5Q13 12 10 13Q7 12 10 8.5Z"],
+      ["game-podium-stars", "Пьедестал со звёздами", "M3 17V12H7V17M7 17V9H13V17M13 17V13H17V17M3 17H17M10 2.5L11 4.5L13 5L11.5 6.5L11.8 8L10 7.2L8.2 8L8.5 6.5L7 5L9 4.5Z"],
+      ["game-world-map", "Карта приключений", "M3 5L7 3L13 5L17 3V15L13 17L7 15L3 17ZM6 12L9 8L12 11L14.5 7M13 7H14.5V8.5"],
+      ["game-achievement-scroll", "Свиток достижений", "M6 4H15Q17 4 17 6H15V15H5Q3 15 3 13H6ZM8 8L10 10L13 7M7 12H12"],
+    ]],
+    ["Сбер и банковские сервисы", [
+      ["sber-id", "Вход через Сбер ID", "M3 4H17V16H3ZM3 7H17M7 9A1.5 1.5 0 1 0 7 12A1.5 1.5 0 0 0 7 9ZM5 14Q7 12 9 14M11 11L13 13L16 9"],
+      ["sber-pay", "Оплата через СберPay", "M3 5H17V15H3ZM3 8H17M6 12H9M13 10Q15 12 13 14M15 9.5Q18 12 15 14.5"],
+      ["sber-online", "СберБанк Онлайн", "M6 3H14V17H6ZM8 5H12M8 10L9.5 11.5L12.5 8.5M9 15H11"],
+      ["sber-branch", "Отделение СберБанка", "M3 7L10 3L17 7ZM5 8V14M9 8V14M13 8V14M3 15H17M5 17H15M15 10H17V13H15Z"],
+      ["sber-atm", "Банкомат", "M4 3.5H16V16.5H4ZM6.5 6H13.5V10H6.5ZM7 13H13M9 15H11"],
+      ["sber-turn", "Очередь в отделении", "M3 4H17V8H3ZM5 6H5.1M8 6H11M6 11A1.5 1.5 0 1 0 6 14A1.5 1.5 0 0 0 6 11ZM14 11A1.5 1.5 0 1 0 14 14A1.5 1.5 0 0 0 14 11ZM3.5 17Q6 14 8.5 17M11.5 17Q14 14 16.5 17"],
+      ["sber-loyalty", "Баллы СберСпасибо", "M10 3L12 7L16.5 7.5L13.2 10.5L14 15L10 12.8L6 15L6.8 10.5L3.5 7.5L8 7ZM4 14L6 17M16 14L14 17"],
+      ["bank-mortgage", "Ипотека", "M3 10L10 4L17 10M5 9V16H15V9M8 16V12H12V16M12 5V3H15V7"],
+      ["bank-deposit", "Вклад", "M4 9Q5 6 8 6H13L16 9V13L14 15H6L4 13ZM7 6L8 4L10 6M9 8H12M13.5 10H13.7M4 11H2.5M7 15V17M13 15V17"],
+      ["bank-cashback", "Кешбэк", "M5 6H16V13H5ZM5 9H16M3 13Q3 17 7 17H12M9 14L12 17L9 19M8 11H10"],
+      ["bank-qr", "Оплата по QR", "M3 3H8V8H3ZM12 3H17V8H12ZM3 12H8V17H3ZM12 12H14V14H12ZM16 12H17V17H14M12 16V17"],
+      ["bank-wallet", "Кошелёк", "M3.5 6L12 3.5L13 6M3.5 6H16V16H3.5ZM16 9H12Q10.5 9 10.5 11Q10.5 13 12 13H16M13 11H13.15"],
+      ["bank-ruble", "Рублёвый счёт", "M7 16V4H11Q14 4 14 7Q14 10 11 10H5M5 13H12"],
+      ["bank-insurance", "Страхование", "M10 3L16 5.5V10Q16 14 10 17Q4 14 4 10V5.5ZM7 9.5H13M10 6.5V12.5"],
+      ["bank-business", "Банк для бизнеса", "M3 7H17V16H3ZM7 7V4H13V7M3 10.5H17M9 10.5V12H11V10.5"],
+      ["bank-currency", "Обмен валюты", "M4 7H15M12 4L15 7L12 10M16 13H5M8 10L5 13L8 16M5 4H7M13 16H15"],
+    ]],
+    ["Котики и маскоты", [
+      ["cat-face", "Котик", "M4 9V4L8 7H12L16 4V9Q18 12 15.5 15Q10 18 4.5 15Q2 12 4 9ZM7 11H7.15M13 11H13.15M9 13L10 14L11 13M3 12L6 13M17 12L14 13"],
+      ["cat-paw", "Кошачья лапка", "M7 15Q6 13 8 11Q10 9 12 11Q14 13 13 15Q12 17 10 16Q8 17 7 15ZM5 7A1 1.5 0 1 0 5 10A1 1.5 0 0 0 5 7ZM8 4A1 1.5 0 1 0 8 7A1 1.5 0 0 0 8 4ZM12 4A1 1.5 0 1 0 12 7A1 1.5 0 0 0 12 4ZM15 7A1 1.5 0 1 0 15 10A1 1.5 0 0 0 15 7Z"],
+      ["cat-sleep", "Спящий котик", "M3.5 14Q3.5 10 8 9L10 6L12 9Q16 10 16 14ZM7 12Q8 13 9 12M11 12Q12 13 13 12M13 5H17L14 8H18M5 16H15"],
+      ["cat-laptop", "Котик за ноутбуком", "M4 9V5L7 7H11L14 5V9M4 9H16L15 15H5ZM2.5 16.5H17.5M9 12H11"],
+      ["cat-box", "Котик в коробке", "M3 10H17L15 16H5ZM5 9V5L8 7H12L15 5V9M8 9H8.1M12 9H12.1M8 13H12"],
+      ["cat-hero", "Котик-супергерой", "M5 9V4L8 6.5H12L15 4V9Q15 13 10 13Q5 13 5 9ZM6 9L9 10M11 10L14 9M6 12L3 17L10 15L17 17L14 12"],
+      ["cat-coffee", "Котик с кофе", "M4 7V3.5L7 5.5H11L14 3.5V7M4 7V11Q6 13.5 9 13.5M7 9H7.1M11 9H11.1M10 12H16V15L14 17H12L10 15ZM16 13H18V15H16"],
+      ["cat-gift", "Котик с подарком", "M4 7V4L7 6H10L13 4V7Q13 11 8.5 11Q4 11 4 7ZM7 8H7.1M10 8H10.1M10 12H17V17H10ZM13.5 12V17M10 14H17"],
+      ["cat-yarn", "Клубок пряжи", "M10 4A6 6 0 1 0 10 16A6 6 0 0 0 10 4ZM6 5.5L14 14.5M4.5 8L11 15.5M9 4.5L15.5 11.5M15 14Q18 14 17 17H19"],
+      ["cat-fish", "Рыбка для котика", "M3 10Q7 5 12 8L16 5V15L12 12Q7 15 3 10ZM7 9.5H7.1M10 8.5V11.5"],
+      ["mascot-fox", "Лисёнок", "M3 4L8 7H12L17 4L16 12L10 17L4 12ZM4 10L10 14L16 10M7 9H7.1M13 9H13.1M9 14H11"],
+      ["mascot-bear", "Медвежонок", "M5 6A2 2 0 1 1 7 4.7Q10 3 13 4.7A2 2 0 1 1 15 6Q18 9 16 13Q10 19 4 13Q2 9 5 6ZM7 9H7.1M13 9H13.1M8 12Q10 10 12 12Q10 15 8 12Z"],
+      ["mascot-owl", "Совёнок", "M4 4L7 6H13L16 4V12Q16 17 10 17Q4 17 4 12ZM7.5 8A1.5 1.5 0 1 0 7.5 11A1.5 1.5 0 0 0 7.5 8ZM12.5 8A1.5 1.5 0 1 0 12.5 11A1.5 1.5 0 0 0 12.5 8ZM9 12L10 13.5L11 12"],
+      ["mascot-robot", "Робот-помощник", "M4 7H16V15H4ZM10 4V7M10 3H10.1M7 10H7.1M13 10H13.1M8 12.5H12M2 9V13M18 9V13"],
+      ["mascot-hedgehog", "Ёжик", "M3 13L3.5 9L6 9L6 6L9 7L11 4L13 7L16 7L17 10L18.5 12L16 15H5ZM15 11H15.1M7 15V17M13 15V17"],
+      ["mascot-duck", "Утёнок", "M3 12Q5 12 7 10A3 3 0 1 1 13 9L17 10L13 11Q13 16 8 16Q4 16 3 12ZM11 8H11.1M5 17H14"],
+    ]],
+  ];
+  PROCESS_ICONS.concat(WORKFLOW_ICONS, THEME_ICONS).forEach(function (group) {
     var names = group[1].map(function (icon) {
       var name = icon[0];
       ICON_LABELS[name] = icon[1];
@@ -766,12 +840,12 @@
     usage: iconUsage,
     has: function (n) { return Object.prototype.hasOwnProperty.call(ICONS, n); },
     svg: function (name, cls) {
-      return '<svg class="' + (cls || "ui-i") + '" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><use href="#rp-i-' + name + '"/></svg>';
+      return '<svg class="' + (cls || "ui-i") + '" viewBox="0 0 20 20" stroke-width="1.6" aria-hidden="true" focusable="false"><use href="#rp-i-' + name + '"/></svg>';
     },
     sprite: function () {
       return '<svg xmlns="http://www.w3.org/2000/svg" id="rp-icons" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">' +
         Object.keys(ICONS).map(function (k) {
-          return '<symbol id="rp-i-' + k + '" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + ICONS[k] + "</symbol>";
+          return '<symbol id="rp-i-' + k + '" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">' + ICONS[k] + "</symbol>";
         }).join("") + "</svg>";
     },
     inject: function () {
